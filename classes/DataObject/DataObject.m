@@ -221,8 +221,23 @@ classdef DataObject
             obj.dtype = get_dtype(obj);
         end
         
-        function obj = collapse(obj,across)
-            obj.labels = collapse_across(across,obj.labels);
+        %   for a given label_field (e.g., 'sessions'), set all labels for
+        %   that field to <setas>
+        
+        function obj = set_all_in_label_field(obj,field,setas)
+            if ~any(strcmp(obj.label_fields,field))
+                error('Field %s is not present in label_fields',field);
+            end
+            
+            if ~isa(setas,'char');
+                error('The value must be a string');
+            end
+            
+            all_labels = obj.labels;
+            labels_to_set = all_labels.(field);
+            new_labels = repmat({setas},size(labels_to_set));
+            all_labels.(field) = new_labels;
+            obj.labels = all_labels;
         end
         
         function obj = setlabels(obj,replace,replace_with)
@@ -243,27 +258,50 @@ classdef DataObject
         %   return an index of where the data labels = wanted_labels
         
         function [ind,fields] = eq(obj,wanted_labels)
-            if ~isa(wanted_labels,'DataObject')
-                wanted_labels = cell_if_not_cell(obj,wanted_labels);
-                ind = true(size(obj.data,1),1);
-                fields = cell(size(wanted_labels));
-                for i = 1:length(wanted_labels)
-                    matches_label_field = false(length(obj.labels.(obj.label_fields{1})),length(obj.label_fields));
-                    for j = 1:length(obj.label_fields)
-                        matches_label_field(:,j) = strcmp(obj.labels.(obj.label_fields{j}),wanted_labels{i});
-                        if any(sum(matches_label_field(:,j)))
-                            fields(i) = obj.label_fields(j);
-                        end
-                    end
-                    if any(sum(matches_label_field,2) > 1)
-                        error(['The label ''%s'' was found in multiple label' ...
-                            , ' fields -- indexing with ''=='' would be ambiguous.' ...
-                            , ' Use function ''only'' instead'],wanted_labels{i});
-                    end
-                ind = ind & (sum(matches_label_field,2) >= 1);
-                end
-            else
+            
+            %   if wanted_labels is actually another data object, redirect
+            %   to test_object_equality.
+            
+            if isa(wanted_labels,'DataObject')
                 ind = test_object_equality(obj,wanted_labels); fields = -1;
+                return;
+            end
+            
+            %   Otherwise, get an index of the desired data in obj.data
+            
+            wanted_labels = cell_if_not_cell(obj,wanted_labels);
+            ind = true(size(obj.data,1),1);
+            fields = cell(size(wanted_labels));
+            
+            for i = 1:length(wanted_labels)
+                matches_label_field = false(length(obj.labels.(obj.label_fields{1})),length(obj.label_fields));
+                for j = 1:length(obj.label_fields)
+
+                    current_labels = obj.labels.(obj.label_fields{j});
+                    label = wanted_labels{i};
+
+                    %   If string begins with ~*, treat as a wildcard,
+                    %   and search labels for all strings where the
+                    %   pattern matches, **regardless of case**
+                    %   Otherwise, search for the exact string
+
+                    if strncmpi(wanted_labels{i},'~*',2)
+                        label = label(3:end);
+                        matches_label_field(:,j) = cellfun(@(x) ~isempty(strfind(lower(x),label)),current_labels);
+                    else
+                        matches_label_field(:,j) = strcmp(current_labels,label);
+                    end
+
+                    if any(sum(matches_label_field(:,j)))
+                        fields(i) = obj.label_fields(j);
+                    end
+                end
+                if any(sum(matches_label_field,2) > 1)
+                    error(['The label ''%s'' was found in multiple label' ...
+                        , ' fields -- indexing with ''=='' would be ambiguous.' ...
+                        , ' Use function ''only'' instead'],wanted_labels{i});
+                end
+            ind = ind & (sum(matches_label_field,2) >= 1);
             end
         end
         
@@ -280,7 +318,7 @@ classdef DataObject
             end
             obj1_size = size(obj1.data);
             obj2_size = size(obj2.data);
-            if obj1_size ~= obj2_size
+            if any(obj1_size ~= obj2_size)
                 fprintf('size inequality');
                 equiv = false; return;
             end
@@ -386,6 +424,12 @@ classdef DataObject
         function obj = subsasgn(obj,S,vals)
             for i = 1:length(S)
                 if strcmp(S(i).type,'()')
+                    
+                    if isa(S.subs{1},'char') && ~any(strcmp(S.subs,':'))
+                        obj = set_all_in_label_field(obj,S.subs{1},vals);
+                        return;
+                    end
+                    
                     if ~any(strcmp(S.subs,':'))
                         obj.data(S(i).subs{1}) = vals;
                     elseif strcmp(S(i).subs{2},':')
@@ -405,33 +449,43 @@ classdef DataObject
         end
         
         %   -
-        %   Other overloaded matrix manipulation functions
+        %   Other overloaded operators
         %   -
         
-        %   max, min
+        %   less than
         
-        function val = max(obj)
-            val = max(obj.data);
-        end
-        
-        function val = min(obj)
-            val = min(obj.data);
-        end
-        
-        %   transposition
-        
-        function obj = transpose(obj)
-            obj.data = obj.data.';
-            for i = 1:length(obj.label_fields)
-                obj.labels.(obj.label_fields{i}) = ...
-                    obj.labels.(obj.label_fields{i}).';
+        function ind = lt(obj,vals)
+            if isa(vals,'DataObject')
+                vals = vals.data;
             end
+            ind = obj.data < vals;
         end
         
-        %   sum
+        %   less than or equal to
         
-        function vals = sum(obj)
-            vals = sum(obj.data);
+        function ind = le(obj,vals)
+            if isa(vals,'DataObject')
+                vals = vals.data;
+            end
+            ind = obj.data <= vals;
+        end
+        
+        %   greater than
+        
+        function ind = gt(obj,vals)
+            if isa(vals,'DataObject')
+                vals = vals.data;
+            end
+            ind = obj.data > vals;
+        end
+        
+        %   greater than or equal to
+        
+        function ind = ge(obj,vals)
+            if isa(vals,'DataObject')
+                vals = vals.data;
+            end
+            ind = obj.data >= vals;
         end
         
         %   divide
@@ -466,6 +520,36 @@ classdef DataObject
             
             obj = obj.data - subtractor;
             
+        end
+        
+        %   -
+        %   Other overloaded matrix manipulation functions
+        %   -
+        
+        %   max, min
+        
+        function val = max(obj)
+            val = max(obj.data);
+        end
+        
+        function val = min(obj)
+            val = min(obj.data);
+        end
+        
+        %   transposition
+        
+        function obj = transpose(obj)
+            obj.data = obj.data.';
+            for i = 1:length(obj.label_fields)
+                obj.labels.(obj.label_fields{i}) = ...
+                    obj.labels.(obj.label_fields{i}).';
+            end
+        end
+        
+        %   sum
+        
+        function vals = sum(obj)
+            vals = sum(obj.data);
         end
         
         %   concatenation
