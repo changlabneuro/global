@@ -221,34 +221,60 @@ classdef DataObject
             obj.dtype = get_dtype(obj);
         end
         
-        %   for a given label_field (e.g., 'sessions'), set all labels for
+        %   -
+        %   Label handling
+        %   -
+        
+        %   for a given label_field (e.g., 'sessions'), set labels for
         %   that field to <setas>
         
-        function obj = set_all_in_label_field(obj,field,setas)
+        function obj = setlabels(obj,field,setas,index)
+            
+            if ~isa(setas,'char')
+                error('The value-to-be-set must be a string');
+            end
+            
             if ~any(strcmp(obj.label_fields,field))
-                error('Field %s is not present in label_fields',field);
+                error('Desired field %s does not exist',field);
             end
             
-            if ~isa(setas,'char');
-                error('The value must be a string');
+            setas = cell_if_not_cell(obj,setas);
+            
+            if nargin < 4
+                index = true(count(obj,1),1);
             end
             
-            all_labels = obj.labels;
-            labels_to_set = all_labels.(field);
-            new_labels = repmat({setas},size(labels_to_set));
-            all_labels.(field) = new_labels;
-            obj.labels = all_labels;
+            labels = obj.labels;
+            labels.(field)(index) = setas;
+            
+            obj.labels = labels;
         end
         
-        function obj = setlabels(obj,replace,replace_with)
-            replace_with = obj.cell_if_not_cell(replace_with);
-            labs = obj.labels;
-            [ind,field] = obj == replace; %#ok<RHSFN>
-            if ~sum(ind)
-                error('No labels match ''%s''',replace);
+        function obj = addlabelfield(obj,field,labels)
+            if nargin < 3
+                labels = repmat({''},count(obj,1),1);
             end
-            labs.(field{1})(ind) = replace_with;
-            obj.labels = labs;
+            
+            if any(strcmp(field,obj.label_fields))
+                error('The field ''%s'' already exists in the object.', field);
+            end
+            
+            obj.labels.(field) = labels;
+            obj.label_fields{end+1} = field;
+            
+        end
+        
+        %   -
+        %   label helpers
+        %   -
+        
+        function iswithin = islabelfield(obj,field)
+            
+            iswithin = false;
+            
+            if any(strcmp(obj.label_fields,field))
+                iswithin = true; return;
+            end
         end
         
         %   -
@@ -275,10 +301,12 @@ classdef DataObject
             
             for i = 1:length(wanted_labels)
                 matches_label_field = false(length(obj.labels.(obj.label_fields{1})),length(obj.label_fields));
+                
+                label = wanted_labels{i};
+                
                 for j = 1:length(obj.label_fields)
 
                     current_labels = obj.labels.(obj.label_fields{j});
-                    label = wanted_labels{i};
 
                     %   If string begins with ~*, treat as a wildcard,
                     %   and search labels for all strings where the
@@ -288,18 +316,24 @@ classdef DataObject
                     if strncmpi(wanted_labels{i},'~*',2)
                         label = label(3:end);
                         matches_label_field(:,j) = cellfun(@(x) ~isempty(strfind(lower(x),label)),current_labels);
+                        wildcard = true; %%% note
                     else
+                        wildcard = false;
                         matches_label_field(:,j) = strcmp(current_labels,label);
                     end
 
                     if any(sum(matches_label_field(:,j)))
                         fields(i) = obj.label_fields(j);
+                        
+                        if wildcard
+                            break;
+                        end
                     end
                 end
                 if any(sum(matches_label_field,2) > 1)
                     error(['The label ''%s'' was found in multiple label' ...
                         , ' fields -- indexing with ''=='' would be ambiguous.' ...
-                        , ' Use function ''only'' instead'],wanted_labels{i});
+                        , ' Use function ''only'' instead'],label);
                 end
             ind = ind & (sum(matches_label_field,2) >= 1);
             end
@@ -395,8 +429,8 @@ classdef DataObject
                 %   return a field of labels with parenthetical reference
                 
                 if is_parenth_ref && ~strcmp(S(i).subs{1},':') && ischar(S(i).subs{1})
-                    labels = obj.labels;
-                    obj = labels.(S(i).subs{1}); return;
+                    labels = obj.labels; %#ok<PROPLC>
+                    obj = labels.(S(i).subs{1}); return; %#ok<PROPLC>
                 end
                 
                 %   otherwise, return a new data object
@@ -425,10 +459,28 @@ classdef DataObject
             for i = 1:length(S)
                 if strcmp(S(i).type,'()')
                     
+                    %   set labels associated with <field>
+                    
                     if isa(S.subs{1},'char') && ~any(strcmp(S.subs,':'))
-                        obj = set_all_in_label_field(obj,S.subs{1},vals);
-                        return;
+                        
+                        %   if format is: obj('somefield') = 'some string'
+                        
+                        if length(S.subs) == 1
+                            obj = setlabels(obj,S.subs{1},vals);
+                            return;
+                            
+                        %   if format is: obj('somefield',index) = 'some string'
+                        
+                        elseif length(S.subs) == 2
+                            obj = setlabels(obj,S.subs{1},vals,S.subs{2});
+                            return;
+                            
+                        else
+                            error('Unsupported assignment method');
+                        end
                     end
+                    
+                    %   otherwise, set data
                     
                     if ~any(strcmp(S.subs,':'))
                         obj.data(S(i).subs{1}) = vals;
@@ -597,6 +649,68 @@ classdef DataObject
         
         function valid = isempty(obj)
             valid = isempty(obj.data);
+        end
+        
+        function [obj, ind] = truthy(obj)
+            ind = isnan(obj) | isinf(obj.data) | obj.data == 0;
+            obj = index(obj,~ind); 
+        end
+        
+        %   getindices -- Return a cell array of indices for every unique combination of
+        %   unique labels in <fields>. Very useful for avoiding nested
+        %   loops -- instead, you can iterate through the cell array of
+        %   indices returned here. Alternatively, you can prepend '**' to a
+        %   string in <fields>, in which case that single string value
+        %   (rather than all unique values associated with a field) will be
+        %   indexed.
+        
+        %   TODO: it shouldn't be possible to specify a field and also a
+        %   double-starred (**) label which is present in that field. Add an error
+        %   check to prevent this from occurring.
+        
+        function [indices, allcombs] = getindices(obj,fields,show_progress)
+            
+            if nargin < 3
+                show_progress = 'no';
+            end
+            
+            fields = cell_if_not_cell(obj,fields);
+            
+            uniques = cell(size(fields));
+            for k = 1:length(fields)
+                
+                %   if ** is prepended to the search string, it will be
+                %   treated as its own unique value, rather than as a field
+                %   in label_fields
+                
+                if ~strncmpi(fields{k},'**',2)
+                    uniques(k) = {unique(obj.labels.(fields{k}))};
+                else
+                    uniques(k) = {{fields{k}(3:end)}};
+                end
+            end
+            
+            %   get all unique combinations of data labels
+            
+            allcombs = allcomb(uniques);
+            
+            indices = cell(size(allcombs,1),1);
+            empty = true(size(allcombs,1),1);
+            
+            for i = 1:size(allcombs,1)
+                if strcmpi(show_progress,'showprogress')
+                   fprintf('\nProcessing %d of %d',i,size(allcombs,1)); 
+                end
+                
+                index = obj == allcombs(i,:);
+                if sum(index) >= 1
+                    indices(i) = {index};
+                    empty(i) = false;
+                end                
+            end
+            
+            indices(empty) = []; %  remove empty indices
+            allcombs(empty,:) = [];
         end
         
         %   -
