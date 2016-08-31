@@ -407,7 +407,7 @@ classdef DataObject
             if length(obj1.label_fields) ~= length(obj2.label_fields)
                 equiv = false; return;
             end
-            if ~strcmp(obj1.label_fields,obj1.label_fields)
+            if ~strcmp(obj1.label_fields,obj2.label_fields)
                 equiv = false; return;
             end
             for i = 1:length(obj1.label_fields)
