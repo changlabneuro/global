@@ -16,6 +16,7 @@ subfolders = only_folders(rid_super_sub_folder_references(dir(pathstr)));
 
 if isempty(subfolders)
     loaded = load_files(wanted_files);
+    loaded = structconcat(loaded,current_params,'-overwrite');
     return;
 end
 
