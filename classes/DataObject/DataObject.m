@@ -281,11 +281,25 @@ classdef DataObject
         %   equality testing
         %   -
         
-        %   return an index of where the data labels = wanted_labels
+        %   return an index of where the data labels = <wanted_labels>
+        %   
+        %   Optionally specify <search_fields> to limit the scope of the
+        %   search (can speed things significantly if there are many
+        %   <label_fields>. Note that, if <search_fields> are specified,
+        %   the function cannot be called with the '==' operator. Instead,
+        %   you must use the full syntax: [ind, fields] = eq( ... )
         
-        function [ind,fields] = eq(obj,wanted_labels)
+        function [ind,fields] = eq(obj,wanted_labels,search_fields)
             
-            %   if wanted_labels is actually another data object, redirect
+            %   search all fields, unless specific fields are given
+            
+            if nargin < 3
+                search_fields = obj.label_fields;
+            else %  make sure <search_fields> are formatted correctly
+                search_fields = cell_if_not_cell(obj,search_fields);
+            end
+            
+            %   if <wanted_labels> is actually another data object, redirect
             %   to test_object_equality.
             
             if isa(wanted_labels,'DataObject')
@@ -297,16 +311,18 @@ classdef DataObject
             
             wanted_labels = cell_if_not_cell(obj,wanted_labels);
             ind = true(size(obj.data,1),1);
-            fields = cell(size(wanted_labels));
+            fields = cell(size(wanted_labels)); %   for storing which fields
+                                                %   were not empty
+            label_size = length(obj.labels.(search_fields{1}));
             
             for i = 1:length(wanted_labels)
-                matches_label_field = false(length(obj.labels.(obj.label_fields{1})),length(obj.label_fields));
+                matches_label_field = false(label_size,length(search_fields));
                 
                 label = wanted_labels{i};
                 
-                for j = 1:length(obj.label_fields)
+                for j = 1:length(search_fields)
 
-                    current_labels = obj.labels.(obj.label_fields{j});
+                    current_labels = obj.labels.(search_fields{j});
 
                     %   If string begins with ~*, treat as a wildcard,
                     %   and search labels for all strings where the
@@ -323,13 +339,18 @@ classdef DataObject
                     end
 
                     if any(sum(matches_label_field(:,j)))
-                        fields(i) = obj.label_fields(j);
+                        fields(i) = search_fields(j);
                         
                         if wildcard
                             break;
                         end
                     end
                 end
+                
+                %   important check -- make sure that labels were not found
+                %   in more than one <label_field>, in which case the index
+                %   will not be reliable.
+                
                 if any(sum(matches_label_field,2) > 1)
                     error(['The label ''%s'' was found in multiple label' ...
                         , ' fields -- indexing with ''=='' would be ambiguous.' ...
@@ -656,20 +677,22 @@ classdef DataObject
             obj = index(obj,~ind); 
         end
         
-        %   getindices -- Return a cell array of indices for every unique combination of
-        %   unique labels in <fields>. Very useful for avoiding nested
-        %   loops -- instead, you can iterate through the cell array of
-        %   indices returned here. Alternatively, you can prepend '**' to a
-        %   string in <fields>, in which case that single string value
-        %   (rather than all unique values associated with a field) will be
-        %   indexed.
+        %   getindices.m -- returns <indices> of all the unique combinations of unique
+        %   labels in the categories of <fields>. <allcombs> indicates the 
+        %   combination of labels used to construct each index.
+        
+        %   Very useful for avoiding nested loops -- instead, you can iterate through 
+        %   the cell array of indices returned here. Alternatively, you can 
+        %   prepend '**' to a string in <fields>, in which case that single
+        %   string value (rather than all unique values associated with a 
+        %   field) will be indexed.
         
         %   TODO: it shouldn't be possible to specify a field and also a
         %   double-starred (**) label which is present in that field. Add an error
         %   check to prevent this from occurring.
         
         function [indices, allcombs] = getindices(obj,fields,show_progress)
-            
+            tic;
             if nargin < 3
                 show_progress = 'no';
             end
@@ -687,6 +710,11 @@ classdef DataObject
                     uniques(k) = {unique(obj.labels.(fields{k}))};
                 else
                     uniques(k) = {{fields{k}(3:end)}};
+                    
+                    %   find out which field 
+                    
+                    [~, field] = obj == uniques{k}; %#ok<RHSFN>
+                    fields{k} = field{1};
                 end
             end
             
@@ -701,8 +729,8 @@ classdef DataObject
                 if strcmpi(show_progress,'showprogress')
                    fprintf('\nProcessing %d of %d',i,size(allcombs,1)); 
                 end
-                
-                index = obj == allcombs(i,:);
+%                 index = obj == allcombs(i,:);
+                index = eq(obj,allcombs(i,:),fields);
                 if sum(index) >= 1
                     indices(i) = {index};
                     empty(i) = false;
@@ -711,6 +739,8 @@ classdef DataObject
             
             indices(empty) = []; %  remove empty indices
             allcombs(empty,:) = [];
+            
+            toc;
         end
         
         %   -
