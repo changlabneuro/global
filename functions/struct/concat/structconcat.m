@@ -1,3 +1,10 @@
+%{
+    structconcat.m -- function for combining the fields of multiple
+    structures into a single output structure <out>. By default, attempting
+    to combine multiple structures with the same fieldname(s) is an
+    error; add '-overwrite' as an input to bypass this.
+%}
+
 function out = structconcat(varargin)
 
 flag = strcmp(varargin,'-overwrite');

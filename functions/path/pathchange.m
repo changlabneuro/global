@@ -1,3 +1,12 @@
+%{
+    
+    pathchange.m -- function for switching the internal reference to
+    'paths.mat'. <name> is expected to be the fieldname of a path defined
+    in 'global_paths.mat', and the associated path must have a 'paths'
+    subdirectory, with a 'paths.mat' file within.
+
+%}
+
 function pathchange(name)
 
 persistent oldname;
