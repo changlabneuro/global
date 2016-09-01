@@ -192,6 +192,7 @@ classdef DataObject
         dtype;
         meta = struct(...
             'author',   'Nick Fagan', ...
+            'email',    'fagan.nicholas@gmail.com', ...
             'version',  VersionObject(...
                 'release',  0,...
                 'revision', 1 ...
@@ -201,6 +202,11 @@ classdef DataObject
     
     methods
         function obj = DataObject(data_struct)
+            
+            if isa(data_struct,'DataObject')
+                data_struct = obj2struct(data_struct);
+            end
+            
             obj.validate(data_struct);
             obj.data = data_struct.data;
             obj.labels = data_struct.labels;
@@ -241,7 +247,7 @@ classdef DataObject
                 error('The value-to-be-set must be a string');
             end
             
-            if ~any(strcmp(obj.label_fields,field))
+            if ~islabelfield(obj,field)
                 error('Desired field %s does not exist',field);
             end
             
@@ -331,13 +337,13 @@ classdef DataObject
 
                     current_labels = obj.labels.(search_fields{j});
 
-                    %   If string begins with ~*, treat as a wildcard,
+                    %   If string begins with *, treat as a wildcard,
                     %   and search labels for all strings where the
                     %   pattern matches, **regardless of case**
                     %   Otherwise, search for the exact string
 
-                    if strncmpi(wanted_labels{i},'~*',2)
-                        label = label(3:end);
+                    if strncmpi(wanted_labels{i},'*',1)
+                        label = label(2:end);
                         matches_label_field(:,j) = cellfun(@(x) ~isempty(strfind(lower(x),label)),current_labels);
                         wildcard = true; %%% note
                     else
