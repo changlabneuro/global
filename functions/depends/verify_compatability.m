@@ -5,10 +5,22 @@
 
 %}
 
-function verify_compatability(obj)
+function verify_compatability(varargin)
 
 depends = load(fullfile(pathfor('global'),'dependencies','depends.mat'));
 depends = depends.depends;
+
+for i = 1:length(varargin)
+    obj = varargin{i};
+    
+    verify(obj,depends);
+end
+
+end
+
+%   actual verification
+
+function verify(obj, depends)
 
 type = class(obj);
 
