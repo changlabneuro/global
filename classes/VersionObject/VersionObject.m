@@ -1,3 +1,13 @@
+%{
+
+    VersionObject.m -- stores an another object's version information.
+    Mainly defined such that operators can be used to compare required and
+    given versions: 
+    
+    obj1.version > obj2.version -> bool
+
+%}
+
 classdef VersionObject
     
     properties (Access = public)
@@ -15,7 +25,7 @@ classdef VersionObject
                 'revision', [] ...
             );
             
-            params = structInpParse(params,varargin);
+            params = parsestruct(params,varargin);
             
             obj.release = params.release;
             obj.revision = params.revision;

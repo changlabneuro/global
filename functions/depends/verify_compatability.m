@@ -1,6 +1,7 @@
 %{
 
-    verify_compatability.m -- function for ensuring that 
+    verify_compatability.m -- function for ensuring that an object is
+    compatible with the function / software using it.
 
 %}
 
