@@ -243,24 +243,37 @@ classdef DataObject
         
         function obj = setlabels(obj,field,setas,index)
             
-            if ~isa(setas,'char')
-                error('The value-to-be-set must be a string');
+            if iscell(setas)
+                if (length(setas) > 1 && length(setas) ~= sum(index))
+                    error('Dimension mismatch in subscript assignment');
+                end
+                
+            elseif isa(setas,'char')
+                setas = {setas};
+                
+            else
+                error(['Using this assignment format, the to-be-assigned value(s)' ...
+                    , ' must either be a string, or a cell array']);
             end
-            
+
             if ~islabelfield(obj,field)
                 error('Desired field %s does not exist',field);
             end
             
-            setas = cell_if_not_cell(obj,setas);
-            
             if nargin < 4
-                index = true(count(obj,1),1);
+                if length(setas) == 1
+                    index = true(count(obj,1),1);
+                    
+                else
+                    error(['You must supply an index to assign values, unless you' ...
+                        , ' are assigning all labels in a field to a single value']);
+                end
             end
             
-            labels = obj.labels;
-            labels.(field)(index) = setas;
+            labels = obj.labels;            %#ok<PROPLC>
+            labels.(field)(index) = setas;  %#ok<PROPLC>
             
-            obj.labels = labels;
+            obj.labels = labels;            %#ok<PROPLC>
         end
         
         function obj = addlabelfield(obj,field,labels)
@@ -504,6 +517,8 @@ classdef DataObject
                             return;
                             
                         %   if format is: obj('somefield',index) = 'some string'
+                        %   OR obj('somefield',index) = {'1st string', 2nd
+                        %   string', '...'} 
                         
                         elseif length(S.subs) == 2
                             obj = setlabels(obj,S.subs{1},vals,S.subs{2});
