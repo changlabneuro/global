@@ -201,7 +201,17 @@ classdef DataObject
     end
     
     methods
-        function obj = DataObject(data_struct)
+        function obj = DataObject(varargin)
+            
+            if nargin == 1
+                data_struct = varargin{1};
+            elseif nargin == 2
+                data_struct = struct();
+                data_struct.data = varargin{1}; 
+                data_struct.labels = varargin{2};
+            else
+                error('Wrong number of inputs');
+            end
             
             if isa(data_struct,'DataObject')
                 data_struct = obj2struct(data_struct);
@@ -288,6 +298,47 @@ classdef DataObject
             obj.labels.(field) = labels;
             obj.label_fields{end+1} = field;
             
+        end
+        
+        %   create a new label structure using the given <obj>'s label
+        %   structure as a template.
+        
+        function labelstruct = labelbuilder(obj,combinations)
+            if ~iscell(combinations)
+                error('Combinations must be a cell array');
+            end
+            
+            store_fields = cell(size(combinations));
+            
+            labelstruct = struct(); 
+            obj_labels = obj.labels;
+            
+            for i = 1:length(combinations)
+                [~, field] = obj == combinations{i};
+                if ~iscell(field)
+                    error('Could not find label ''%s''', combinations{i});
+                end
+                
+                field = char(field);
+                
+                if i > 1
+                    if any(strcmp(store_fields,field))
+                        error(['Attempting to build a label structure with multiple' ...
+                            , ' labels from the same category is an error']);
+                    end
+                end
+                
+                store_fields{i} = field;
+                
+                labels = unique(obj_labels.(field));
+                
+                if length(labels) > 1
+                    fprintf(['\n\nWarning: there were multiple unique labels associated' ...
+                        , ' with field ''%s'''],field);
+                end
+                
+                labelstruct.(field) = combinations(i);
+            end
         end
         
         %   -
