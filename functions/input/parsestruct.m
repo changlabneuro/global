@@ -1,7 +1,7 @@
 %{
     parsestruct.m -- function for parsing name-value pairs from function
     input. Taken from a stack-exchange thread I can no longer find 
-    ¯\_(?)_/¯
+    ¯\_(?)_/¯.
 %}
 
 function params = parsestruct(params,args)

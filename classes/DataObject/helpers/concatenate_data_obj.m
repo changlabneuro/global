@@ -1,6 +1,17 @@
+%{
+    concatenate_data_obj.m -- function for vertical concatenating
+    an arbitrary number of data objects. Objects must match in the 2nd
+    dimension and have the same <label_fields>. Empty objects are ignored /
+    deleted
+%}
+
 function concatenated = concatenate_data_obj(varargin)
 
-validate(varargin);
+varargin = validate(varargin);
+
+if isempty(varargin)
+    concatenated = DataObject(); return;
+end
 
 concatenated = struct();
 concatenated.data = [];
@@ -23,21 +34,27 @@ end
 
 end
 
-function validate(objs)
+function objs = validate(objs)
+
+    first_validation = true;
+
+    keep = true(1,length(objs));
 
     if length(objs) == 1
         error('Specify at least two objs to concatenate');
     end
     
     for i = 1:length(objs)
-        if i == 1
-            store_labels = fieldnames(objs{i}.labels);
-            store_size = size(objs{i}.data);
-            continue;
-        end
         
         if isempty(objs{i})
-            continue;   %   allow concatenation of empty objects
+            keep(i) = false; continue;   %   allow concatenation of empty objects
+        end
+        
+        if first_validation
+            store_labels = fieldnames(objs{i}.labels);
+            store_size = size(objs{i}.data);
+            first_validation = false;
+            continue;
         end
         
         %   validate data
@@ -62,5 +79,7 @@ function validate(objs)
         store_labels = data_labels;
         
     end
+    
+    objs = objs(keep);
     
 end

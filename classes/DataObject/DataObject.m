@@ -203,7 +203,10 @@ classdef DataObject
     methods
         function obj = DataObject(varargin)
             
-            if nargin == 1
+            if nargin == 0
+                data_struct.data = [];
+                data_struct.labels = struct(); data_struct.labels.empty = '';
+            elseif nargin == 1
                 data_struct = varargin{1};
             elseif nargin == 2
                 data_struct = struct();
