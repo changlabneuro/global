@@ -303,6 +303,19 @@ classdef DataObject
             
         end
         
+        function obj = rmlabelfield(obj,field)
+            
+            if ~islabelfield(obj,field)
+                error('The field ''%s'' is not in the object',field)
+            end
+            
+            obj.labels.(field) = [];
+            
+            matches_field = strcmp(obj.label_fields,field);
+            obj.label_fields(matches_field) = [];
+            
+        end
+        
         %   create a new label structure using the given <obj>'s label
         %   structure as a template.
         
@@ -400,21 +413,27 @@ classdef DataObject
                 
                 label = wanted_labels{i};
                 
+                %   If string begins with *, treat as a wildcard,
+                %   and search labels for all strings where the
+                %   pattern matches, **regardless of case**
+                %   Otherwise, search for the exact string
+                
+                wildcard = false;
+
+                if strncmpi(wanted_labels{i},'*',1)
+                    label = label(2:end);
+                    wildcard = true; %%% note
+                end
+                
                 for j = 1:length(search_fields)
 
                     current_labels = obj.labels.(search_fields{j});
+                    
+                    %   cellfun method if <wildcard>
 
-                    %   If string begins with *, treat as a wildcard,
-                    %   and search labels for all strings where the
-                    %   pattern matches, **regardless of case**
-                    %   Otherwise, search for the exact string
-
-                    if strncmpi(wanted_labels{i},'*',1)
-                        label = label(2:end);
+                    if wildcard
                         matches_label_field(:,j) = cellfun(@(x) ~isempty(strfind(lower(x),label)),current_labels);
-                        wildcard = true; %%% note
                     else
-                        wildcard = false;
                         matches_label_field(:,j) = strcmp(current_labels,label);
                     end
 
@@ -646,20 +665,47 @@ classdef DataObject
         %   divide
         
         function obj = rdivide(obj,divisor)
-            cell_divide_error(obj); 
-            if isa(divisor,'DataObject');
-                divisor = divisor.data;
-                cell_divide_error(divisor);
-            end
-            obj.data = obj.data ./ divisor;
             
-            %   if dtype is cell, cannot divide
-            
-            function cell_divide_error(a)
-                if strcmp(a.dtype,'cell')
-                    error('Cannot divide with cell-array data');
+            if ~strcmp(obj.dtype,'cell')
+                if isa(divisor,'DataObject');
+                    divisor = divisor.data;
                 end
+                obj.data = obj.data ./ divisor; return;
             end
+            
+            if strcmp(obj.dtype,'cell')
+                
+                msg = 'Can only divide cell DataObjects by other cell DataObjects';
+                
+                if ~isa(divisor,'DataObject')
+                    error(msg);
+                end
+                
+                if ~strcmp(divisor.dtype,'cell')
+                    error(msg);
+                end
+                
+                if ~labeleq(obj,divisor)
+                    error('Labels don''t match between numerator and divisor');
+                end
+                
+                if dimensions(obj) ~= dimensions(divisor)
+                    error('Dimension mismatch between numerator and divisor');
+                end
+                
+                num = obj.data;
+                div = divisor.data;
+                
+                for i = 1:count(obj,1)
+                    for k = 1:count(obj,2)
+                        num{i,k} = num{i,k} ./ div{i,k};
+                    end
+                end
+            
+            obj.data = num; return;
+            
+            end
+            
         end
         
         %   subtraction
@@ -669,11 +715,30 @@ classdef DataObject
                 if ~labeleq(obj,subtractor)
                     error('Labels must be equivalent between objects');
                 end
-                obj.data = obj.data - subtractor.data;
-                return;
+                
+                if strcmp(obj.dtype,'double')
+                    obj.data = obj.data - subtractor.data; return;
+                end
+                
+                if dimensions(obj) ~= dimensions(subtractor)
+                    error(['When subtracting cell arrays,' ...
+                        , ' dimensions must be the same']);
+                end
+                
+                if strcmp(obj.dtype,'cell')
+                    tosub = obj.data; subtractor = subtractor.data;
+                    
+                    for i = 1:count(obj,1)
+                        for k = 1:count(obj,2)
+                            tosub{i,k} = tosub{i,k} - subtractor{i,k};
+                        end
+                    end
+                    
+                    obj.data = tosub; return;
+                end
             end
             
-            obj = obj.data - subtractor;
+            obj = obj.data - subtractor; %  obj is no longer a dataobject
             
         end
         
@@ -720,6 +785,12 @@ classdef DataObject
                 tot = max(size(obj.data));
             else tot = size(obj.data,dim);
             end
+        end
+        
+        %   data dimensions
+        
+        function dim = dimensions(obj)
+            dim(1) = count(obj,1); dim(2) = count(obj,2);
         end
         
         %   -
