@@ -309,10 +309,16 @@ classdef DataObject
                 error('The field ''%s'' is not in the object',field)
             end
             
-            obj.labels.(field) = [];
-            
             matches_field = strcmp(obj.label_fields,field);
             obj.label_fields(matches_field) = [];
+            
+            labs = struct();
+            
+            for i = 1:length(obj.label_fields)
+                labs.(obj.label_fields{i}) = obj.labels.(obj.label_fields{i});
+            end
+            
+            obj.labels = labs;
             
         end
         
