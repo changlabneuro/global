@@ -1,4 +1,4 @@
-function matches = LabelObject__eq(obj,values,varargin)
+function [matches, store_fields] = LabelObject__eq(obj,values,varargin)
 
 %{
     test object equality of values is a LabelObject
@@ -33,6 +33,7 @@ labels = obj.labels;
 
 nterms = length(values);
 nfields = length(fields);
+store_fields = cell(1,nterms); %    for storing which fields were found
 
 all_eq = false(1,nterms);
 
@@ -67,9 +68,23 @@ for i = 1:nterms
     end
     
     all_eq(i) = sum(is_eq);
+    
+    if nargout > 1
+        if sum(is_eq)
+            store_fields(i) = fields(is_eq);
+        else store_fields{i} = -1;
+        end
+    end
      
 end
 
 matches = sum(all_eq) == nterms;
+
+if nargout > 1
+    empty = cellfun('isempty',store_fields); store_fields(empty) = [];
+    if isempty(store_fields)
+        store_fields = {};
+    end
+end
 
 end

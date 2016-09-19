@@ -92,20 +92,17 @@ classdef LabelObject
         %   another LabelObject, LabelObject__eq returns whether all labels
         %   present in <obj> are also present in <values>
         
-        function is_eq = eq(obj,values,varargin)
-            is_eq = LabelObject__eq(obj,values,varargin{:});
-            
+        function [is_eq, field] = eq(obj,values,varargin)
+            [is_eq, field] = LabelObject__eq(obj,values,varargin{:}); 
         end
         
-        function not_eq = ne(obj,values,varargin)
-            not_eq = ~eq(obj,values,varargin{:});
+        function [not_eq, field] = ne(obj,values,varargin)
+            [not_eq, field] = ~eq(obj,values,varargin{:});
         end
         
         %{
             field handling
         %}
-        
-        %   - add field
         
         function obj = addfield(obj,fields)
             obj = LabelObject__addfield(obj,fields);
@@ -113,6 +110,10 @@ classdef LabelObject
         
         function obj = rmfield(obj,fields)
             obj = LabelObject__rmfield(obj,fields);
+        end
+        
+        function obj = replace(obj,x,with)
+            obj= LabelObject__replace(obj,x,with);
         end
         
         %{
@@ -130,7 +131,6 @@ classdef LabelObject
         function bool = islabelfield(obj,field)
             assert(ischar(field),ErrorObject.errors.inputIsNotString);
             bool = any(strcmp(obj.fields,field));
-%             bool = strcmp(obj.fields,field);
         end
         
         

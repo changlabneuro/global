@@ -63,6 +63,10 @@ classdef DataArrayObject
             obj = DataArrayObject__setfield(obj,field,setas,varargin{:});
         end
         
+        function obj = replace(obj,searchfor,with)
+            obj = DataArrayObject__replace(obj,searchfor,with);
+        end
+        
         %{
             data handling
         %}
