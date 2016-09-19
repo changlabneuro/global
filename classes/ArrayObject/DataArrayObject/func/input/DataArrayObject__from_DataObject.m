@@ -1,14 +1,11 @@
-function array = DataArrayObject__from_DataObject(obj,array,stp)
+function array = DataArrayObject__from_DataObject(obj)
 
-if nargin < 2
-    array = cell(1,count(obj,1)); stp = 1;
-    assert(isa(obj,'DataObject'),ErrorObject.errors.inputIsNotDataObject);
-end
+array = cell(1,count(obj,1));
+assert(isa(obj,'DataObject'),ErrorObject.errors.inputIsNotDataObject);
 
-if isempty(obj)
-    empty = cellfun('isempty',array); array(empty) = []; 
-    array = DataArrayObject(array{:}); return;
-end
+stp = 1;
+
+for k = 1:count(obj,1)
 
 fprintf('\n%d',count(obj,1));
 
@@ -28,7 +25,15 @@ array{stp} = DataPointObject(all.data,format(all.labels)); stp = stp + 1;
 
 obj = obj(~index);
 
-array = DataArrayObject__from_DataObject(obj,array,stp);
+if isempty(obj)
+    break;
+end
+
+end
+
+empty = cellfun('isempty',array); array(empty) = []; 
+
+array = DataArrayObject(array{:});
 
 end
 
