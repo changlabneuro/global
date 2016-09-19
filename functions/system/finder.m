@@ -7,6 +7,10 @@
 
 function finder(varargin)
 
+if ispc
+    error('finder only works on mac for now');
+end
+
 params = struct(...
     'function','open', ...
     'open','.' ...
