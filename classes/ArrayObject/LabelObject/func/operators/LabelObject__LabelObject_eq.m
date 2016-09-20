@@ -29,7 +29,4 @@ if strcmp(varargin,'returnWhenFinished')
 end
 
 is_eq = LabelObject__LabelObject_eq(b,a,'returnWhenFinished');
-
-
-
 end

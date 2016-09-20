@@ -5,7 +5,7 @@ function [matches, store_fields] = LabelObject__eq(obj,values,varargin)
 %}
 
 if isa(values,'LabelObject')
-    matches = LabelObject__LabelObject_eq(obj,values); return;
+    matches = LabelObject__LabelObject_eq(obj,values); store_fields = {}; return;
 end
 
 %{

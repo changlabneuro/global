@@ -23,11 +23,11 @@ classdef LabelObject
             fields = fieldnames(s);
             
             for i = 1:length(fields)
-                labels.(fields{i}) = s.(fields{i});
+                labels.(fields{i}) = unique(s.(fields{i}));
             end
             
             obj.labels = labels;
-            obj.fields = fields; 
+            obj.fields = fields;
         end
         
         %{
@@ -96,8 +96,8 @@ classdef LabelObject
             [is_eq, field] = LabelObject__eq(obj,values,varargin{:}); 
         end
         
-        function [not_eq, field] = ne(obj,values,varargin)
-            [not_eq, field] = ~eq(obj,values,varargin{:});
+        function [is_eq, field] = ne(obj,values,varargin)
+            [is_eq, field] = eq(obj,values,varargin{:}); is_eq = ~is_eq;
         end
         
         %{
@@ -112,8 +112,8 @@ classdef LabelObject
             obj = LabelObject__rmfield(obj,fields);
         end
         
-        function obj = replace(obj,x,with)
-            obj= LabelObject__replace(obj,x,with);
+        function [obj, found] = replace(obj,x,with,varargin)
+            [obj, found] = LabelObject__replace(obj,x,with,varargin{:});
         end
         
         %{
@@ -145,6 +145,15 @@ classdef LabelObject
         function validate_initial_input(s)
             if ~isstruct(s)
                 error(ErrorObject.errors.inputIsNotStruct);
+            end
+            
+            fields = fieldnames(s);
+            
+            %   ensure each field is a cell array of strings
+            
+            for i = 1:length(fields)
+                assert(iscellstr(s.(fields{i})),...
+                    ErrorObject.errors.inputIsNotCellString);
             end
         end
         

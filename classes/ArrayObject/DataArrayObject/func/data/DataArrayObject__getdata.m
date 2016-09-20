@@ -34,10 +34,9 @@ rows = unique(sizes(1,:));
 cols = unique(sizes(2,:));
 
 if length(rows) == 1 && length(cols) > 1
-%     method = 'column-wise';
     error('Column-wise concatenation is currently unsupported');
-elseif length(rows) > 1 && length(cols) == 1
-    method = 'row-wise'; rows = sum(sizes(1,:)); use_size = sizes(1,:);
+elseif length(rows) > 1 && length(cols) == 1 || count(obj) == 1
+    rows = sum(sizes(1,:)); use_size = sizes(1,:);
 else
     error('The data in the DataArrayObject differ along more than one dimension');
 end
