@@ -61,7 +61,7 @@ for k = 1:numel(labs)
     %   usually, just replace the label wholesale.
     
     if strcmp(params.method,'complete')
-        labs{k} = current; continue;
+        labs{k} = with; continue;
     end
     
     %   alternatively, can replace part of the label if method = 'partial'
