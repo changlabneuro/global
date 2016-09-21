@@ -77,6 +77,7 @@ for k = 1:numel(labs)
         else
             error('Cannot currently replace strings in the middle of labels');
         end
+        continue;
     end
     
     error('Invalid method ''%s''. Options are ''complete'' or ''partial''', ...
