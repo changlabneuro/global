@@ -1,15 +1,37 @@
 function [obj, found] = LabelObject__replace(obj,searchfor,with,varargin)
 
+searchfor = LabelObject.make_cell(searchfor);
+
+%   <searchfor> must be a cell array of strings, and <with> must be a string
+
+assert(iscellstr(searchfor),ErrorObject.errors.inputIsNotCellString);
+assert(ischar(with),ErrorObject.errors.inputIsNotString);
+
+copy = obj;
+found = false(size(searchfor));
+
+for i = 1:numel(searchfor)
+    [copy, found(i)] = internal__replace(copy,searchfor{i},with,varargin{:});
+end
+
+%   if we could find and replace all the search terms, return the replaced
+%   object and found = true; otherwise, return the original object
+
+found = all(found);
+
+if found
+    obj = copy;
+end
+
+end
+
+function [obj, found] = internal__replace(obj,searchfor,with,varargin)
+
 params = struct(...
     'method','complete' ...
 );
 
 params = parsestruct(params,varargin);
-
-%   searchfor and with must be strings
-
-assert(ischar(searchfor),ErrorObject.errors.inputIsNotString);
-assert(ischar(with),ErrorObject.errors.inputIsNotString);
 
 %   right now, can only replace values present in one field
 

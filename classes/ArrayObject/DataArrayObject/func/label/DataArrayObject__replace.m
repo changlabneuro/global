@@ -1,5 +1,15 @@
 function obj = DataArrayObject__replace(obj,searchfor,with,varargin)
 
+searchfor = LabelObject.make_cell(searchfor);
+
+for i = 1:numel(searchfor)
+    obj = internal__replace(obj,searchfor{i},with,varargin{:});
+end
+
+end
+
+function obj = internal__replace(obj,searchfor,with,varargin)
+
 points = obj.DataPoints;
 
 found = zeros(size(points));
