@@ -39,6 +39,11 @@ switch a.dtype
         
     case 'cell'
         for i = 1:numel(a_data)
+            
+            if ~all(size(a_data{i}) == size(b_data{i}))
+                is_eq = false; return;
+            end
+            
             is_eq = matrix_equality(a_data{i} == b_data{i}); return;
         end
 end
