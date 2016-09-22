@@ -40,6 +40,9 @@ classdef DataArrayObject
         end
         
         function fields = allfields(obj)
+            if obj.consistent_labels
+                fields = obj.DataPoints{1}.labels.fields; return;
+            end
             fields = fieldnames(uniques(obj));
         end
         
@@ -242,6 +245,14 @@ classdef DataArrayObject
             DataArrayObject__disp(obj);
         end
         
+        %{
+            conversion
+        %}
+        
+        function obj = array2obj(obj)
+            obj = DataArrayObject__array2obj(obj);
+        end
+        
     end
     
     methods (Static)
@@ -256,7 +267,7 @@ classdef DataArrayObject
         end
         
         %{
-            creation
+            creation / conversion
         %}
         
         function obj = from(data_obj,varargin)

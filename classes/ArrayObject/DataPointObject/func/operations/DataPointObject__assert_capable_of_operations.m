@@ -3,7 +3,7 @@ function DataPointObject__assert_capable_of_operations(obj,varargin)
 values = varargin{1};
 
 switch class(values)
-    case 'DataPointObject'
+    case {'DataPointObject','SignalPoint'}
         assert(obj.labels == values.labels, ErrorObject.errors.inconsistentLabels);
         
         assert(~any(dimensions(obj) ~= dimensions(values)),...

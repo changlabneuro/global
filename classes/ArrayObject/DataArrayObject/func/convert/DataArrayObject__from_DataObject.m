@@ -1,7 +1,7 @@
 function array = DataArrayObject__from_DataObject(obj)
 
-array = cell(1,count(obj,1));
 assert(isa(obj,'DataObject'),ErrorObject.errors.inputIsNotDataObject);
+array = cell(1,count(obj,1));
 
 stp = 1;
 

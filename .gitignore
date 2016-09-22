@@ -1,4 +1,5 @@
 .DS_store
 *.m~
+*.asv
 paths/
 playground/
