@@ -22,8 +22,7 @@ classdef DataArrayObject
     methods
         
         function obj = DataArrayObject(varargin)
-            DataArrayObject.validate_initial_input(varargin{:});
-            obj.DataPoints = varargin;
+            obj.DataPoints = DataArrayObject.input_analyzer(varargin{:});
             obj = determine_consistency(obj);
         end
         
@@ -257,13 +256,8 @@ classdef DataArrayObject
     
     methods (Static)
         
-        function validate_initial_input(varargin)
-            for i = 1:length(varargin)
-                current_input = varargin{i};
-                
-                assert(isa(current_input,'DataPointObject'),...
-                    ErrorObject.errors.inputIsNotDataPointObject);
-            end
+        function points = input_analyzer(varargin)
+            points = DataArrayObject__input_analyzer(varargin{:});
         end
         
         %{
