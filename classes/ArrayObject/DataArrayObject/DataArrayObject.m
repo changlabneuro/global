@@ -133,6 +133,10 @@ classdef DataArrayObject
             DataArrayObject__assert_capable_of_operations(obj,varargin{:})
         end
         
+        function obj = foreach(obj,varargin)
+            obj = DataArrayObject__foreach(obj,varargin{:});
+        end
+        
         %{
             reference, assignment, indexing
         %}

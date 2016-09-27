@@ -1,5 +1,9 @@
 function DataArrayObject__disp(obj,varargin)
 
+if isempty(obj)
+    fprintf('\nEMPTY\n\n'); return;
+end
+
 thresh = 20;
 
 if any(strcmp(varargin,'-v'))
