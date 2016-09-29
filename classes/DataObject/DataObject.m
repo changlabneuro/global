@@ -289,21 +289,31 @@ classdef DataObject
             obj.labels = labels;            %#ok<PROPLC>
         end
         
-        function obj = addlabelfield(obj,field,labels)
-            if nargin < 3
-                labels = repmat({''},count(obj,1),1);
+        %   - add any number of fields to the object
+        
+        function obj = addfield(obj,fields)
+            fields = cell_if_not_cell(obj,fields);
+            
+            for i = 1:numel(fields)
+                field = fields{i};
+                add_one_field();
             end
             
-            if any(strcmp(field,obj.label_fields))
-                error('The field ''%s'' already exists in the object.', field);
+            function add_one_field()
+                labels = repmat({''},count(obj,1),1); %#ok<PROPLC>
+
+                if any(strcmp(field,obj.label_fields))
+                    error('The field ''%s'' already exists in the object.', field);
+                end
+
+                obj.labels.(field) = labels; %#ok<PROPLC>
+                obj.label_fields{end+1} = field;
             end
-            
-            obj.labels.(field) = labels;
-            obj.label_fields{end+1} = field;
-            
         end
         
-        function obj = rmlabelfield(obj,field)
+        %   - remove fields one at a time
+        
+        function obj = rmfield(obj,field)
             
             if ~islabelfield(obj,field)
                 error('The field ''%s'' is not in the object',field)
@@ -319,7 +329,6 @@ classdef DataObject
             end
             
             obj.labels = labs;
-            
         end
         
         %   create a new label structure using the given <obj>'s label
