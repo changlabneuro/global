@@ -331,6 +331,37 @@ classdef DataObject
             obj.labels = labs;
         end
         
+        %   replace elements that equal <values> with <with>
+        
+        function obj = replace(obj, values, with)
+            values = cell_if_not_cell(obj, values);
+            
+            assert(iscellstr(values), 'Labels must be a cell array of strings');
+            assert(ischar(with), 'Must replace <x> with a string');
+            
+            labels = obj.labels; %#ok<PROPLC>
+            
+            replacements = 0;
+            
+            for i = 1:numel(values)
+                [ind, field] = obj == values{i};
+                
+                if ~any(ind); fprintf('\nCouln''t find %s\n', values{i}); continue; end;
+                
+                current = labels.(field{1}); %#ok<PROPLC>
+                
+                current(ind) = {with};
+                
+                labels.(field{1}) = current; %#ok<PROPLC>
+                
+                replacements = replacements + sum(ind);
+            end
+            
+            fprintf('\nMade %d replacements\n', replacements);
+            
+            obj.labels = labels; %#ok<PROPLC>
+        end
+        
         %   remove elements that equal <label>
         
         function obj = remove(obj, labels)
