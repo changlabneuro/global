@@ -69,6 +69,14 @@ classdef DataArrayObject
             obj = DataArrayObject__replace(obj,searchfor,with,varargin{:});
         end
         
+        function obj = remove(obj, labels)
+            obj = DataArrayObject__remove(obj, labels);
+        end
+        
+        function obj = lower(obj)
+            obj = DataArrayObject__lower(obj);
+        end
+        
         %{
             data handling
         %}

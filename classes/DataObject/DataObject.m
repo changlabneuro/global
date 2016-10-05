@@ -331,6 +331,22 @@ classdef DataObject
             obj.labels = labs;
         end
         
+        %   remove elements that equal <label>
+        
+        function obj = remove(obj, labels)
+            labels = cell_if_not_cell(obj, labels);
+            
+            assert(iscellstr(labels), 'Labels must be a cell array of strings');
+            
+            ind = false(count(obj,1),1);
+            
+            for i = 1:numel(labels)
+                ind = ind | obj == labels{i};
+            end
+            
+            obj = index(obj, ~ind);
+        end
+        
         %   create a new label structure using the given <obj>'s label
         %   structure as a template.
         

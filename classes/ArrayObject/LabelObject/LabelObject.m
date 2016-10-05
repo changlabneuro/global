@@ -116,6 +116,12 @@ classdef LabelObject
             [obj, found] = LabelObject__replace(obj,x,with,varargin{:});
         end
         
+        %   - get lowercase labels
+        
+        function obj = lower(obj)
+            obj = LabelObject__lower(obj);
+        end
+        
         %{
             print
         %}
