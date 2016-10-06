@@ -227,13 +227,7 @@ classdef DataObject
             obj.dtype = get_dtype(obj);
         end
         
-        %   old way of selecting specific labels -- use if the label
-        %   you're trying to select could be in multiple label fields
-        
-        function [obj,ind] = only(obj,varargin)
-            [separated,ind] = separate_data_obj(obj,varargin{:});
-            obj = DataObject(separated);
-        end
+        %   function used in subsref to index the object
         
         function obj = index(obj,ind)
 %             obj = DataObject(index_obj(obj2struct(obj),ind));
@@ -252,14 +246,24 @@ classdef DataObject
             obj.dtype = get_dtype(obj);
         end
         
-        %   -
-        %   Label handling
-        %   -
+       	%{
+            Label handling
+        %}
         
-        %   for a given label_field (e.g., 'sessions'), set labels for
+        %   - for a given label_field (e.g., 'sessions'), set labels for
         %   that field to <setas>
         
         function obj = setlabels(obj,field,setas,index)
+            
+            if nargin < 4
+                if ( length(setas) == 1 ) || ( length(setas) == count(obj,1) )
+                    index = true(count(obj,1),1);
+                    
+                else
+                    error(['You must supply an index to assign values, unless you' ...
+                        , ' are assigning all labels in a field to a single value']);
+                end
+            end
             
             if iscell(setas)
                 if (length(setas) > 1 && length(setas) ~= sum(index))
@@ -276,16 +280,6 @@ classdef DataObject
 
             if ~islabelfield(obj,field)
                 error('Desired field %s does not exist',field);
-            end
-            
-            if nargin < 4
-                if length(setas) == 1
-                    index = true(count(obj,1),1);
-                    
-                else
-                    error(['You must supply an index to assign values, unless you' ...
-                        , ' are assigning all labels in a field to a single value']);
-                end
             end
             
             labels = obj.labels;            %#ok<PROPLC>
@@ -336,6 +330,18 @@ classdef DataObject
             obj.labels = labs;
         end
         
+        %   - rename a field
+        
+        function obj = renamefield(obj, orig, new)
+            assert(all( [ischar(orig), ischar(new)] ), ['Old and new fields' ...
+                , ' must be input as strings']);
+            
+            current = getfield(obj, orig);
+            obj = rmfield(obj, orig);
+            obj = addfield(obj, new);
+            obj.labels.(new) = current;
+        end
+        
         %   - get the <labels> associated with field
         
         function labels = getfield(obj, field)
@@ -345,7 +351,7 @@ classdef DataObject
             labels = obj.labels.(field);
         end
         
-        %   replace elements that equal <values> with <with>
+        %   - replace elements that equal <values> with <with>
         
         function obj = replace(obj, values, with)
             values = cell_if_not_cell(obj, values);
@@ -376,7 +382,37 @@ classdef DataObject
             obj.labels = labels; %#ok<PROPLC>
         end
         
-        %   remove elements that equal <label>
+        %   - find label <value>, remove the character at index <at>, and
+        %   replace it with string <with>. If <at> is greater than the len
+        %   of the value, no changes will be made
+        
+        function obj = replaceat(obj, value, with, at)
+            assert(ischar(value), 'The value to replace must be a string');
+            assert(ischar(with), 'Must replace <x> with a string');
+            assert(at > 0, 'Index must be greater than 0');
+            
+            labels = obj.labels; %#ok<PROPLC>
+            
+            [ind, field] = obj == value;
+            
+            if ~any(ind); fprintf('\nCouldn''t find %s\n', value); return; end;
+            
+            current = labels.(field{1})(ind);
+            
+            for i = 1:numel(current)
+                if ( length(current{i}) < at ); continue; end;
+                if ( at == 1 ); current{i} = [with current{i}(2:end)]; continue; end;
+                if ( length(current{i}) == at )
+                    current{i} = [current{i}(1:at-1) with];
+                end
+                
+                current{i} = [current{i}(1:at-1) with current{i}(at+1:end)];
+            end
+            
+            obj.labels.(field{1})(ind) = current;
+        end
+        
+        %   - remove elements that equal <label>
         
         function obj = remove(obj, labels)
             labels = cell_if_not_cell(obj, labels);
@@ -392,9 +428,9 @@ classdef DataObject
             obj = index(obj, ~ind);
         end
         
-        %   keep elements that equal <label>, and discard the rest
+        %   - only retain elements associated with <labels>
         
-        function obj = keep(obj, labels)
+        function obj = only(obj, labels)
             labels = cell_if_not_cell(obj, labels);
             
             assert(iscellstr(labels), 'Labels must be a cell array of strings');
@@ -408,7 +444,7 @@ classdef DataObject
             obj = index(obj, ind);
         end
         
-        %   make the labels lowercase
+        %   - make the labels lowercase
         
         function obj = lower(obj, fields)
             if ( nargin < 2 ); fields = obj.label_fields; end;
@@ -1062,6 +1098,34 @@ classdef DataObject
             allcombs(empty,:) = [];
             
             toc;
+        end
+        
+        %   - get unique pairs of elements 
+        
+        function uniqued = pairs(obj, field)
+            assert( islabelfield(obj, field), 'The requested field does not exist' );
+            alllabs = unique( obj.labels.(field) );
+            combs = allcomb( {alllabs, alllabs} );
+            
+            uniqued = cell(size(combs)); uniqued(1,:) = combs(1,:);
+            empty = false( size(uniqued,1),1 );
+            
+            for i = 2:size(combs,1)
+                matchfnc = @(x) sum( strcmp(uniqued, combs(i,x)), 2) >= 1;
+                
+                matches = matchfnc(1);
+                matches = any( matches & matchfnc(2) );
+                
+                if ( matches ); empty(i) = true; continue; end;  %   the pair already exists
+                
+                uniqued(i,:) = combs(i,:);
+            end
+            
+            %   remove skipped items and self-self pairs
+            
+            bothsame = strcmp( uniqued(:,1), uniqued(:,2) );
+            
+            uniqued( (empty | bothsame),: ) = [];
         end
         
         %   -
