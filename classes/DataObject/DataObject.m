@@ -236,7 +236,12 @@ classdef DataObject
         end
         
         function obj = index(obj,ind)
-            obj = DataObject(index_obj(obj2struct(obj),ind));
+%             obj = DataObject(index_obj(obj2struct(obj),ind));
+            fields = obj.label_fields;
+            obj.data = obj.data(ind,:);
+            for i = 1:numel(fields)
+                obj.labels.(fields{i}) = obj.labels.(fields{i})(ind);
+            end
         end
         
         function obj = flush(obj)
@@ -331,6 +336,15 @@ classdef DataObject
             obj.labels = labs;
         end
         
+        %   - get the <labels> associated with field
+        
+        function labels = getfield(obj, field)
+            assert(any(strcmp(obj.label_fields, field)), sprintf(['The requested field' ...
+                , ' ''%s'' is not in the object'],field));
+            
+            labels = obj.labels.(field);
+        end
+        
         %   replace elements that equal <values> with <with>
         
         function obj = replace(obj, values, with)
@@ -376,6 +390,47 @@ classdef DataObject
             end
             
             obj = index(obj, ~ind);
+        end
+        
+        %   keep elements that equal <label>, and discard the rest
+        
+        function obj = keep(obj, labels)
+            labels = cell_if_not_cell(obj, labels);
+            
+            assert(iscellstr(labels), 'Labels must be a cell array of strings');
+            
+            ind = false(count(obj, 1), 1);
+            
+            for i = 1:numel(labels)
+                ind = ind | obj == labels{i};
+            end
+            
+            obj = index(obj, ind);
+        end
+        
+        %   make the labels lowercase
+        
+        function obj = lower(obj, fields)
+            if ( nargin < 2 ); fields = obj.label_fields; end;
+            fields = cell_if_not_cell(obj, fields);
+            
+            for i = 1:numel(fields)
+                obj.labels.(fields{i}) = ...
+                    cellfun(@(x) lower(x), obj.labels.(fields{i}), 'UniformOutput', false);
+            end
+        end
+        
+        %   only keep alpha component of labels
+        
+        function obj = alpha(obj, fields)
+            if ( nargin < 2 ); fields = obj.label_fields; end;
+            fields = cell_if_not_cell(obj, fields);
+            
+            for i = 1:numel(fields)
+                obj.labels.(fields{i}) = ...
+                    cellfun(@(x) x(isstrprop(x, 'alpha')), obj.labels.(fields{i}), ...
+                    'UniformOutput', false);
+            end
         end
         
         %   create a new label structure using the given <obj>'s label
@@ -532,12 +587,15 @@ classdef DataObject
                 fprintf('doc type inequality');
                 equiv = false; return;
             end
+            
             obj1_size = size(obj1.data);
             obj2_size = size(obj2.data);
+            
             if any(obj1_size ~= obj2_size)
                 fprintf('size inequality');
                 equiv = false; return;
             end
+            
             if ~strcmp(obj1.dtype,'cell')
                 for i = 1:obj1_size(2)
                     if sum(obj1.data(:,i) == obj2.data(:,i)) ~= obj1_size(1)
@@ -600,40 +658,89 @@ classdef DataObject
         
         %   subscript referencing
         
-        function obj = subsref(obj,S)
-            for i = 1:length(S)
-                is_struct_ref = strcmp(S(i).type,'.');
-                is_parenth_ref = strcmp(S(i).type,'()');
-                if is_struct_ref
-                    obj = obj.(S(i).subs);
-                end
-                
-                %   return a field of labels with parenthetical reference
-                
-                if is_parenth_ref && ~strcmp(S(i).subs{1},':') && ischar(S(i).subs{1})
-                    labels = obj.labels; %#ok<PROPLC>
-                    obj = labels.(S(i).subs{1}); return; %#ok<PROPLC>
-                end
-                
-                %   otherwise, return a new data object
-                
-                if is_parenth_ref && length(S(i).subs) == 1
-                    indexed = obj2struct(obj);
-                    obj = DataObject(index_obj(indexed,S(i).subs{1}));
-                elseif is_parenth_ref && strcmp(S(i).subs{1},':')
-                    indexed = obj2struct(obj); indexed.data = indexed.data(:,S(i).subs{2});
-                    obj = DataObject(indexed);
-                elseif is_parenth_ref && strcmp(S(i).subs{2},':')
-                    ind = false(count(obj,1),1); ind(S(i).subs{1}) = true;
-                    obj = DataObject(index_obj(obj2struct(obj),ind));
-                elseif is_parenth_ref && length(S(i).subs) == 2
-                    ind = false(count(obj,1),1); ind(S(i).subs{1}) = true;
-                    indexed = index_obj(obj2struct(obj),ind);
-                    indexed.data = indexed.data(:,S(i).subs{2});
-                    obj = DataObject(indexed);
-                end
+        function out = subsref(obj,s)
+            current = s(1);
+            s(1) = [];
+
+            subs = current.subs;
+            type = current.type;
+
+            switch type
+                case '.'
+                    
+                    %   call the function if subs is a method
+                    
+                    if any(strcmp(methods(obj),subs))
+                        func = eval(sprintf('@%s',subs));
+                        inputs = [{obj} {s(:).subs{:}}];
+                        out = func(inputs{:}); return;
+                    end
+                    
+                    %   otherwise, get the property <subs>
+                    
+                    out = obj.(subs);
+                case '()'
+                    ref = subs{1};
+                    
+                    %   if format is obj('some field')
+                    
+                    if ischar(ref)
+                        out = getfield(obj,ref); return; %#ok<*GFLD>
+                    end
+                    
+                    %   otherwise, filter the data object by a logical
+                    %   index
+                    
+                    %   if format is obj(1) or obj(2)
+                    
+                    if ( numel(ref) ~= count(obj,1) )
+                        ind = false(count(obj,1),1); ind(ref) = true; ref = ind;
+                    end
+                    
+                    out = index(obj, ref);
+                otherwise
+                    error('Unsupported reference method');
             end
+
+            if isempty(s)
+                return;
+            end
+
+            out = subsref(out,s);
         end
+%             for i = 1:length(S)
+%                 is_struct_ref = strcmp(S(i).type,'.');
+%                 is_parenth_ref = strcmp(S(i).type,'()');
+%                 if is_struct_ref
+%                     obj = obj.(S(i).subs);
+%                 end
+%                 
+%                 %   return a field of labels with parenthetical reference
+%                 
+%                 if is_parenth_ref && ~strcmp(S(i).subs{1},':') && ischar(S(i).subs{1})
+%                     labels = obj.labels; %#ok<PROPLC>
+%                     obj = labels.(S(i).subs{1}); return; %#ok<PROPLC>
+%                 end
+%                 
+%                 %   otherwise, return a new data object
+%                 
+%                 if is_parenth_ref && length(S(i).subs) == 1
+%                     indexed = obj2struct(obj);
+%                     obj = DataObject(index_obj(indexed,S(i).subs{1}));
+%                 elseif is_parenth_ref && strcmp(S(i).subs{1},':')
+%                     indexed = obj2struct(obj); indexed.data = indexed.data(:,S(i).subs{2});
+%                     obj = DataObject(indexed);
+%                 elseif is_parenth_ref && strcmp(S(i).subs{2},':')
+%                     ind = false(count(obj,1),1); ind(S(i).subs{1}) = true;
+%                     obj = DataObject(index_obj(obj2struct(obj),ind));
+%                 elseif is_parenth_ref && length(S(i).subs) == 2
+%                     ind = false(count(obj,1),1); ind(S(i).subs{1}) = true;
+%                     indexed = index_obj(obj2struct(obj),ind);
+%                     indexed.data = indexed.data(:,S(i).subs{2});
+%                     obj = DataObject(indexed);
+%                 end
+%             end
+%         end
         
         %   subscript assignment
         
@@ -944,7 +1051,6 @@ classdef DataObject
                 if strcmpi(show_progress,'showprogress')
                    fprintf('\nProcessing %d of %d',i,size(allcombs,1)); 
                 end
-%                 index = obj == allcombs(i,:);
                 index = eq(obj,allcombs(i,:),fields);
                 if sum(index) >= 1
                     indices(i) = {index};
@@ -956,6 +1062,42 @@ classdef DataObject
             allcombs(empty,:) = [];
             
             toc;
+        end
+        
+        %   -
+        %   data manipulation
+        %   -
+        
+        function obj = cellfun(obj, func, varargin)
+            params.UniformOutput = true;
+            params.OutputObject = true;
+            params = parsestruct(params, varargin);
+            
+            assert(strcmp(obj.dtype,'cell'), ['The object does not contain cell' ...
+                , ' array-stored data']);
+            
+            obj.data = cellfun(func, obj.data, 'uniformoutput', params.UniformOutput);
+            if ( params.OutputObject ); return; end;
+            obj = obj.data;
+        end
+        
+        function obj = cell2double(obj)
+            assert(strcmp(obj.dtype,'cell'), ['The object does not contain cell' ...
+                , ' array-stored data']);
+            sizes = concatenateData(cellfun(@size, obj.data, 'UniformOutput', false));
+            
+            for i = 1:size(sizes,2)
+                assert(length(unique(sizes(:,i))) == 1, ['Dimensions are not consistent' ...
+                    , ' between arrays']);
+            end
+            
+            matrix = zeros(count(obj,1), size(obj.data{1},2));
+            
+            for i = 1:count(obj,1);
+                matrix(i,:) = obj.data{i};
+            end
+            obj.data = matrix;
+            obj.dtype = 'double';
         end
         
         %   -
