@@ -241,14 +241,68 @@ classdef DataObject
         %   return an index of where the obj equals *any* of the values in
         %   <values>. OR logic applies.
         
-        function ind = where(obj, values)
-            values = cell_if_not_cell(obj, values);
-            assert( iscellstr(values), 'Values must be a cell array of strings' );
+        function allinds = where(obj, labels)
+            labels = cell_if_not_cell(obj, labels);
             
-            ind = false( count(obj,1), 1 );
-            for i = 1:numel(values)
-                ind = ind | obj == values{i};
+            assert(iscellstr(labels), 'Labels must be a cell array of strings');
+            
+            foundlabels = layeredstruct({obj.label_fields}, {});
+            
+            %{
+                identify which label fields are present
+            %}
+            
+            for i = 1:numel(labels)
+                [~, field] = obj == labels{i};
+                if isempty( field{1} ); continue; end;
+                foundlabels.( field{1} ) = [foundlabels.( field{1} ) labels{i}];
             end
+            
+            %{
+                remove empty fields (<label> could not be found)
+            %}
+            
+            for i = 1:numel(obj.label_fields)
+                if ( isempty( foundlabels.(obj.label_fields{i}) ) )
+                    foundlabels = rmfield(foundlabels, obj.label_fields{i});
+                end
+            end
+            
+            validfields = fieldnames(foundlabels);
+            
+            allinds = true( count(obj,1), 1 );
+            for i = 1:numel(validfields)
+                current = foundlabels.(validfields{i});
+                within_field = false( count(obj,1), 1 );
+                for j = 1:numel(current)
+                    within_field = within_field | obj == current{j};
+                end
+                allinds = allinds & within_field;
+            end
+        end
+        
+        function allinds = wherenot(obj, labels)
+            labels = cell_if_not_cell(obj, labels);
+            
+            assert(iscellstr(labels), 'Labels must be a cell array of strings');
+            
+            fields = obj.label_fields;
+            
+            alllabs = struct();
+            
+            for i = 1:numel(fields);
+                alllabs.(fields{i}) = unique(obj.labels.(fields{i}));
+            end
+            
+            for i = 1:numel(fields)
+                for j = 1:numel(labels)
+                    toremove = strcmp(alllabs.(fields{i}), labels{j});
+                    alllabs.(fields{i})(toremove) = [];
+                end
+            end
+            
+            
+            
         end
         
         %   clear the data and labels of an object, but leave its structure
@@ -423,33 +477,39 @@ classdef DataObject
         %   - remove elements that equal <label>
         
         function obj = remove(obj, labels)
-            labels = cell_if_not_cell(obj, labels);
-            
-            assert(iscellstr(labels), 'Labels must be a cell array of strings');
-            
-            ind = false(count(obj,1),1);
-            
-            for i = 1:numel(labels)
-                ind = ind | obj == labels{i};
-            end
+            ind = where(obj, labels);
+%             labels = cell_if_not_cell(obj, labels);
+%             
+%             assert(iscellstr(labels), 'Labels must be a cell array of strings');
+%             
+%             ind = false(count(obj,1),1);
+%             
+%             for i = 1:numel(labels)
+%                 ind = ind | obj == labels{i};
+%             end
             
             obj = index(obj, ~ind);
         end
         
-        %   - only retain elements associated with <labels>
+        %   - only retain elements associated with <labels>. Within a
+        %   label-field, indices are OR indices; across label-fields,
+        %   indices are AND indices. E.g., if calling obj.only({a,b,c}),
+        %   and a and b are associated with 'heights', and c is associated
+        %   with 'weights', then the returned object will contain elements
+        %   that match EITHER a or b, AND c
         
         function obj = only(obj, labels)
-            labels = cell_if_not_cell(obj, labels);
+            allinds = where(obj, labels);
             
-            assert(iscellstr(labels), 'Labels must be a cell array of strings');
+            obj = index(obj, allinds);
             
-            ind = false(count(obj, 1), 1);
-            
-            for i = 1:numel(labels)
-                ind = ind | obj == labels{i};
-            end
-            
-            obj = index(obj, ind);
+%             ind = false(count(obj, 1), 1);
+%             
+%             for i = 1:numel(labels)
+%                 ind = ind | obj == labels{i};
+%             end
+%             
+%             obj = index(obj, ind);
         end
         
         %   - make the labels lowercase
