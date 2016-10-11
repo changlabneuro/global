@@ -255,9 +255,14 @@ classdef DataObject
         
         function obj = setlabels(obj,field,setas,index)
             
+            setas = cell_if_not_cell(obj, setas);
+            
             if nargin < 4
-                if ( length(setas) == 1 ) || ( length(setas) == count(obj,1) )
-                    index = true(count(obj,1),1);
+                if ( length(setas) == 1 ) ...
+                        || ( length(setas) == count(obj,1) ) ...
+                        || ( length(setas) == 1 );
+                    
+                    index = true( count(obj,1), 1 );
                     
                 else
                     error(['You must supply an index to assign values, unless you' ...
@@ -265,18 +270,18 @@ classdef DataObject
                 end
             end
             
-            if iscell(setas)
-                if (length(setas) > 1 && length(setas) ~= sum(index))
-                    error('Dimension mismatch in subscript assignment');
-                end
-                
-            elseif isa(setas,'char')
-                setas = {setas};
-                
-            else
-                error(['Using this assignment format, the to-be-assigned value(s)' ...
-                    , ' must either be a string, or a cell array']);
-            end
+%             if iscell(setas)
+%                 if (length(setas) > 1 && length(setas) ~= sum(index))
+%                     error('Dimension mismatch in subscript assignment');
+%                 end
+%                 
+%             elseif isa(setas,'char')
+%                 setas = {setas};
+%                 
+%             else
+%                 error(['Using this assignment format, the to-be-assigned value(s)' ...
+%                     , ' must either be a string, or a cell array']);
+%             end
 
             if ~islabelfield(obj,field)
                 error('Desired field %s does not exist',field);
