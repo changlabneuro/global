@@ -201,8 +201,12 @@ classdef DataObject
     end
     
     methods
+        
+        %{
+            constructor
+        %}
+        
         function obj = DataObject(varargin)
-            
             if nargin == 0
                 data_struct.data = [];
                 data_struct.labels = struct(); data_struct.labels.empty = '';
@@ -227,10 +231,15 @@ classdef DataObject
             obj.dtype = get_dtype(obj);
         end
         
-        %   function used in subsref to index the object
+        %{
+            indexing functions
+        %}
         
-        function obj = index(obj,ind)
-%             obj = DataObject(index_obj(obj2struct(obj),ind));
+        %   function used in subsref to index the object -- return an
+        %   object that only contains values and labels associated with
+        %   true values in ind
+        
+        function obj = index(obj, ind)
             fields = obj.label_fields;
             obj.data = obj.data(ind,:);
             for i = 1:numel(fields)
@@ -238,15 +247,19 @@ classdef DataObject
             end
         end
         
-        %   return an index of where the obj equals *any* of the values in
-        %   <values>. OR logic applies.
+        %   Return an index of where the obj equals the labels in <labels>.
+        %   Within a label-field, indices are OR indices; across label-fields,
+        %   indices are AND indices. E.g., if calling obj.where({a,b,c}),
+        %   and a and b are associated with 'heights', and c is associated
+        %   with 'weights', then the returned index will be true where the
+        %   ( obj == a OR obj == b ) AND ( obj == c )
         
         function allinds = where(obj, labels)
             labels = cell_if_not_cell(obj, labels);
             
-            assert(iscellstr(labels), 'Labels must be a cell array of strings');
+            assert( iscellstr(labels), 'Labels must be a cell array of strings' );
             
-            foundlabels = layeredstruct({obj.label_fields}, {});
+            foundlabels = layeredstruct( {obj.label_fields}, {} );
             
             %{
                 identify which label fields are present
@@ -254,7 +267,11 @@ classdef DataObject
             
             for i = 1:numel(labels)
                 [~, field] = obj == labels{i};
-                if isempty( field{1} ); continue; end;
+                if isempty( field{1} )  %   if we can't find one of the labels,
+                                        %   the entire index is false by
+                                        %   definition
+                    allinds = false( count(obj,1), 1 ); return;
+                end
                 foundlabels.( field{1} ) = [foundlabels.( field{1} ) labels{i}];
             end
             
@@ -281,39 +298,98 @@ classdef DataObject
             end
         end
         
-        function allinds = wherenot(obj, labels)
-            labels = cell_if_not_cell(obj, labels);
+        %   - remove elements that equal <label>
+        
+        function obj = remove(obj, labels)
             
-            assert(iscellstr(labels), 'Labels must be a cell array of strings');
+            for i = 1:numel(labels)
+                ind = obj == labels{i};
+                
+                if ( ~any(ind) || isempty(obj) ); continue; end;
+                
+                obj = index(obj, ~ind);
+            end
+
+        end
+        
+        %   - only retain elements associated with <labels>. Within a
+        %   label-field, indices are OR indices; across label-fields,
+        %   indices are AND indices. E.g., if calling obj.only({a,b,c}),
+        %   and a and b are associated with 'heights', and c is associated
+        %   with 'weights', then the returned object will contain elements
+        %   that match EITHER a or b, AND c
+        
+        function obj = only(obj, labels)
+            allinds = where(obj, labels);
             
-            fields = obj.label_fields;
+            obj = index(obj, allinds);
             
-            alllabs = struct();
-            
-            for i = 1:numel(fields);
-                alllabs.(fields{i}) = unique(obj.labels.(fields{i}));
+            if ( isempty(obj) ); fprintf('\nObject is empty\n\n'); end;
+        end
+        
+        %   return <indices> of all the unique combinations of unique
+        %   labels in the categories of <fields>. <allcombs> indicates the 
+        %   combination of labels used to construct each index.
+        
+        %   Very useful for avoiding nested loops -- instead, you can iterate through 
+        %   the cell array of indices returned here. Alternatively, you can 
+        %   prepend '**' to a string in <fields>, in which case that single
+        %   string value (rather than all unique values associated with a 
+        %   field) will be indexed.
+        
+        %   TODO: it shouldn't be possible to specify a field and also a
+        %   double-starred (**) label which is present in that field. Add an error
+        %   check to prevent this from occurring.
+        
+        function [indices, allcombs] = getindices(obj,fields,show_progress)
+            tic;
+            if nargin < 3
+                show_progress = 'no';
             end
             
-            for i = 1:numel(fields)
-                for j = 1:numel(labels)
-                    toremove = strcmp(alllabs.(fields{i}), labels{j});
-                    alllabs.(fields{i})(toremove) = [];
+            fields = cell_if_not_cell(obj,fields);
+            
+            uniques = cell(size(fields));
+            for k = 1:length(fields)
+                
+                %   if ** is prepended to the search string, it will be
+                %   treated as its own unique value, rather than as a field
+                %   in label_fields
+                
+                if ~strncmpi(fields{k},'**',2)
+                    uniques(k) = {unique(obj.labels.(fields{k}))};
+                else
+                    uniques(k) = {{fields{k}(3:end)}};
+                    
+                    %   find out which field 
+                    
+                    [~, field] = obj == uniques{k}; %#ok<RHSFN>
+                    fields{k} = field{1};
                 end
             end
             
+            %   get all unique combinations of data labels
             
+            allcombs = allcomb(uniques);
             
-        end
-        
-        %   clear the data and labels of an object, but leave its structure
-        %   (including label_fields) intact
-        
-        function obj = flush(obj)
-            obj.data = [];
-            for i = 1:length(obj.label_fields)
-                obj.labels.(obj.label_fields{i}) = [];
+            indices = cell(size(allcombs,1),1);
+            empty = true(size(allcombs,1),1);
+            
+            for i = 1:size(allcombs,1)
+                if strcmpi(show_progress,'showprogress')
+                   fprintf('\nProcessing %d of %d',i,size(allcombs,1)); 
+                end
+                index = eq(obj,allcombs(i,:),fields);
+                if sum(index) >= 1
+                    indices(i) = {index};
+                    empty(i) = false;
+                end                
             end
-            obj.dtype = get_dtype(obj);
+            
+            indices(empty) = []; %  remove empty indices
+            allcombs(empty,:) = [];
+            
+            toc;
         end
         
        	%{
@@ -474,44 +550,6 @@ classdef DataObject
             obj.labels.(field{1})(ind) = current;
         end
         
-        %   - remove elements that equal <label>
-        
-        function obj = remove(obj, labels)
-            ind = where(obj, labels);
-%             labels = cell_if_not_cell(obj, labels);
-%             
-%             assert(iscellstr(labels), 'Labels must be a cell array of strings');
-%             
-%             ind = false(count(obj,1),1);
-%             
-%             for i = 1:numel(labels)
-%                 ind = ind | obj == labels{i};
-%             end
-            
-            obj = index(obj, ~ind);
-        end
-        
-        %   - only retain elements associated with <labels>. Within a
-        %   label-field, indices are OR indices; across label-fields,
-        %   indices are AND indices. E.g., if calling obj.only({a,b,c}),
-        %   and a and b are associated with 'heights', and c is associated
-        %   with 'weights', then the returned object will contain elements
-        %   that match EITHER a or b, AND c
-        
-        function obj = only(obj, labels)
-            allinds = where(obj, labels);
-            
-            obj = index(obj, allinds);
-            
-%             ind = false(count(obj, 1), 1);
-%             
-%             for i = 1:numel(labels)
-%                 ind = ind | obj == labels{i};
-%             end
-%             
-%             obj = index(obj, ind);
-        end
-        
         %   - make the labels lowercase
         
         function obj = lower(obj, fields)
@@ -578,6 +616,34 @@ classdef DataObject
             end
         end
         
+        %   - get unique pairs of elements 
+        
+        function uniqued = pairs(obj, field)
+            assert( islabelfield(obj, field), 'The requested field does not exist' );
+            alllabs = unique( obj.labels.(field) );
+            combs = allcomb( {alllabs, alllabs} );
+            
+            uniqued = cell(size(combs)); uniqued(1,:) = combs(1,:);
+            empty = false( size(uniqued,1),1 );
+            
+            for i = 2:size(combs,1)
+                matchfnc = @(x) sum( strcmp(uniqued, combs(i,x)), 2) >= 1;
+                
+                matches = matchfnc(1);
+                matches = any( matches & matchfnc(2) );
+                
+                if ( matches ); empty(i) = true; continue; end;  %   the pair already exists
+                
+                uniqued(i,:) = combs(i,:);
+            end
+            
+            %   remove skipped items and self-self pairs
+            
+            bothsame = strcmp( uniqued(:,1), uniqued(:,2) );
+            
+            uniqued( (empty | bothsame),: ) = [];
+        end
+        
         %   -
         %   label helpers
         %   -
@@ -591,9 +657,9 @@ classdef DataObject
             end
         end
         
-        %   -
-        %   equality testing
-        %   -
+        %{
+            equality testing / MAIN indexing
+        %}
         
         %   return an index of where the data labels = <wanted_labels>
         %   
@@ -812,39 +878,6 @@ classdef DataObject
 
             out = subsref(out,s);
         end
-%             for i = 1:length(S)
-%                 is_struct_ref = strcmp(S(i).type,'.');
-%                 is_parenth_ref = strcmp(S(i).type,'()');
-%                 if is_struct_ref
-%                     obj = obj.(S(i).subs);
-%                 end
-%                 
-%                 %   return a field of labels with parenthetical reference
-%                 
-%                 if is_parenth_ref && ~strcmp(S(i).subs{1},':') && ischar(S(i).subs{1})
-%                     labels = obj.labels; %#ok<PROPLC>
-%                     obj = labels.(S(i).subs{1}); return; %#ok<PROPLC>
-%                 end
-%                 
-%                 %   otherwise, return a new data object
-%                 
-%                 if is_parenth_ref && length(S(i).subs) == 1
-%                     indexed = obj2struct(obj);
-%                     obj = DataObject(index_obj(indexed,S(i).subs{1}));
-%                 elseif is_parenth_ref && strcmp(S(i).subs{1},':')
-%                     indexed = obj2struct(obj); indexed.data = indexed.data(:,S(i).subs{2});
-%                     obj = DataObject(indexed);
-%                 elseif is_parenth_ref && strcmp(S(i).subs{2},':')
-%                     ind = false(count(obj,1),1); ind(S(i).subs{1}) = true;
-%                     obj = DataObject(index_obj(obj2struct(obj),ind));
-%                 elseif is_parenth_ref && length(S(i).subs) == 2
-%                     ind = false(count(obj,1),1); ind(S(i).subs{1}) = true;
-%                     indexed = index_obj(obj2struct(obj),ind);
-%                     indexed.data = indexed.data(:,S(i).subs{2});
-%                     obj = DataObject(indexed);
-%                 end
-%             end
-%         end
         
         %   subscript assignment
         
@@ -1103,99 +1136,6 @@ classdef DataObject
             obj = index(obj,~ind); 
         end
         
-        %   getindices.m -- returns <indices> of all the unique combinations of unique
-        %   labels in the categories of <fields>. <allcombs> indicates the 
-        %   combination of labels used to construct each index.
-        
-        %   Very useful for avoiding nested loops -- instead, you can iterate through 
-        %   the cell array of indices returned here. Alternatively, you can 
-        %   prepend '**' to a string in <fields>, in which case that single
-        %   string value (rather than all unique values associated with a 
-        %   field) will be indexed.
-        
-        %   TODO: it shouldn't be possible to specify a field and also a
-        %   double-starred (**) label which is present in that field. Add an error
-        %   check to prevent this from occurring.
-        
-        function [indices, allcombs] = getindices(obj,fields,show_progress)
-            tic;
-            if nargin < 3
-                show_progress = 'no';
-            end
-            
-            fields = cell_if_not_cell(obj,fields);
-            
-            uniques = cell(size(fields));
-            for k = 1:length(fields)
-                
-                %   if ** is prepended to the search string, it will be
-                %   treated as its own unique value, rather than as a field
-                %   in label_fields
-                
-                if ~strncmpi(fields{k},'**',2)
-                    uniques(k) = {unique(obj.labels.(fields{k}))};
-                else
-                    uniques(k) = {{fields{k}(3:end)}};
-                    
-                    %   find out which field 
-                    
-                    [~, field] = obj == uniques{k}; %#ok<RHSFN>
-                    fields{k} = field{1};
-                end
-            end
-            
-            %   get all unique combinations of data labels
-            
-            allcombs = allcomb(uniques);
-            
-            indices = cell(size(allcombs,1),1);
-            empty = true(size(allcombs,1),1);
-            
-            for i = 1:size(allcombs,1)
-                if strcmpi(show_progress,'showprogress')
-                   fprintf('\nProcessing %d of %d',i,size(allcombs,1)); 
-                end
-                index = eq(obj,allcombs(i,:),fields);
-                if sum(index) >= 1
-                    indices(i) = {index};
-                    empty(i) = false;
-                end                
-            end
-            
-            indices(empty) = []; %  remove empty indices
-            allcombs(empty,:) = [];
-            
-            toc;
-        end
-        
-        %   - get unique pairs of elements 
-        
-        function uniqued = pairs(obj, field)
-            assert( islabelfield(obj, field), 'The requested field does not exist' );
-            alllabs = unique( obj.labels.(field) );
-            combs = allcomb( {alllabs, alllabs} );
-            
-            uniqued = cell(size(combs)); uniqued(1,:) = combs(1,:);
-            empty = false( size(uniqued,1),1 );
-            
-            for i = 2:size(combs,1)
-                matchfnc = @(x) sum( strcmp(uniqued, combs(i,x)), 2) >= 1;
-                
-                matches = matchfnc(1);
-                matches = any( matches & matchfnc(2) );
-                
-                if ( matches ); empty(i) = true; continue; end;  %   the pair already exists
-                
-                uniqued(i,:) = combs(i,:);
-            end
-            
-            %   remove skipped items and self-self pairs
-            
-            bothsame = strcmp( uniqued(:,1), uniqued(:,2) );
-            
-            uniqued( (empty | bothsame),: ) = [];
-        end
-        
         %   -
         %   data manipulation
         %   -
@@ -1236,6 +1176,17 @@ classdef DataObject
         %   helpers
         %   -
         
+        %   clear the data and labels of an object, but leave its structure
+        %   (including label_fields) intact
+        
+        function obj = flush(obj)
+            obj.data = [];
+            for i = 1:length(obj.label_fields)
+                obj.labels.(obj.label_fields{i}) = [];
+            end
+            obj.dtype = get_dtype(obj);
+        end
+        
         %   preallocation
         
         function obj = pre(prototype,dims,type)
@@ -1275,7 +1226,7 @@ classdef DataObject
         
         %   initial input validation upon object construction
         
-        function validate(obj,data_struct)
+        function validate(obj, data_struct)
             struct_fields = fieldnames(data_struct);
             if ~any(strcmp(struct_fields,'data')) || ~any(strcmp(struct_fields,'labels'))
                 error(['The input to the data object must be a data structure with ''data''' ...
@@ -1307,7 +1258,7 @@ classdef DataObject
         %   helper for eq() -- puts inputs into cell array behind the
         %   scenes
         
-        function wanted_labels = cell_if_not_cell(obj,wanted_labels)
+        function wanted_labels = cell_if_not_cell(obj, wanted_labels)
             if ~iscell(wanted_labels)
                 wanted_labels = {wanted_labels};
             end
@@ -1344,3 +1295,37 @@ classdef DataObject
         end
     end
 end
+
+%             for i = 1:length(S)
+%                 is_struct_ref = strcmp(S(i).type,'.');
+%                 is_parenth_ref = strcmp(S(i).type,'()');
+%                 if is_struct_ref
+%                     obj = obj.(S(i).subs);
+%                 end
+%                 
+%                 %   return a field of labels with parenthetical reference
+%                 
+%                 if is_parenth_ref && ~strcmp(S(i).subs{1},':') && ischar(S(i).subs{1})
+%                     labels = obj.labels; %#ok<PROPLC>
+%                     obj = labels.(S(i).subs{1}); return; %#ok<PROPLC>
+%                 end
+%                 
+%                 %   otherwise, return a new data object
+%                 
+%                 if is_parenth_ref && length(S(i).subs) == 1
+%                     indexed = obj2struct(obj);
+%                     obj = DataObject(index_obj(indexed,S(i).subs{1}));
+%                 elseif is_parenth_ref && strcmp(S(i).subs{1},':')
+%                     indexed = obj2struct(obj); indexed.data = indexed.data(:,S(i).subs{2});
+%                     obj = DataObject(indexed);
+%                 elseif is_parenth_ref && strcmp(S(i).subs{2},':')
+%                     ind = false(count(obj,1),1); ind(S(i).subs{1}) = true;
+%                     obj = DataObject(index_obj(obj2struct(obj),ind));
+%                 elseif is_parenth_ref && length(S(i).subs) == 2
+%                     ind = false(count(obj,1),1); ind(S(i).subs{1}) = true;
+%                     indexed = index_obj(obj2struct(obj),ind);
+%                     indexed.data = indexed.data(:,S(i).subs{2});
+%                     obj = DataObject(indexed);
+%                 end
+%             end
+%         end
