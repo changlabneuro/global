@@ -238,6 +238,22 @@ classdef DataObject
             end
         end
         
+        %   return an index of where the obj equals *any* of the values in
+        %   <values>. OR logic applies.
+        
+        function ind = where(obj, values)
+            values = cell_if_not_cell(obj, values);
+            assert( iscellstr(values), 'Values must be a cell array of strings' );
+            
+            ind = false( count(obj,1), 1 );
+            for i = 1:numel(values)
+                ind = ind | obj == values{i};
+            end
+        end
+        
+        %   clear the data and labels of an object, but leave its structure
+        %   (including label_fields) intact
+        
         function obj = flush(obj)
             obj.data = [];
             for i = 1:length(obj.label_fields)
@@ -269,19 +285,6 @@ classdef DataObject
                         , ' are assigning all labels in a field to a single value']);
                 end
             end
-            
-%             if iscell(setas)
-%                 if (length(setas) > 1 && length(setas) ~= sum(index))
-%                     error('Dimension mismatch in subscript assignment');
-%                 end
-%                 
-%             elseif isa(setas,'char')
-%                 setas = {setas};
-%                 
-%             else
-%                 error(['Using this assignment format, the to-be-assigned value(s)' ...
-%                     , ' must either be a string, or a cell array']);
-%             end
 
             if ~islabelfield(obj,field)
                 error('Desired field %s does not exist',field);
