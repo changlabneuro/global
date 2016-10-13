@@ -399,7 +399,7 @@ classdef DataObject
         %   - for a given label_field (e.g., 'sessions'), set labels for
         %   that field to <setas>
         
-        function obj = setlabels(obj,field,setas,index)
+        function obj = setfield(obj,field,setas,index)
             
             setas = cell_if_not_cell(obj, setas);
             
@@ -892,7 +892,7 @@ classdef DataObject
                         %   if format is: obj('somefield') = 'some string'
                         
                         if length(S.subs) == 1
-                            obj = setlabels(obj,S.subs{1},vals);
+                            obj = setfield(obj,S.subs{1},vals);
                             return;
                             
                         %   if format is: obj('somefield',index) = 'some string'
@@ -900,7 +900,7 @@ classdef DataObject
                         %   string', '...'} 
                         
                         elseif length(S.subs) == 2
-                            obj = setlabels(obj,S.subs{1},vals,S.subs{2});
+                            obj = setfield(obj,S.subs{1},vals,S.subs{2});
                             return;
                             
                         else
