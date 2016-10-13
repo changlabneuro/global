@@ -302,6 +302,8 @@ classdef DataObject
         
         function obj = remove(obj, labels)
             
+            labels = cell_if_not_cell(obj, labels);
+            
             for i = 1:numel(labels)
                 ind = obj == labels{i};
                 
