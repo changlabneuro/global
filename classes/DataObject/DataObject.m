@@ -398,6 +398,30 @@ classdef DataObject
             Label handling
         %}
         
+        %   - return the fieldnames of the label struct in the object; or,
+        %   if '-except' flag is invoked, return all fieldnames except
+        %   those in <except>
+        
+        function names = fieldnames(obj, flag, except)
+            names = obj.label_fields;
+            
+            if ( nargin == 1 ); return; end;
+            
+            if ( nargin == 2 ); error('Not enough input arguments'); end;
+            
+            if ( ~strcmp(flag, '-except') )
+                error(['You must explicitly invoke the flag ''-except''' ...
+                    , ' to exclude fieldnames']);
+            end
+            
+            except = cell_if_not_cell(obj, except);
+            assert( iscellstr(except), '<except> must be a cell array of strings' );
+            
+            for i = 1:numel(except)
+                names = names( ~strcmp(names, except{i}) );
+            end
+        end
+        
         %   - for a given label_field (e.g., 'sessions'), set labels for
         %   that field to <setas>
         
@@ -550,6 +574,22 @@ classdef DataObject
             end
             
             obj.labels.(field{1})(ind) = current;
+        end
+        
+        %   - replace all labels in a given field with 'all__<field>'
+        
+        function obj = collapse(obj, fields)
+            fields = cell_if_not_cell(obj, fields);
+            assert( iscellstr(fields), 'Fields must be a cell array of strings' );
+            
+            assert( all( cellfun(@(x) islabelfield(obj, x), fields) ), ...
+                'At least one specified field does not exist in the object' );
+            
+            ind = true( count(obj,1), 1 );
+            
+            for i = 1:numel(fields)
+                obj.labels.(fields{i})(ind) = {['all__' fields{i}]};
+            end
         end
         
         %   - make the labels lowercase
@@ -1084,6 +1124,12 @@ classdef DataObject
         
         function concat = vertcat(varargin)
             concat = DataObject(concatenate_data_obj(varargin{:}));
+        end
+        
+        function obj = append(obj, varargin)
+            for i = 1:numel(varargin)
+                obj = [obj; varargin{i}];
+            end
         end
         
         %   standin for "size"
