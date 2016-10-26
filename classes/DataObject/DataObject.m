@@ -658,6 +658,20 @@ classdef DataObject
             end
         end
         
+        %   - shuffle a field of labels
+        
+        function obj = shufflelabels(obj, field, ind)            
+            if ( nargin < 3 ); ind = randperm(obj); end;
+            
+            assert( islabelfield(obj, field), ...
+                sprintf('The field ''%s'' does not exist in the object', field) );
+            
+            current = obj.labels.(field);
+            shuffled = current(ind);
+            
+            obj.labels.(field) = shuffled;
+        end
+        
         %   - get unique pairs of elements 
         
         function uniqued = pairs(obj, field)
@@ -950,6 +964,24 @@ classdef DataObject
                         end
                     end
                     
+                    %   if format is obj1(index) = obj2
+                    
+                    if ( isa(vals, 'DataObject') )
+                        assert( length(S.subs) == 1, [ 'If the to-be-assigned' ...
+                            , ' values are a DataObject, there can only be one' ...
+                            , ' subscript reference (e.g.) obj(1) = obj2' ]);
+                        
+                        refs = S.subs{1};
+                        obj.data(refs,:) = vals.data;
+                        fields = obj.label_fields;
+                        
+                        for k = 1:numel(obj.label_fields)
+                            obj.labels.(fields{k})(refs) = ...
+                                vals.labels.(fields{k});
+                        end
+                        return;
+                    end
+                    
                     %   otherwise, set data
                     
                     if ~any(strcmp(S.subs,':'))
@@ -1218,6 +1250,10 @@ classdef DataObject
             end
             obj.data = matrix;
             obj.dtype = 'double';
+        end
+        
+        function out = randperm(obj)
+            out = randperm( count(obj,1) );
         end
         
         %   -

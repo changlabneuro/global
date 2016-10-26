@@ -17,29 +17,48 @@ classdef DataObjectStruct
             obj.objects = objects;
         end
         
+        %   execute a function on each object
+        
+        function obj = foreach(obj, func, varargin)
+            
+            assert( isa(func, 'function_handle'), 'func must be a function handle' );
+            
+            objs = obj.objects;
+            fields = objectfields(obj);
+            
+            for i = 1:numel(fields)
+                objs.(fields{i}) = func(objs.(fields{i}), varargin{:});
+            end
+            
+            obj.objects = objs;
+        end
+        
         function out = subsref(obj,s)
             current = s(1);
             s(1) = [];
 
             subs = current.subs;
             type = current.type;
+            
+            proceed = true; %   for breaking from the '.' case at the right point
 
             switch type
                 case '.'
                     
                     %   return the property <subs> if subs is a property
                     
-                    if any(strcmp(properties(obj), subs))
-                        out = obj.(subs); return;
+                    if any(strcmp(properties(obj), subs)) && proceed
+                        out = obj.(subs); proceed = false;
                     end
                     
                     %   call the function on the obj is <subs> is a
-                    %   SignalStruct method
+                    %   DataObjectStruct method
                     
-                    if any( strcmp(methods(obj), subs) )
+                    if any( strcmp(methods(obj), subs) ) && proceed
                         func = eval(sprintf('@%s',subs));
                         inputs = [{obj} {s(:).subs{:}}];
-                        out = func(inputs{:}); return;
+                        out = func(inputs{:});
+                        return; %   note -- in this case, we do not proceed
                     end                    
                     
                     fields = objectfields(obj);
@@ -48,19 +67,25 @@ classdef DataObjectStruct
                     %   call the function on each object field if <subs> is
                     %   a method
                     
-                    if any(strcmp(data_obj_funcs,subs))
+                    if any(strcmp(data_obj_funcs,subs)) && proceed
                         out = obj;
                         func = eval(sprintf('@%s',subs));
                         inputs = {s(:).subs{:}};
                         out.objects = structfun(@(x) func(x, inputs{:}),...
                             obj.objects, 'UniformOutput', false);
-                        return;
+                        return; %   note -- in this case, we do not proceed
                     end
                     
                     %   return the objects if <subs> is an object field
                     
                     if any(strcmp(fields, subs))
-                        out = obj.objects.(subs);
+                        out = obj.objects.(subs); proceed = false;
+                    end
+                    
+                    %   otherwise, the reference type is unsupported
+                    
+                    if ( proceed )
+                        error('Unsupported reference method');
                     end
                     
                 otherwise
@@ -101,14 +126,6 @@ classdef DataObjectStruct
         
         function validate_structure(structure)
             structfun(@(x) assert(isa(x, 'DataObject')), structure);
-            
-%             fields = fieldnames(structure);
-%             for i = 1:numel(fields)
-%                 if ( i == 1 ); to_compare = structure.(fields{i}); continue; end;
-%                 assert( labeleq(to_compare, structure.(fields{i})), ...
-%                     'Labels must be equal between objects' );
-%                 to_compare = structure.(fields{i});
-%             end
         end
         
     end
