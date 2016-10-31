@@ -1,3 +1,64 @@
+%{
+    DataObjectStruct.m -- class for extending the functionality of a
+    DataObject. When you instantiate a DataObjectStruct, you can call
+    methods as you would for a single object, but apply them to all objects
+    in the struct. The syntax is matched as closely as possible, such that,
+    for most operations, code need not be rewritten to handle
+    DataObjectStructs vs. DataObjects.
+
+    INPUT
+        <structure> -- struct where each field is a DataObject
+
+    EXAMPLE USAGE:
+        inputs.object1 = <DataObject>
+        inputs.object2 = <DataObject>
+
+    datastruct = DataObjectStruct( inputs );
+
+    datastruct.replace( 'self', 'both' );   %   replace 'self' labels with
+                                            %   'both' labels, for each
+                                            %   object in the structure
+
+    datastruct
+
+    ans =
+        object1
+        object2
+
+    ADDITIONAL FUNCTIONALITY
+
+    -   structure.foreach( function_handle, varargin )
+            Apply a function <function_handle> to each DataObject in
+            <structure>. The object is always the first input to
+            <function_handle>, followed by the ordered inputs in
+            <varargin>. Returns a structure of the same format as
+            <structure>. This is useful / necessary for dealing with
+            functions that are not DataObject methods defined in DataObject.m
+
+    -   structure.perfield( structure2, function_handle, varargin )
+            Apply a function object-wise to <structure> and <structure2>.
+            Both structures must have matching fieldnames. Returns a new
+            structure of the same format as <structure> and <structure2>.
+            <structure> is always the first input to <function_handle>, and
+            <structure2> is always the second input, followed by <varargin>
+
+            e.g.:
+                struct1.toNormalize = <DataObject>
+                struct1.baseline = <DataObject>
+
+                struct2.toNormalize = <DataObject>
+                struct2.baseline = <DataObject>
+
+                %   subtract each DataObject, field-by-field, i.e.,
+                %   struct1.toNormalize - struct2.toNormalize, ...
+
+                newstruct = struct1.perfield( struct2, @minus );
+
+                %   concat 
+
+                newstruct = struct1.perfield( struct2, @vertcat );                
+%}
+
 classdef DataObjectStruct
     
     properties
@@ -17,21 +78,39 @@ classdef DataObjectStruct
             obj.objects = objects;
         end
         
-        %   execute a function on each object
+        %   execute a function on each object in <obj>
         
-        function obj = foreach(obj, func, varargin)
-            
+        function obj = foreach(obj, func, varargin)            
             assert( isa(func, 'function_handle'), 'func must be a function handle' );
             
             objs = obj.objects;
-            fields = objectfields(obj);
+            fields = objectfields( obj );
             
             for i = 1:numel(fields)
-                objs.(fields{i}) = func(objs.(fields{i}), varargin{:});
+                objs.(fields{i}) = func( objs.(fields{i}), varargin{:} );
             end
             
             obj.objects = objs;
         end
+        
+        %   execute a function field-wise on two DataObjectStructs -- e.g.,
+        %   obj - obj2 -> obj.toNormalize - obj2.toNormalize, and
+        %   obj.baseline - obj2.baseline
+        
+        function obj = perfield(obj, obj2, func, varargin)
+            assert_capable_of_operations( obj, obj2 );
+            fields = objectfields( obj );
+            
+            for i = 1:numel(fields)
+                obj.objects.(fields{i}) = ...
+                    func( obj.objects.(fields{i}), obj2.objects.(fields{i}), varargin{:} );
+            end           
+            
+        end
+        
+        %{
+            subscript referencing
+        %}
         
         function out = subsref(obj,s)
             current = s(1);
@@ -99,9 +178,13 @@ classdef DataObjectStruct
             out = subsref(out,s);
         end
         
+        %{
+            field handling
+        %}
+        
         function obj = renamefield(obj, from, to)
             assert( isobjectfield(obj, from), ...
-                'The field ''%s'' is not in the object' );
+                sprintf('The field ''%s'' is not in the object', from) );
             current = obj.objects.(from);
             new = rmfield(obj.objects, from);
             new.(to) = current;
@@ -117,15 +200,46 @@ classdef DataObjectStruct
             tf = any( strcmp(fields, field) );
         end
         
+        %{
+            generic
+        %}
+        
         function disp(obj)
             disp(obj.objects);
         end
+        
+        %{
+            ensure we can do field-wise operations on two DataObjectStructs
+        %}
+        
+        function assert_capable_of_operations(obj, obj2)
+            assert( isa(obj2, 'DataObjectStruct'), ...
+                'Input is not of type DataObjectStruct' );
+            fields = objectfields( obj2 );            
+            assert_fields_exist( obj, fields, 'Fields do not match between objects' );
+        end
+        
+        %   ensure that all <fields> exist in the object
+        
+        function assert_fields_exist(obj, fields, msg)            
+            if ( nargin < 3 ); msg = 'At least one field does not exist'; end;            
+            assert( iscellstr(fields), '<fields> must be a cell array of strings' );
+            for i = 1:numel(fields)
+                assert( isobjectfield( obj, fields{i} ), msg );
+            end
+        end
+        
     end
     
     methods (Static)
         
+        %   input validation: make sure <structure> is a struct, and that 
+        %   each field of <structure> is a DataObject
+        
         function validate_structure(structure)
-            structfun(@(x) assert(isa(x, 'DataObject')), structure);
+            msg = '<structure> must be a struct, and each field must be a DataObject';
+            assert( isa(structure, 'struct'), msg );
+            structfun( @(x) assert(isa(x, 'DataObject'), msg), structure );
         end
         
     end

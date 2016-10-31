@@ -1158,10 +1158,19 @@ classdef DataObject
             concat = DataObject(concatenate_data_obj(varargin{:}));
         end
         
-        function obj = append(obj, varargin)
-            for i = 1:numel(varargin)
-                obj = [obj; varargin{i}];
+        %   append one DataObject to another
+        
+        function obj = append(obj, obj2)
+            assert( isa(obj2, 'DataObject'), ...
+                'append accepts one DataObject as an input' );
+            
+            %   if <obj> is empty, ignore it, and return varargin{1}
+            
+            if ( isempty(obj) )
+                obj = obj2; return;
             end
+            
+            obj = vertcat( obj, obj2 );
         end
         
         %   standin for "size"
