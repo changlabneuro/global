@@ -182,7 +182,7 @@ classdef DataObjectStruct
             field handling
         %}
         
-        function obj = renamefield(obj, from, to)
+        function obj = renameobject(obj, from, to)
             assert( isobjectfield(obj, from), ...
                 sprintf('The field ''%s'' is not in the object', from) );
             current = obj.objects.(from);
@@ -191,8 +191,31 @@ classdef DataObjectStruct
             obj.objects = new;
         end
         
+        %   add an object to the structure
+        
+        function obj = addobject(obj, toadd, name)
+            assert( isa(toadd, 'DataObject'), 'Input must be a DataObject' );
+            assert( ischar(name), 'The fieldname must be a string' );
+            assert( ~isobjectfield(obj, name), ...
+                sprintf('The field ''%s'' already exists', name) );
+            
+            obj.objects.(name) = toadd;
+        end
+        
+        %   remove an object from the structure
+        
+        function obj = rmobject(obj, fields)
+            if ( ~iscell(fields) ); fields = {fields}; end;
+            assert_fields_exist( obj, fields ); fields = unique( fields );
+            for i = 1:numel(fields)
+                obj.objects = rmfield( obj.objects, fields{i} );
+            end
+        end
+        
+        %   get the names of the objects in the struct
+        
         function fields = objectfields(obj)
-            fields = fieldnames(obj.objects);
+            fields = fieldnames( obj.objects );
         end
         
         function tf = isobjectfield(obj, field)
@@ -205,7 +228,16 @@ classdef DataObjectStruct
         %}
         
         function disp(obj)
-            disp(obj.objects);
+            disp( obj.objects );
+        end
+        
+        %{
+            operations - certain operations (like minus) are supported
+            directly, without the need to call foreach() or perfield()
+        %}
+        
+        function obj = minus(obj, obj2)
+            obj = perfield( obj, obj2, @minus );         
         end
         
         %{
