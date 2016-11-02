@@ -515,6 +515,12 @@ classdef DataObject
             labels = obj.labels.(field);
         end
         
+        %   - get the unique labels in <field>
+        
+        function labels = uniques(obj, field)
+            labels = unique( getfield(obj, field) );
+        end
+        
         %   - replace elements that equal <values> with <with>
         
         function obj = replace(obj, values, with)

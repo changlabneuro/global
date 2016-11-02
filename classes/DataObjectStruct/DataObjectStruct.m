@@ -191,6 +191,32 @@ classdef DataObjectStruct
             obj.objects = new;
         end
         
+        %   append <label> to each fieldname in obj.objects
+        
+        function obj = namespace(obj, label)
+            assert( ischar(label), '<label> must be a string' );
+            fields = objectfields( obj );
+            for i = 1:numel(fields)
+                obj = renameobject( ...
+                    obj, fields{i}, sprintf('%s__%s', label, fields{i}) );
+            end
+        end
+        
+        %   get the names of the objects in the struct
+        
+        function fields = objectfields(obj)
+            fields = fieldnames( obj.objects );
+        end
+        
+        function tf = isobjectfield(obj, field)
+            fields = objectfields(obj);
+            tf = any( strcmp(fields, field) );
+        end
+        
+        %{
+            object mutation - adding, removing, concatenating ...
+        %}
+        
         %   add an object to the structure
         
         function obj = addobject(obj, toadd, name)
@@ -212,15 +238,19 @@ classdef DataObjectStruct
             end
         end
         
-        %   get the names of the objects in the struct
+        %   place the contents of <obj2> into <obj>, assuming each are
+        %   unique
         
-        function fields = objectfields(obj)
-            fields = fieldnames( obj.objects );
-        end
-        
-        function tf = isobjectfield(obj, field)
-            fields = objectfields(obj);
-            tf = any( strcmp(fields, field) );
+        function obj = include(obj, obj2)
+            fields = objectfields( obj2 );
+            assert_fields_do_not_exist( obj, fields, ...
+                [ 'Cannot add the contents of the second object to the first,' ...
+                , ' because the fieldnames overlap between the two objects.' ...
+                , ' Call namespace( <object>, <label> ) to create a namespace' ...
+                , ' for the second object before proceeding' ] );
+            for i = 1:numel(fields)
+                obj.objects.(fields{i}) = obj2.objects.(fields{i});
+            end
         end
         
         %{
@@ -258,6 +288,16 @@ classdef DataObjectStruct
             assert( iscellstr(fields), '<fields> must be a cell array of strings' );
             for i = 1:numel(fields)
                 assert( isobjectfield( obj, fields{i} ), msg );
+            end
+        end
+        
+        %   ensure that all <fields> do NOT exist in the object
+        
+        function assert_fields_do_not_exist(obj, fields, msg)
+            if ( nargin < 3 ); msg = 'At least one field exists that shouldn''t'; end;
+            assert( iscellstr(fields), '<fields> must be a cell array of strings' );
+            for i = 1:numel(fields)
+                assert( ~isobjectfield( obj, fields{i} ), msg );
             end
         end
         
