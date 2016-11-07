@@ -858,12 +858,12 @@ classdef DataObject
             if length(obj1.label_fields) ~= length(obj2.label_fields)
                 equiv = false; return;
             end
-            if ~strcmp(obj1.label_fields,obj2.label_fields)
+            if ( ~all(strcmp(obj1.label_fields,obj2.label_fields)) )
                 equiv = false; return;
             end
             for i = 1:length(obj1.label_fields)
                 n_equal = sum(strcmp(obj1.labels.(obj1.label_fields{i}),obj2.labels.(obj1.label_fields{i})));
-                if n_equal < count(obj1)
+                if n_equal < count(obj1, 1)
                     equiv = false; return;
                 end
             end
