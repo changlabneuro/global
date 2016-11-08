@@ -862,12 +862,12 @@ classdef DataObject
             if length(obj1.label_fields) ~= length(obj2.label_fields)
                 equiv = false; return;
             end
-            if ~strcmp(obj1.label_fields,obj2.label_fields)
+            if ( ~all(strcmp(obj1.label_fields,obj2.label_fields)) )
                 equiv = false; return;
             end
             for i = 1:length(obj1.label_fields)
                 n_equal = sum(strcmp(obj1.labels.(obj1.label_fields{i}),obj2.labels.(obj1.label_fields{i})));
-                if n_equal < count(obj1)
+                if n_equal < count(obj1, 1)
                     equiv = false; return;
                 end
             end
@@ -886,6 +886,29 @@ classdef DataObject
             else
                 ind = ~test_object_equality(obj,wanted_labels);
             end
+        end
+        
+        %   match <obj> to <obj2> by removing unmatching elements. Defaults
+        %   to search within all labelfields of <obj2>; will not search in
+        %   <except> if <except> is specified
+        
+        function newobj = match(obj, obj2, except)
+            
+            assert( isa(obj2, 'DataObject'), 'input <obj> must be a DataObject' );
+            
+            if ( nargin < 3 )
+                within = fieldnames( obj2 );
+            else within = fieldnames( obj2, '-except', except );
+            end
+            
+            [~, combs] = getindices( obj2, within );
+            
+            newobj = DataObject();
+            
+            for i = 1:size(combs, 1)
+                newobj = newobj.append( obj.only( combs(i,:) ) );
+            end
+            
         end
         
         %   -
