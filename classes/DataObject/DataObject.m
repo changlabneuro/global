@@ -668,6 +668,35 @@ classdef DataObject
             end
         end
         
+        function extracted = orderby(obj, labs)
+            labs = cell_if_not_cell( obj, labs );
+            assert( iscellstr(labs), 'Labels must be a cell array of strings' );
+            
+            for i = 1:numel(labs)
+                found = where( obj, labs{i} );
+                assert( any(found), ...
+                    sprintf( 'The label %s was not found in the object', labs{i}) );
+            end
+            
+            extracted = only( obj, labs );
+            
+            if ( count(extracted,1) < count(obj,1) )
+                fprintf('\nWARNING: Some elements were discarded');
+            end
+            
+            %   this way we do not risk casting a SignalObject (or some
+            %   subclassed Object) to a DataObject
+            
+            newObject = DataObject();
+            
+            for i = 1:numel(labs)
+                newObject = append( newObject, only( extracted, labs{i} ) );
+            end
+            
+            extracted.data = newObject.data;
+            extracted.labels = newObject.labels;
+        end
+        
         %   - shuffle a field of labels
         
         function obj = shufflelabels(obj, field, ind)            
