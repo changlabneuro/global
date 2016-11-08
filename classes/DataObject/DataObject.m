@@ -231,6 +231,10 @@ classdef DataObject
             obj.dtype = get_dtype(obj);
         end
         
+        function data = getdata(obj)
+            data = obj.data;
+        end
+        
         %{
             indexing functions
         %}
