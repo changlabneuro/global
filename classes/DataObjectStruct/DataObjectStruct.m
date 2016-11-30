@@ -261,6 +261,10 @@ classdef DataObjectStruct
             disp( obj.objects );
         end
         
+        function s = struct( obj )
+            s = obj.objects;
+        end
+        
         %{
             operations - certain operations (like minus) are supported
             directly, without the need to call foreach() or perfield()
@@ -309,11 +313,15 @@ classdef DataObjectStruct
         %   each field of <structure> is a DataObject
         
         function validate_structure(structure)
-            msg = '<structure> must be a struct, and each field must be a DataObject';
+            msg = ['<structure> must be a struct or DataObjectStruct,' ...
+                , ' and each field must be a DataObject'];            
+            if ( isa( structure, 'DataObjectStruct' ) )
+                structure = struct( structure );
+            end
             assert( isa(structure, 'struct'), msg );
             structfun( @(x) assert(isa(x, 'DataObject'), msg), structure );
         end
-        
+        sdfj;
     end
     
 end

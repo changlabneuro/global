@@ -231,6 +231,10 @@ classdef DataObject
             obj.dtype = get_dtype(obj);
         end
         
+        %   it is occassionally useful to be able to retrieve data within
+        %   nested function calls, where employing the '.' accessor would be
+        %   invalid
+        
         function data = getdata(obj)
             data = obj.data;
         end
@@ -519,10 +523,21 @@ classdef DataObject
             labels = obj.labels.(field);
         end
         
-        %   - get the unique labels in <field>
+        %   - get the unique labels in <field>, or all unique labels if
+        %   called without arguments
         
         function labels = uniques(obj, field)
-            labels = unique( getfield(obj, field) );
+            if ( nargin == 2 )
+                labels = unique( getfield(obj, field) ); return;
+            end
+            
+            fields = fieldnames( obj );
+            
+            labels = {};
+            
+            for i = 1:numel(fields)
+                labels = [ labels; unique(getfield(obj, fields{i})) ];
+            end
         end
         
         %   - replace elements that equal <values> with <with>
@@ -668,7 +683,17 @@ classdef DataObject
             end
         end
         
-        function extracted = orderby(obj, labs)
+        %   Sort the object based on the order of labels specified in
+        %   <labs>. Unspecified elements will be extracted from the object
+        %   and appended to the sorted object, so you needn't specify an
+        %   order for all possible labels in a given field.
+        %   
+        %   E.g., if the object <obj> has a 'city' field with unique labels
+        %   { 'new york', 'san fransisco', 'atlanta' }, call 
+        %   ordered = obj.orderby( { 'san fransisco', 'atlanta' } ) to
+        %   order elements by 'san fransisco' -> 'atlanta' -> 'new york'
+        
+        function sorted = orderby(obj, labs)
             labs = cell_if_not_cell( obj, labs );
             assert( iscellstr(labs), 'Labels must be a cell array of strings' );
             
@@ -678,23 +703,22 @@ classdef DataObject
                     sprintf( 'The label %s was not found in the object', labs{i}) );
             end
             
-            extracted = only( obj, labs );
-            
-            if ( count(extracted,1) < count(obj,1) )
-                fprintf('\nWARNING: Some elements were discarded');
-            end
+            sorted = only( obj, labs );
+            unsorted = remove( obj, labs );
             
             %   this way we do not risk casting a SignalObject (or some
             %   subclassed Object) to a DataObject
             
-            newObject = DataObject();
+            new_obj = DataObject();
             
             for i = 1:numel(labs)
-                newObject = append( newObject, only( extracted, labs{i} ) );
+                new_obj = append( new_obj, only( sorted, labs{i} ) );
             end
             
-            extracted.data = newObject.data;
-            extracted.labels = newObject.labels;
+            new_obj = new_obj.append( unsorted );
+            
+            sorted.data = new_obj.data;
+            sorted.labels = new_obj.labels;
         end
         
         %   - shuffle a field of labels
