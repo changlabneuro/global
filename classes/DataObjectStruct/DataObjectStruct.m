@@ -238,6 +238,15 @@ classdef DataObjectStruct
             end
         end
         
+        %   replace an object of name <name> with another object
+        
+        function obj = replaceobject(obj, name, obj2)
+            assert_fields_exist( obj, { name } );
+            assert( isa(obj2, 'DataObject'), ...
+                'Can only replace objects with another DataObject' );
+            obj.objects.(name) = obj2;
+        end
+        
         %   place the contents of <obj2> into <obj>, assuming each are
         %   unique
         

@@ -763,6 +763,13 @@ classdef DataObject
             uniqued( (empty | bothsame),: ) = [];
         end
         
+        %   repeat labels for N repetitions
+        
+        function labels = replabels(obj, N)
+            labels = obj.labels;
+            labels = structfun( @(x) repmat(x, N, 1), labels, 'UniformOutput', false );
+        end
+        
         %   -
         %   label helpers
         %   -
@@ -1354,6 +1361,57 @@ classdef DataObject
         %   -
         %   helpers
         %   -
+        
+        %   Group like elements in <new_obj> into a cell array. When
+        %   finished, each element in <new_obj.data> will be identified by
+        %   a unique combination of labels.
+        
+        function new_obj = compress(obj, new_obj)
+            if ( nargin < 2 ); new_obj = DataObject(); end;
+            
+            fprintf( '\nRemaining items: %d', count( obj ) );
+            
+            if ( isempty(obj) ); return; end;
+            
+            extr = index( obj, 1 );
+            
+            matching = where( obj, uniques( extr ) );
+            
+            extr = index( obj, matching );
+            
+            extr.data = { extr.data };
+            
+            new_obj = append( new_obj, index( extr, 1 ) );
+            
+            obj = index( obj, ~matching );
+            
+            new_obj = compress( obj, new_obj );
+        end
+        
+        %   Uncompress the object
+        
+        function new_obj = unpack(obj)
+            
+            assert( iscell(obj.data), 'The object is already unpacked' );
+            
+            new_obj = DataObject();
+            
+            for i = 1:count( obj, 1 )
+                fprintf('\n Remaining items: %d', count( obj, 1) - i );
+                
+                extr = index( obj, i );
+                data = extr.data;
+                
+                data = data{1};
+                labels = replabels( extr, size( data, 1 ) );
+                
+                extr.data = data; %#ok<*PROP>
+                extr.labels = labels;
+                
+                new_obj = append( new_obj, extr );
+            end
+            
+        end
         
         %   clear the data and labels of an object, but leave its structure
         %   (including label_fields) intact
