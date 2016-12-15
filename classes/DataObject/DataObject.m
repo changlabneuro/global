@@ -601,6 +601,16 @@ classdef DataObject
             obj.labels.(field{1})(ind) = current;
         end
         
+        function obj = insert(obj, field, value)
+            assert( any(strcmp(fieldnames(obj), field)), ...
+                'The field ''%s'' doesn''t exist in the object', field );
+            
+            labels = getfield( obj, field );
+            labels = cellfun( @(x) [value x], labels, 'UniformOutput', false );
+            
+            obj = setfield( obj, field, labels );
+        end
+        
         %   - replace all labels in a given field with 'all__<field>'
         
         function obj = collapse(obj, fields)
