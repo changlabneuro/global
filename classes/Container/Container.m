@@ -196,7 +196,7 @@ classdef Container
       %   OUT:
       %     `indices` (cell array of logicals) -- indices associated with
       %     the labels identified by each row of `c`
-      %     `c` (cell array of strings) -- the unique combinations of
+      %     `comb` (cell array of strings) -- the unique combinations of
       %     labels in `fields`; each row of c is identified by the
       %     corresponding row of `indices`.
       
@@ -286,9 +286,8 @@ classdef Container
           if ( ~isempty(s) )
             values = subsasgn( top, s, values );
           end
-          %   make sure our intended values are valid
+          %   validate the incoming property, and assign if valid.
           obj = set_property( obj, prop, values );
-          obj.(prop) = values;
         case '()'
           assert( numel(s) == 1, ...
             'Nested assignments with ''()'' are illegal' );
