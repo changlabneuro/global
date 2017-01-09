@@ -169,6 +169,20 @@ classdef Container
         ITERATION
     %}
     
+    function c = combs(obj, fields)
+      
+      %   COMBS -- Get all unique combinations of the labels in `fields`.
+      %   See `help Labels/combs` for more information.
+      %
+      %   IN:
+      %     `fields` (cell array of strings, char) -- fields in the Labels
+      %     object in `obj.labels`
+      %   OUT:
+      %     `c` (cell array of strings) -- Unique combinations of labels.
+      
+      c = combs( obj.labels, fields );
+    end
+    
     function [indices, comb] = get_indices(obj, fields)
       
       %   get_indices -- Get indices associated with the unique
