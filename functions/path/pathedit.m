@@ -14,12 +14,13 @@ else pathstr = pathfor( 'paths' );
 end
 
 try
-    cd( pathstr )
+    orig = pwd; cd( pathstr );
 catch
     error( 'path ''%s'' is not a valid path', pathstr );
 end
 
 edit( 'make_paths.m' );
 
+cd( orig );
 
 end

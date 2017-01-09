@@ -24,7 +24,7 @@ function print__items( obj, items, type )
 fprintf( '\n MODULE ''%s'' with %s:\n', class(obj), type );
 
 for i = 1:numel(items)
-    fprintf( '\n - ''%s''', items{i} );
+    fprintf( '\n   - ''%s''', items{i} );
 end
 
 fprintf('\n\n');
