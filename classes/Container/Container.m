@@ -185,9 +185,20 @@ classdef Container
     
     function [indices, comb] = get_indices(obj, fields)
       
-      %   get_indices -- Get indices associated with the unique
+      %   GET_INDICES -- Get indices associated with the unique
       %   combinations of unique labels in `fields`. See help
       %   `Labels/get_indices` for more information.
+      %
+      %   IN:
+      %     `fields` (cell array of strings, char) -- fields in the Labels
+      %     object in `obj.labels`
+      %
+      %   OUT:
+      %     `indices` (cell array of logicals) -- indices associated with
+      %     the labels identified by each row of `c`
+      %     `c` (cell array of strings) -- the unique combinations of
+      %     labels in `fields`; each row of c is identified by the
+      %     corresponding row of `indices`.
       
       [indices, comb] = get_indices( obj.labels, fields );
     end
@@ -198,7 +209,7 @@ classdef Container
     
     function obj = subsasgn(obj, s, values)
       
-      %   subsasgn -- assign values to the object. Almost never will this 
+      %   SUBSASGN -- assign values to the object. Almost never will this 
       %   function be called explicitly -- it's invoked when you do something 
       %   like Container.data(:, 2) = 10.
       %
@@ -236,8 +247,9 @@ classdef Container
       %   In case b), Container(`index`) = [] deletes the elements
       %   specified by the index. If `index` is a logical, it must be
       %   properly dimensioned (be a column vector with the same number of
-      %   rows as the Container object). If is an array of numeric indices,
-      %   it will be converted to a logical.
+      %   rows as the Container object). If it is instead an array of
+      %   numeric indices, an attempt will be made to convert it to a
+      %   logical.
       %
       %   // EXAMPLES //
       %
