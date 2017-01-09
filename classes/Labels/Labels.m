@@ -455,6 +455,10 @@ classdef Labels
       if ( ~obj.IGNORE_CHECKS )
         selectors = Labels.ensure_cell( selectors );
         Assertions.assert__is_cellstr( selectors );
+        assert( ~obj.IS_PREALLOCATING, ...
+            ['The object is currently preallocating; it is an error to search' ...
+            , ' a preallocating object. If the object is fully populated, call' ...
+            , ' cleanup() to finish the preallocation process.'] );
       end
       
       N = shape( obj, 1 );
@@ -669,6 +673,9 @@ classdef Labels
         assert( shape(obj, 2) == shape(B, 2), ...
           [ 'Incorrect number of columns in the preallocated object' ...
            , ' - expected %d, but there were %d' ], shape(B, 2), shape(obj, 2));
+        nfields = numel( B.fields );
+        assert( nfields == numel(unique(B.fields)), ...
+            'The incoming object has duplicate fields, which is an error' );
         obj.fields = B.fields;
         obj.BEEN_POPULATED = true;
       end
