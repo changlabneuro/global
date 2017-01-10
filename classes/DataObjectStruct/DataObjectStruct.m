@@ -275,6 +275,48 @@ classdef DataObjectStruct
         end
         
         %{
+            SAVE
+        %}
+        
+        function success = saveeach( obj, directory )
+          
+          %   SAVEEACH -- save each object in `obj.objects` as a .mat file.
+          %
+          %     If the directory is invalid, saving will fail, the
+          %     error will be printed, and false is returned. Otherwise,
+          %     true is returned.
+          %     
+          %     IN:
+          %       - `directory` (char) -- folder in which to save. Will ask
+          %         before overwriting files of the same name. 
+          %     OUT:
+          %       - `success` (bool) -- true if errors did not occur when
+          %         attempting to save.
+          
+          success = true;
+          try
+            cd( directory );
+            objs = obj.objects;
+            fields = objectfields( obj );
+            for i = 1:numel(fields)
+              obj = objs.( fields{i} );
+              filename = fullfile( directory, [fields{i} '.mat'] );
+              if ( exist(filename, 'file') == 2 )
+                inp = input( sprintf(['The file ''%s'' already exists in the' ...
+                  , ' current folder.\nDo you wish to overwrite it? (y/n)\n\n'], ...
+                  fields{i}), 's' );
+                if ( isequal(lower(inp), 'n') ), continue; end;
+              end
+              save( fullfile(directory, fields{i}), 'obj' );
+            end
+          catch err
+            success = false;
+            fprintf( '\n ! DataObjectStruct/saveeach: Failed to save' );
+            fprintf( '\n ! ERROR: %s', err.message );
+          end
+        end
+        
+        %{
             operations - certain operations (like minus) are supported
             directly, without the need to call foreach() or perfield()
         %}
@@ -330,7 +372,55 @@ classdef DataObjectStruct
             assert( isa(structure, 'struct'), msg );
             structfun( @(x) assert(isa(x, 'DataObject'), msg), structure );
         end
-        sdfj;
+        
+        function obj = loadeach(directory, names)
+          
+          %   LOADEACH -- load individual object .mat files saved with
+          %     saveeach(), and piece back together into a new
+          %     DataObjectStruct.
+          %
+          %     IN:
+          %       - `directory` (char) -- Folder in which object .mats are
+          %         located
+          %       - `names` (cell array of strings) |OPTIONAL| -- Filenames
+          %         to load. If unspecified, will attempt to load all .mats
+          %         in the given directory.
+          %     OUT:
+          %       - `obj` (DataObjectStruct) -- New DataObjectStruct
+          %       object.
+          
+          orig = cd;          
+          try
+            cd(directory); cd(orig);
+          catch
+            error( 'Invalid directory ''%s''', directory );
+          end          
+          if ( nargin == 2 )
+            assert( iscellstr(names), [...
+              'If specifying filenames, do so in a cell array'] );
+          else
+            names = dirstruct( directory, '.mat' );
+            names = { names(:).name };
+          end          
+          assert( ~isempty(names), ...
+            'No .mat files found in the folder ''%s''', directory );          
+          objs = struct();          
+          for i = 1:numel(names)
+            name = names{i};
+            %   remove '.mat' extension, if specified
+            period = strfind( name, '.' );
+            if ( ~isempty(period) )
+              name = name( 1:period-1 );
+            end
+            try
+              loaded = load( name );
+              objs.(name) = loaded.obj;
+            catch
+              error( 'Invalid fieldname, or nonexistent file ''%s''', name );
+            end
+          end
+          obj = DataObjectStruct( objs );          
+        end
     end
     
 end
