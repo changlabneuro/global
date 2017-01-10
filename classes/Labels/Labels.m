@@ -32,7 +32,7 @@ classdef Labels
     
     function obj = verbosity(obj, to)
       
-      %   verbosity -- turn more descriptive / debug messages 'on' or
+      %   VERBOSITY -- turn more descriptive / debug messages 'on' or
       %   'off'. If no inputs are specified, the object is returned
       %   unchanged. If `to` is neither 'on' nor 'off', the object is
       %   returned unchanged
@@ -51,7 +51,7 @@ classdef Labels
     
     function s = shape(obj, dim)
       
-      %   shape -- get the size of the labels cell array
+      %   SHAPE -- get the size of the labels cell array
       %
       %   IN:
       %     `dim` |OPTIONAL| (double) -- dimension of the array of labels
@@ -63,7 +63,7 @@ classdef Labels
     
     function n = nfields(obj)
       
-      %   nfields -- get the current number of fields in the object
+      %   NFIELDS -- get the current number of fields in the object
       
       n = numel( obj.fields );
     end
@@ -72,19 +72,48 @@ classdef Labels
         LABEL HANDLING
     %}
     
-    function unqs = uniques(obj)
+    function unqs = uniques(obj, labels)
       
-      %   uniques -- get the unique elements in each column of obj.labels
+      %   UNIQUES -- get the unique elements in each column of obj.labels.
+      %   Alternatively, if labels are specified, get the unique elements
+      %   of the specified labels.
+      %
+      %   IN:
+      %     `labels` (cell array of strings) |OPTIONAL| -- labels to obtain
+      %     uniques-of. Usually, this input will be left unspecified, in
+      %     which case the labels will be those in `obj.labels`
+      %   OUT:
+      %     `unqs` (cell array of cell array of strings) -- cell array
+      %     where each cell{i} contains the unique labels in each column of
+      %     `labels`. If `labels` is unspecified, each column (i) of
+      %     `unqs` corresponds to each field(i) in `obj.fields`.
       
-      unqs = cell( size(obj.fields) );
+      if ( nargin < 2 ), labels = obj.labels; end;
+      unqs = cell( 1, size(labels, 2) );
       for i = 1:numel(unqs)
-        unqs{i} = unique(obj.labels(:,i) );
+        unqs{i} = unique( labels(:,i) );
       end
+    end
+    
+    function unqs = uniques_in_fields(obj, fields)
+      
+      %   UNIQUES_IN_FIELDS -- get the unique elements in the desired
+      %   fields. Note that fields can be repeated, and that each column(i)
+      %   of unqs will match fields(i).
+      %
+      %   IN:
+      %     `fields` (cell array of strings, char) -- desired fields.
+      %   OUT:
+      %     `unqs` (cell array of cell arrays of strings) -- the unique
+      %     each of the specified fields.
+      
+      labs = get_fields( obj, fields );
+      unqs = uniques( obj, labs );
     end
     
     function c = combs(obj, fields)
       
-      %   combs -- get the unique combinations of unique labels in the
+      %   COMBS -- get the unique combinations of unique labels in the
       %   object. Specify `fields` as a second input in order to limit the
       %   resulting combinations to those fields.
       %
@@ -111,7 +140,7 @@ classdef Labels
     
     function obj = replace(obj, search_for, with)
       
-      %   replace -- replace a given number of labels with a single label.
+      %   REPLACE -- replace a given number of labels with a single label.
       %   All of the to-be-replaced labels must be in the same field; it is
       %   an error to place the same label in multiple fields. If no
       %   elements are found, a warning is printed, and the original object
@@ -159,8 +188,9 @@ classdef Labels
     
     function labs = get_fields(obj, fields)
       
-      %   get_fields -- obtain labels in the fields `fields`. If any
+      %   GET_FIELDS -- obtain labels in the fields `fields`. If any
       %   fields in `fields` are not in the object, an error is thrown.
+      %   Fields are allowed to be repeated.
       %
       %   IN:
       %     `fields` (cell array of strings, char) -- fields from which to
@@ -175,10 +205,13 @@ classdef Labels
     
     function [labs, fields] = get_fields_except(obj, fields)
       
-      %   get_fields_except -- obtain the labels in all fields except those
+      %   GET_FIELDS_EXCEPT -- obtain the labels in all fields except those
       %   in `fields`. If any fields in `fields` are not in the object, an
       %   error is thrown. If all fields in the object are specified, an
-      %   error is thrown.
+      %   error is thrown. Note that the order of columns of the outputted
+      %   labels are not guarenteed to match those of the inputted fields;
+      %   for this reason, you can specify a second output `fields` to
+      %   properly identify columns of `labels`.
       %
       %   IN:
       %     `fields` (cell array of strings, char) -- fields to ignore. 
@@ -197,7 +230,7 @@ classdef Labels
     
     function obj = rename_field(obj, field, name)
       
-      %   rename_field -- change the fieldname of `field` to `name`. If
+      %   RENAME_FIELD -- change the fieldname of `field` to `name`. If
       %   `field` does not exist in the object, an error is thrown. If
       %   `name` is already the name of a field in the object, an error is
       %   thrown.
@@ -206,7 +239,7 @@ classdef Labels
       %     `field` (char) -- name of field to rename
       %     `name` (char) -- new name of the field
       %   OUT:
-      %     `obj` (Labels) -- object with the rename field
+      %     `obj` (Labels) -- object with the renamed field
       
       Assertions.assert__isa( field, 'char' );
       Assertions.assert__isa( name, 'char' );
@@ -218,7 +251,7 @@ classdef Labels
     
     function obj = set_field(obj, field, values, index)
       
-      %   set_field -- set the contents of a given `field` at a given
+      %   SET_FIELD -- set the contents of a given `field` at a given
       %   `index` to the desired `values`. If no index is specified, the
       %   entire field is attempted to be replaced. If `values` is a cell
       %   array of strings, and `index` is specified, the number of
@@ -226,6 +259,19 @@ classdef Labels
       %   `index` is unspecified, the number of values must match the
       %   number of rows in the Labels object. If `values` is a char, the
       %   values will be repeated and placed at each point in the index.
+      %
+      %   IN:
+      %     `field` (char) -- Field in which labels are to be set
+      %     `values` (cell array, char) -- New labels to set. If `values`
+      %     is a cell array and `index` is unspecified, the number of
+      %     values must equal the current number of labels in the field.
+      %     If `values` is a cell array and `index` is specified, the
+      %     number of values must equal the number of true elements in the
+      %     index.
+      %     `index` (logical) |COLUMN| |OPTIONAL| -- index of which
+      %     elements in the field are to be replaced / set.
+      %   OUT:
+      %     `obj` (Labels) -- updated Labels object.
       
       if ( nargin < 4 ), index = true( shape(obj, 1), 1 ); end
       if ( ~obj.IGNORE_CHECKS )
@@ -255,7 +301,7 @@ classdef Labels
     
     function obj = rm_fields(obj, fields)
       
-      %   rm_fields -- remove specified field(s) from the object. An error
+      %   RM_FIELDS -- remove specified field(s) from the object. An error
       %   is thrown if even one of the specified fields is not found. It is
       %   ok to delete all fields from the object.
       %
@@ -276,7 +322,7 @@ classdef Labels
     
     function obj = keep(obj, ind)
       
-      %   keep -- given a logical column vector, return a `Labels` object
+      %   KEEP -- given a logical column vector, return a `Labels` object
       %   where the rows of `obj.labels` correspond to the true elements of
       %   the input vector. The number of elements in the vector must equal
       %   the number of rows in the object.
@@ -301,7 +347,7 @@ classdef Labels
     
     function [obj, full_ind] = remove(obj, selectors)
       
-      %   remove -- remove rows of labels for which any of the labels in
+      %   REMOVE -- remove rows of labels for which any of the labels in
       %   `selectors` are found.
       %
       %   IN:
@@ -328,14 +374,14 @@ classdef Labels
     
     function [obj, full_ind] = rm(obj, selectors)
       
-      %   rm -- shorthand alias for `remove()`. See `help Labels/remove`.
+      %   RM -- shorthand alias for `remove()`. See `help Labels/remove`.
       
       [obj, full_ind] = remove( obj, selectors );
     end
     
     function [obj, ind] = only(obj, selectors)
       
-      %   only -- retain the labels that match the labels in `selectors`.
+      %   ONLY -- retain the labels that match the labels in `selectors`.
       %
       %   IN:
       %     `selectors` (cell array of strings, char) -- labels to retain
@@ -354,7 +400,7 @@ classdef Labels
     
     function tf = contains(obj, selectors, unqs)
       
-      %   contains -- check if the object contains any of the labels in
+      %   CONTAINS -- check if the object contains any of the labels in
       %   `selectors`
       %
       %   IN:
@@ -384,7 +430,7 @@ classdef Labels
     
     function ind = find_fields(obj, fields)
       
-      %   find_fields - get the index of where each desired field is stored
+      %   FIND_FIELDS - get the index of where each desired field is stored
       %   in `obj.fields`.
       %
       %   IN:
@@ -402,7 +448,7 @@ classdef Labels
     
     function [full_index, found_fields] = where(obj, selectors, labs, fields)
       
-      %   where -- obtain an index of the rows associated with desired
+      %   WHERE -- obtain an index of the rows associated with desired
       %   labels in `selectors`. ACROSS fields, indices are AND indices;
       %   WITHIN a field, indices are OR indices. If any of the labels in
       %   `selectors` is not found, the entire index is false. Also returns
@@ -516,7 +562,7 @@ classdef Labels
     
     function [indices, c] = get_indices(obj, fields)
       
-      %   get_indices -- return an array of indices corresponding to all
+      %   GET_INDICES -- return an array of indices corresponding to all
       %   unique combinations of labels in the specified fields for which
       %   there is a match. I.e., some unique combinations of labels might
       %   not exist in the object, and if so, the index of their location
@@ -556,7 +602,7 @@ classdef Labels
     
     function tf = fields_match(obj, B)
       
-      %   fields_match -- Check if the fields of two `Labels` objects
+      %   FIELDS_MATCH -- Check if the fields of two `Labels` objects
       %   match. If the tested input is not a `Labels` object, tf is false
       %
       %   IN:
@@ -572,7 +618,7 @@ classdef Labels
     
     function tf = shapes_match(obj, B)
       
-      %   shapes_match -- Check if the shapes of two `Labels` objects
+      %   SHAPES_MATCH -- Check if the shapes of two `Labels` objects
       %   match. If the tested input is not a `Labels` object, tf is false
       %
       %   IN:
@@ -588,7 +634,7 @@ classdef Labels
     
     function tf = eq(obj, B)
       
-      %   eq -- Check equality between two `Labels` objects. If the tested
+      %   EQ -- Check equality between two `Labels` objects. If the tested
       %   input is not a `Labels` object, the output is false
       %
       %   IN:
@@ -607,7 +653,7 @@ classdef Labels
     
     function tf = ne(obj, B)
       
-      %   ne -- ~eq(). See `help Labels/eq` for more info.
+      %   NE -- ~eq(). See `help Labels/eq` for more info.
       
       tf = ~eq(obj, B);
     end
@@ -618,7 +664,7 @@ classdef Labels
     
     function obj = preallocate(obj, sizes)
       
-      %   preallocate -- return a preallocated object in which the cells of
+      %   PREALLOCATE -- return a preallocated object in which the cells of
       %   `obj.labels` are filled with a predefined expression: '/*/'. The
       %   initial object must be empty (i.e., derived from a call to
       %   Labels() without input arguments). Otherwise, an error will be
@@ -647,7 +693,7 @@ classdef Labels
     
     function obj = populate(obj, B)
       
-      %   populate -- fill a preallocating object with the contents of
+      %   POPULATE -- fill a preallocating object with the contents of
       %   another object. If the preallocating object is empty ( i.e., if
       %   this is the first call to populate() after preallocate() ), the
       %   fields of the preallocating object will be overwritten with the
@@ -687,7 +733,7 @@ classdef Labels
     
     function obj = cleanup(obj)
       
-      %   cleanup -- removes excess `PREALLOCATION_EXPRESSION` rows in the
+      %   CLEANUP -- removes excess `PREALLOCATION_EXPRESSION` rows in the
       %   object as necessary, and marks that the object is done preallocating. 
       %   Call this function only after the object is fully populated. It
       %   is an error to call cleanup() before at least one call to
@@ -713,7 +759,7 @@ classdef Labels
     
     function obj = append(obj, B)
       
-      %   append -- append the contents of one `Labels` object to another.
+      %   APPEND -- append the contents of one `Labels` object to another.
       %   If the first object is empty, the second will be returned.
       %   Otherwise, the fields of the two objects must match.
       %
@@ -738,7 +784,7 @@ classdef Labels
     
     function disp(obj)
       
-      %   disp -- print the fields and labels in the object, and indicate
+      %   DISP -- print the fields and labels in the object, and indicate
       %   the frequency of each label.
       
       unqs = uniques( obj );

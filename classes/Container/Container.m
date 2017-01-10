@@ -36,7 +36,7 @@ classdef Container
     
     function obj = verbosity(obj, to)
       
-      %   verbosity -- turn more descriptive / debug messages 'on' or
+      %   VERBOSITY -- turn more descriptive / debug messages 'on' or
       %   'off'. If no inputs are specified, the object is returned
       %   unchanged. If `to` is neither 'on' nor 'off', the object is
       %   returned unchanged
@@ -61,7 +61,7 @@ classdef Container
     
     function s = shape(obj, dim)
       
-      %   shape -- get the size of the data in the object
+      %   SHAPE -- get the size of the data in the object
       %
       %   IN:
       %     `dim` (double) |OPTIONAL| -- dimension(s) of the data to query.
@@ -75,7 +75,7 @@ classdef Container
     
     function n = nels(obj)
       
-      %   nels -- get the total number of data elements in the object
+      %   NELS -- get the total number of data elements in the object
       %
       %   OUT:
       %     `n` -- number of elements `Container.data`
@@ -89,7 +89,7 @@ classdef Container
     
     function obj = keep(obj, ind)
       
-      %   keep -- retain rows of data and labels at which `ind` is true. Note
+      %   KEEP -- retain rows of data and labels at which `ind` is true. Note
       %   that a number of checks as to the validity of `ind` are handled
       %   in the call to keep( obj.labels, ind ).
       %
@@ -107,7 +107,7 @@ classdef Container
     
     function [obj, ind] = remove(obj, selectors)
       
-      %   remove -- remove rows of data and labels identified by
+      %   REMOVE -- remove rows of data and labels identified by
       %   the labels in `selectors`.
       %
       %   IN:
@@ -124,14 +124,14 @@ classdef Container
     
     function [obj, ind] = rm(obj, selectors)
       
-      %   rm -- shorthand alias for remove(). See `help Container/remove`
+      %   RM -- shorthand alias for remove(). See `help Container/remove`
       
       [obj, ind] = remove( obj, selectors );
     end
     
     function [obj, ind] = only(obj, selectors)
       
-      %   only -- retain elements in `obj.data` that match the index of the
+      %   ONLY -- retain elements in `obj.data` that match the index of the
       %   `selectors`. See `help Labels/only` and `help Labels/where` for
       %   more information about how the indices are computed.
       %
@@ -148,7 +148,7 @@ classdef Container
     
     function [ind, fields] = where(obj, selectors, varargin)
       
-      %   where -- generate an index of the labels in `selectors`. See
+      %   WHERE -- generate an index of the labels in `selectors`. See
       %   `help Labels/where` for more information on how labels are
       %   located.
       %
@@ -334,7 +334,7 @@ classdef Container
     
     function out = subsref(obj, s)
       
-      %   subsref -- reference properties and call methods on the Container
+      %   SUBSREF -- reference properties and call methods on the Container
       %   object, as well as on the Container.labels object. Almost
       %   never will this function be called explicitly -- it's
       %   called when you do something like Container.('propertyname'), or
@@ -521,7 +521,7 @@ classdef Container
     
     function tf = eq(obj, B)
       
-      %   eq -- test the equality of two Container objects. If the second
+      %   EQ -- test the equality of two Container objects. If the second
       %   input is not a Container object, false is returned. Otherwise,
       %   objects are equal if they are of the same dimension, the same
       %   dtype, the same labels, and their data are equal.
@@ -540,7 +540,7 @@ classdef Container
     
     function tf = ne(obj, B)
       
-      %   ne -- opposite of eq(obj, B). See `help Container/eq` for more
+      %   NE -- opposite of eq(obj, B). See `help Container/eq` for more
       %   information
       
       tf = ~eq( obj, B );
@@ -558,7 +558,7 @@ classdef Container
     
     function obj = append(obj, B)
       
-      %   append -- append one Container to an existing Container. If the
+      %   APPEND -- append one Container to an existing Container. If the
       %   existing container is empty, the new Container will be returned
       %   unmodified. Otherwise, the incoming object must a) have the same
       %   number of columns as the existing object, b) the same dtype as
@@ -584,7 +584,7 @@ classdef Container
     
     function obj = op(obj, B, func, varargin)
       
-      %   op -- call a function `func` elementwise on the data in two objects.
+      %   OP -- call a function `func` elementwise on the data in two objects.
       %   Several checks will take place before operations can occur.
       %   Both objects need have identical shapes, equivalent Label
       %   objects, and the same dtype. Further, the dtypes will have to
@@ -620,7 +620,7 @@ classdef Container
     
     function obj = plus(obj, B)
       
-      %   plus -- add two Container objects. See `help Container/op` for
+      %   PLUS -- add two Container objects. See `help Container/op` for
       %   more information on requirements for operations.
       
       obj = op( obj, B, @plus );
@@ -628,7 +628,7 @@ classdef Container
     
     function obj = minus(obj, B)
       
-      %   minus -- subtract the data in Container object `B` from the data in
+      %   MINUS -- subtract the data in Container object `B` from the data in
       %   `obj`. See `help Container/op` for more information on
       %   requirements for operations to occur.
       
@@ -641,7 +641,7 @@ classdef Container
     
     function comp = compress(obj, rows, comp)
       
-      %   compress -- group elements with the same label-set into a cell
+      %   COMPRESS -- group elements with the same label-set into a cell
       %   array, such that, after grouping all elements, each row of the
       %   compressed object will be identified by a unique label-set.
       %
@@ -680,7 +680,7 @@ classdef Container
     
     function decomped = decompress(obj, rows)
       
-      %   decompress -- 'flatten' cell array-stored data, preserving
+      %   DECOMPRESS -- 'flatten' cell array-stored data, preserving
       %   the labels of each item. If the inner-arrays of the outer array
       %   are matrices, they must have the same number of columns.
       %
@@ -778,7 +778,7 @@ classdef Container
     
     function logic = double_to_logical(obj, ind)
       
-      %   double_to_logical -- helper function to convert an array of
+      %   DOUBLE_TO_LOGICAL -- helper function to convert an array of
       %   numeric indices to a logical index suitable for use by keep(),
       %   etc. The values in `ind` must be continuously increasing, greater
       %   than 0, and less than the number of rows in the object.
@@ -807,7 +807,7 @@ classdef Container
     
     function obj = set_property( obj, prop, values )
       
-      %   set_property -- internal function that validates and sets the
+      %   SET_PROPERTY -- internal function that validates and sets the
       %   `label` and `data` properties when subsasgn(obj) is called. For
       %   an overwritten `data` property to be valid, the new values must
       %   have the same number of rows as the object. For an overwritten
@@ -853,7 +853,7 @@ classdef Container
     
     function obj = preallocate(obj, with, n_fields)
       
-      %   preallocate -- return a preallocated object filled with the
+      %   PREALLOCATE -- return a preallocated object filled with the
       %   values in `with` and an empty `Labels` object of the
       %   appropriate size, with `n_fields` fields. The initial object must
       %   be empty (i.e., derived from an explicit call to Container()
@@ -901,7 +901,7 @@ classdef Container
     
     function obj = populate(obj, with)
       
-      %   populate -- fill a preallocating object with the contents of
+      %   POPULATE -- fill a preallocating object with the contents of
       %   `with`. The incoming and preallocating object must share dtypes,
       %   have consistent column dimensions, and have consistent `Label`
       %   objects. Otherwise, an error is thrown. Contents are added
@@ -934,7 +934,7 @@ classdef Container
     
     function obj = cleanup(obj)
       
-      %   cleanup -- removes excess rows in the object as necessary, and 
+      %   CLEANUP -- removes excess rows in the object as necessary, and 
       %   marks that the object is done preallocating. 
       %
       %   Call this function only after the object is fully populated. It
@@ -1016,7 +1016,7 @@ classdef Container
     
     function A = cellwise(func, A, B, varargin)
       
-      %   cellwise -- call a function with inputs matched between arrays
+      %   CELLWISE -- call a function with inputs matched between arrays
       %   `A` and `B`. There are no checks on the inputs here, because this
       %   is an internal function meant to speed up operations between
       %   objects of dtype 'cell'.
@@ -1036,7 +1036,7 @@ classdef Container
     
     function obj = create_from(obj)
       
-      %   create_from -- create a Container from another class of object.
+      %   CREATE_FROM -- create a Container from another class of object.
       %   Currently, only `DataObject`s are supported.
       %
       %   IN:

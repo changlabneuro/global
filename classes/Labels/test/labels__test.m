@@ -154,6 +154,182 @@ end
 
 fprintf( '\n - OK: keep() failed when the index was improperly dimensioned' );
 
+%{
+    TEST -- when calling replace(), all to-be-replaced values should reside
+    in the same field
+%}
+
+FAIL_MSG = 'UNCAUGHT: Labels in different fields were allowed to be replaced';
+
+try
+  s = struct( ...
+    'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+    'rewards', {{ 'high'; 'low'; 'high' }} );
+  labels = Labels( s );
+  labels = replace( labels, {'self', 'low'}, 'medium' );
+  error( FAIL_MSG );
+catch err
+  msg = 'It is an error to replace an element in multiple fields';
+  assert( isequal(err.message, msg), FAIL_MSG );
+end
+
+fprintf( ['\n - OK: replace() failed when attempting to replace labels in' ...
+  , '\n\t multiple fields'] );
+
+%{
+    TEST -- rename_field() should fail when the new name already exists in
+    the object
+%}
+  
+FAIL_MSG = 'UNCAUGHT: A field was renamed to a field that already exists in the object';
+  
+try
+  s = struct( ...
+    'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+    'rewards', {{ 'high'; 'low'; 'high' }} );
+  labels = Labels( s );
+  labels = rename_field( labels, 'outcomes', 'rewards' );
+  error( FAIL_MSG );
+catch err
+  msg = 'The name ''rewards'' is already a field in the object';
+  assert( isequal(err.message, msg), FAIL_MSG );
+end
+
+fprintf( ['\n - OK: rename_field() failed when the new field name was' ...
+  , '\n\t already in the object'] );
+
+%{
+    TEST -- set_field() should fail when any of the new labels are in
+    another field
+%}
+  
+FAIL_MSG = 'UNCAUGHT: New labels were allowed to be placed in multipled fields';
+
+try
+  s = struct( ...
+    'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+    'rewards', {{ 'high'; 'low'; 'high' }} );
+  labels = Labels( s );
+  labels = set_field( labels, 'rewards', 'self' );
+  error( FAIL_MSG );
+catch err
+  msg = ['Cannot assign ''self'' to field ''rewards'' because it' ...
+    , ' already exists in field ''outcomes''' ];
+  assert( isequal(err.message, msg), FAIL_MSG );
+end
+
+fprintf( ['\n - OK: set_field() failed when the new labels were already' ...
+  , '\n\tin a different field'] );
+
+%{
+    TEST -- set_field() should fail when the index is improperly
+    dimensioned
+%}
+  
+FAIL_MSG = ['UNCAUGHT: An improperly dimensioned index was used to set' ...
+  , ' the locations of new labels'];
+
+try
+  s = struct( ...
+    'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+    'rewards', {{ 'high'; 'low'; 'high' }} );
+  labels = Labels( s );
+  labels = set_field( labels, 'rewards', 'medium', true(10, 1) );
+  error( FAIL_MSG );
+catch err
+  msg = ['The index must be a column vector with the same number of rows' ...
+          , ' as the object (3). The inputted index had (10) elements'];
+  assert( isequal(err.message, msg), FAIL_MSG );
+end
+
+fprintf( '\n - OK: set_field() failed when the index was improperly dimensioned' );
+
+%{
+    TEST -- set_field() should fail when the number of true elements in the
+    index does not match the number of elements to assign
+%}
+
+FAIL_MSG = ['UNCAUGHT: An index was used to set a field of labels, but it did not' ...
+  , ' have the appropriate / corresponding number of true elements'];
+
+try
+  s = struct( ...
+    'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+    'rewards', {{ 'high'; 'low'; 'high' }} );
+  labels = Labels( s );
+  labels = set_field( labels, 'rewards', {'medium'; 'low'}, true(3, 1) );
+  error( FAIL_MSG );
+catch err
+  msg = 'Attempting to assign too many or too few labels to the field ''rewards''';
+  assert( isequal(err.message, msg), FAIL_MSG );
+end
+
+fprintf( ['\n - OK: set_field() failed when the number of true elements in the' ...
+  , '\n\tindex did not match the number of labels to set'] );
+
+%{
+    TEST -- where() should return an all-false index when the desired label
+    is not in the object
+%}
+  
+FAIL_MSG = 'UNCAUGHT: where() reported the existence of non-present labels';
+
+s = struct( ...
+  'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+  'rewards', {{ 'high'; 'low'; 'high' }} );
+labels = Labels( s );
+ind = where( labels, 'yellow' );
+
+assert( ~any(ind), FAIL_MSG );
+
+fprintf( ['\n - OK: where() returned an all-false index when the requested label' ...
+  , ' \n\t was not in the object'] );
+
+%{
+    TEST -- when all the searched-for labels are in different fields, the
+    index should be empty if there are no rows for which all labels are
+    found
+%}
+  
+FAIL_MSG = [ 'UNCAUGHT: where() returned an index with at least one true value,' ...
+  , ' but in reality, no rows matched the search-terms' ];
+
+s = struct( ...
+  'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+  'rewards', {{ 'high'; 'low'; 'high' }}, ...
+  'trials', {{ 'choice'; 'choice'; 'cued' }} );
+labels = Labels( s );
+ind = where( labels, {'both', 'high', 'choice'} );
+
+assert( ~any(ind), FAIL_MSG );
+
+fprintf( ['\n - OK: where() returned an all-false index when the requested labels' ...
+  , ' \n\t were in the object, but not ever found in the same row'] );
+
+%{
+    TEST -- when some of the searched-for labels are in overlapping fields,
+    the index should be true at rows for which *either* of the labels in
+    the overlapping fields are found.
+%}
+  
+  
+FAIL_MSG = [ 'UNCAUGHT: where() returned an incorrect index when the search labels' ...
+  , ' \n\t were drawn from overlapping fields' ];
+
+s = struct( ...
+  'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+  'rewards', {{ 'high'; 'low'; 'high' }}, ...
+  'trials', {{ 'choice'; 'choice'; 'cued' }} );
+labels = Labels( s );
+ind = where( labels, {'both', 'self', 'high', 'choice'} );
+
+assert( sum(ind) == 1 & find(ind) == 1, FAIL_MSG );
+
+fprintf( ['\n - OK: where() correctly identified rows when search-labels' ...
+  , ' \n\t were drawn from overlapping fields'] );
+
+  
+
 
 %{
     PASSED
