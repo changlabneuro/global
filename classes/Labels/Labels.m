@@ -298,16 +298,16 @@ classdef Labels
         else values = { values };
         end
         Assertions.assert__is_cellstr( values );
-        assert( numel(index) == shape(obj, 1) && iscolumn(index), ...
-          ['The index must be a column vector with the same number of rows' ...
-          , ' as the object (%d). The inputted index had (%d) elements'], ...
-          shape(obj, 1), numel(index) );
+        assert__is_properly_dimensioned_logical( obj, index );
+        %   ensure none of the incoming values exist in another field of
+        %   the object.
         [labels, other_fields] = get_fields_except( obj, field );
-        for i = 1:numel(values)
-          [ind, check_field] = where( obj, values{i}, labels, other_fields );
+        unique_values = unique( values );
+        for i = 1:numel(unique_values)
+          [ind, check_field] = where( obj, unique_values{i}, labels, other_fields );
           assert( ~any(ind), ['Cannot assign ''%s'' to' ...
             , ' field ''%s'' because it already exists in field ''%s'''] ...
-            , values{i}, field, check_field{1} );
+            , unique_values{i}, field, check_field{1} );
         end
       end
       ind = find_fields( obj, field );
@@ -330,6 +330,33 @@ classdef Labels
       inds = find_fields( obj, fields );
       obj.fields(inds) = [];
       obj.labels(:, inds) = [];
+    end
+    
+    function obj = add_field(obj, field, set_as)
+      
+      %   ADD_FIELD -- Add a new field of labels to the object.
+      %
+      %     You cannot add multiple fields in one function call. You must
+      %     also provide the labels to assign to the new field. If the
+      %     given `field` already exists, an error is thrown. Note that you
+      %     must assign a full field's worth of labels -- i.e., you cannot
+      %     supply an index to assign only part of the new field.
+      %
+      %     IN:
+      %       - `field` (char) -- New field name.
+      %     OUT:
+      %       - `set_as` (cell array of strings, char) -- Values to assign
+      %         to the new field. See `help Labels/set_field` for more
+      %         information on input restrictions (although note that the
+      %         `index` input is not supported here).
+      
+      Assertions.assert__isa( field, 'char' );
+      opts.msg = '\nThe field ''%s'' already exists in the object';
+      assert__does_not_contain_fields( obj, field, opts );
+      obj.fields{end+1} = field;
+      obj.labels(:, end+1) = { obj.EMPTY_FIELDNAME };
+      ind = true( shape(obj,1), 1 );
+      obj = set_field( obj, field, set_as, ind );      
     end
     
     %{
@@ -903,8 +930,9 @@ classdef Labels
     
     function assert__is_properly_dimensioned_logical(obj, B, opts)
       if ( nargin < 3 )
-        opts.msg = ['Index must be a logical column vector with the same' ...
-          , ' number of rows as the object'];
+        opts.msg = sprintf( ['The index must be a column vector with the same number' ...
+          , ' of rows as the object (%d). The inputted index had (%d) elements'] ...
+          , shape(obj, 1), numel(B) );
       end
       Assertions.assert__isa( B, 'logical' );
       assert( iscolumn(B), opts.msg );
@@ -925,13 +953,24 @@ classdef Labels
       assert( fields_match(obj, B), opts.msg );
     end
     
-    function assert__contains_fields(obj, fields, opts)
+    function assert__does_not_contain_fields(obj, fields, opts)
       if ( nargin < 3 )
-        opts.msg = 'At least one of the specified fields is not in the object';
+        opts.msg = [ 'Cannot complete the operations because the field ''%s''' ...
+          , ' already exists in the object' ];
       end
       fields = Labels.ensure_cell( fields );
       for i = 1:numel(fields)
-        assert( any(strcmp(obj.fields, fields{i})), opts.msg );
+        assert( ~any(strcmp(obj.fields, fields{i})), opts.msg, fields{i} );
+      end
+    end
+    
+    function assert__contains_fields(obj, fields, opts)
+      if ( nargin < 3 )
+        opts.msg = 'The field ''%s'' is not in the object';
+      end
+      fields = Labels.ensure_cell( fields );
+      for i = 1:numel(fields)
+        assert( any(strcmp(obj.fields, fields{i})), opts.msg, fields{i} );
       end
     end
   end

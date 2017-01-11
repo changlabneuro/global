@@ -556,6 +556,16 @@ classdef Container
             end
           end
           if ( proceed )
+            %   if we've reached this point, it's because we couldn't find
+            %   a property or method that matched the incoming `subs`. In
+            %   that case, let's do a check to see if there are any
+            %   almost-matches to `subs`. If there are, display them 
+            %   before throwing an error.
+            matches = maybe_you_meant( obj, subs );
+            if ( ~isempty(matches) )
+              fprintf( '\n Perhaps you meant ... \n' );
+              cellfun( @(x) fprintf( '\n - %s', x ), matches ); fprintf( '\n\n' );
+            end
             error( 'No properties or methods matched the name ''%s''', subs );
           end
         case '()'
@@ -865,6 +875,55 @@ classdef Container
       disp( obj.labels.labels );
     end
     
+    function all_matches = maybe_you_meant(obj, str)
+      
+      %   MAYBE_YOU_MEANT -- Return a cell array of potentially valid
+      %     method and/or property names given an invalid property or
+      %     method name.
+      %
+      %     Searches the properties and labels of both the Container and
+      %     Labels objects, and identifies methods as
+      %     `obj_type`/`method_name` if a potential match is a method, or
+      %     `obj_type`.`prop_name` if a potential match is a property.
+      %
+      %     IN:
+      %       - str (char) -- The invalid reference string.
+      %     OUT:
+      %       - all_matches (cell array of strings, empty cell array) --
+      %         The potential matches as identified by
+      %         `Container.matches_substring()`. See `help
+      %         Container/matches_substring` for more information on how
+      %         potential matches are computed. If no matches are found,
+      %         `all_matches` is an empty cell array.
+      
+      obj_kinds = { 'Container', 'Labels' };
+      ref_kinds = { 'methods', 'properties' };
+      
+      all_matches = {};
+      
+      for i = 1:numel(obj_kinds)
+        obj_kind = obj_kinds{i};
+        for j = 1:numel(ref_kinds)
+          ref_kind = ref_kinds{j};
+          if ( isequal(ref_kind, 'properties') )
+            func = @properties; reformatted_format = '%s.%s';
+          else func = @methods; reformatted_format = '%s/%s()';
+          end
+          if ( isequal(obj_kind, 'Container') )
+            current_obj = obj;
+          else current_obj = obj.labels;
+          end
+          matches = Container.matches_substring( str, func(current_obj), 2, 4 );
+          if ( isempty(matches) ), continue; end;
+          matches = ...
+            cellfun( @(x) sprintf(reformatted_format, obj_kind, x), matches, ...
+            'UniformOutput', false );
+          all_matches = [all_matches matches];
+        end
+      end
+      
+    end
+    
     function logic = double_to_logical(obj, ind)
       
       %   DOUBLE_TO_LOGICAL -- helper function to convert an array of
@@ -1166,6 +1225,45 @@ classdef Container
         obj = Container( obj.data, obj.labels ); return;
       end
       error( 'Cannot create a Container from type ''%s''', class(obj) );
+    end
+    
+    function matches = matches_substring(str, comparitors, min_length, max_length)
+      
+      %   MATCHES_SUBSTRING -- Return elements of a cell array of strings
+      %     that include and begin with a given string. 
+      %
+      %     Specify minimum and max-lengths for the incoming string. If the 
+      %     string is longer than the given `max_length`, it
+      %     will be truncated to `max_length`. If the string is shorter
+      %     than the given `min_length`, the function returns an empty cell
+      %     array.
+      %
+      %     IN:
+      %       - `str` (char) -- String to search for.
+      %       - `comparitors` (cell array) -- Cell array of strings to
+      %         search through.
+      %       - `min_length` (number) -- The fewest number of elements the
+      %         `str` can have in order to proceed to search for a match.
+      %         E.g., one may not wish to search a 10e3-by-10e3 cell array
+      %         of strings if the incoming `str` is a single character 'a'.
+      %       - `max_length` (number) -- The longest the given `str` can
+      %         be. If `str` is longer than `max_length`, the string will
+      %         be truncated to `max_length`.
+      
+      matches = {};
+      Assertions.assert__isa( str, 'char' );
+      Assertions.assert__is_cellstr( comparitors );
+      assert( max_length > 0, 'Maximum string length must be greater than 0' );
+      assert( max_length > min_length, ...
+        'Maximum string length must be greater than minimum string length' );
+      if ( numel(str) < min_length ), return; end;
+      if ( numel(str) > max_length ), str = str(1:max_length); end;
+      too_big = cellfun( @(x) numel(x) < numel(str), comparitors );
+      comparitors(too_big) = [];
+      if ( isempty(comparitors) ), return; end;
+      does_match = cellfun( @(x) any(min(strfind(x, str)) == 1), comparitors );
+      matches = comparitors( does_match );
+      
     end
   end
   
