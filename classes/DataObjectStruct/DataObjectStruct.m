@@ -278,7 +278,7 @@ classdef DataObjectStruct
             SAVE
         %}
         
-        function success = saveeach( obj, directory )
+        function success = saveeach( obj, directory, flag )
           
           %   SAVEEACH -- save each object in `obj.objects` as a .mat file.
           %
@@ -289,11 +289,16 @@ classdef DataObjectStruct
           %     IN:
           %       - `directory` (char) -- folder in which to save. Will ask
           %         before overwriting files of the same name. 
+          %       - `flag` (logical) |OPTIONAL| -- true if you want to save
+          %         with MATLAB's '-v7.3' switch, which enables larger
+          %         files at the expense of longer save-times. Default is
+          %         false.
           %     OUT:
           %       - `success` (bool) -- true if errors did not occur when
           %         attempting to save.
           
           success = true;
+          if ( nargin < 3 ), flag = false; end;
           try
             cd( directory );
             objs = obj.objects;
@@ -307,7 +312,10 @@ classdef DataObjectStruct
                   fields{i}), 's' );
                 if ( isequal(lower(inp), 'n') ), continue; end;
               end
-              save( fullfile(directory, fields{i}), 'obj' );
+              if ( flag )
+                save( fullfile(directory, fields{i}), 'obj', '-v7.3' );
+              else save( fullfile(directory, fields{i}), 'obj' );
+              end
             end
           catch err
             success = false;
