@@ -33,12 +33,14 @@ classdef Labels
     function obj = verbosity(obj, to)
       
       %   VERBOSITY -- turn more descriptive / debug messages 'on' or
-      %   'off'. If no inputs are specified, the object is returned
-      %   unchanged. If `to` is neither 'on' nor 'off', the object is
-      %   returned unchanged
+      %     'off'. 
       %
-      %   IN:
-      %     `to` ('on' or 'off')
+      %     If no inputs are specified, the object is returned unchanged. 
+      %     If `to` is neither 'on' nor 'off', the object is returned 
+      %     unchanged.
+      %
+      %     IN:
+      %       - `to` ('on' or 'off')
       
       if ( nargin < 2 ), return; end;
       if ( isequal(to, 'on') ), obj.VERBOSE = true; return; end
@@ -51,11 +53,11 @@ classdef Labels
     
     function s = shape(obj, dim)
       
-      %   SHAPE -- get the size of the labels cell array
+      %   SHAPE -- get the size of the labels cell array.
       %
-      %   IN:
-      %     `dim` |OPTIONAL| (double) -- dimension of the array of labels
-      %     to query. E.g., size(obj, 1)
+      %     IN:
+      %       - `dim` |OPTIONAL| (double) -- dimension of the array of 
+      %         labels to query. E.g., size(obj, 1).
       
       if ( nargin < 2 ), s = size( obj.labels ); return; end;
       s = size( obj.labels, dim );
@@ -68,6 +70,10 @@ classdef Labels
       n = numel( obj.fields );
     end
     
+    function tf = isempty(obj)
+      tf = isempty( obj.labels );
+    end
+    
     %{
         LABEL HANDLING
     %}
@@ -75,18 +81,20 @@ classdef Labels
     function unqs = uniques(obj, labels)
       
       %   UNIQUES -- get the unique elements in each column of obj.labels.
-      %   Alternatively, if labels are specified, get the unique elements
-      %   of the specified labels.
+      %     Alternatively, if labels are specified, get the unique elements
+      %     of the specified labels.
       %
-      %   IN:
-      %     `labels` (cell array of strings) |OPTIONAL| -- labels to obtain
-      %     uniques-of. Usually, this input will be left unspecified, in
-      %     which case the labels will be those in `obj.labels`
-      %   OUT:
-      %     `unqs` (cell array of cell array of strings) -- cell array
-      %     where each cell{i} contains the unique labels in each column of
-      %     `labels`. If `labels` is unspecified, each column (i) of
-      %     `unqs` corresponds to each field(i) in `obj.fields`.
+      %     IN:
+      %       - `labels` (cell array of strings) |OPTIONAL| -- labels to 
+      %         obtain uniques-of. Usually, this input will be left 
+      %         unspecified, in which case the labels will be those in 
+      %         `obj.labels`.
+      %     OUT:
+      %       - `unqs` (cell array of cell array of strings) -- cell array
+      %         where each cell{i} contains the unique labels in each 
+      %         column of `labels`. If `labels` is unspecified, each 
+      %         column (i) of `unqs` corresponds to each field(i) in 
+      %         `obj.fields`.
       
       if ( nargin < 2 ), labels = obj.labels; end;
       unqs = cell( 1, size(labels, 2) );
@@ -98,14 +106,14 @@ classdef Labels
     function unqs = uniques_in_fields(obj, fields)
       
       %   UNIQUES_IN_FIELDS -- get the unique elements in the desired
-      %   fields. Note that fields can be repeated, and that each column(i)
-      %   of unqs will match fields(i).
+      %     fields. Note that fields can be repeated, and that each 
+      %     column(i) of unqs will match fields(i).
       %
-      %   IN:
-      %     `fields` (cell array of strings, char) -- desired fields.
-      %   OUT:
-      %     `unqs` (cell array of cell arrays of strings) -- the unique
-      %     each of the specified fields.
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- desired fields.
+      %     OUT:
+      %       - `unqs` (cell array of cell arrays of strings) -- the unique
+      %       each of the specified fields.
       
       labs = get_fields( obj, fields );
       unqs = uniques( obj, labs );
@@ -114,23 +122,23 @@ classdef Labels
     function c = combs(obj, fields)
       
       %   COMBS -- get the unique combinations of unique labels in the
-      %   object. Specify `fields` as a second input in order to limit the
-      %   resulting combinations to those fields.
+      %     object. Specify `fields` as a second input in order to limit 
+      %     the resulting combinations to those fields.
       %
-      %   IN:
-      %     `fields` (cell array of strings, char) |OPTIONAL| -- fields
-      %     from which to draw unique elements. If unspecified, all fields
-      %     will be used.
+      %     IN:
+      %       - `fields` (cell array of strings, char) |OPTIONAL| -- fields
+      %         from which to draw unique elements. If unspecified, all 
+      %         fields will be used.
       %
-      %     NOTE: The order of elements of `fields` is not respected in the
-      %     output `c`. Instead, the columns of `c` are ordered with
-      %     respect to the index of the field in `obj.fields`.
-      %   OUT:
-      %     `c` (cell array of strings) -- M*N cell array, where M is the
-      %     number of unique combinations, and N is the number of fields in
-      %     `fields` (or the number of fields in `obj.fields`, if
-      %     unspecified). Each cell contains a label, and each column
-      %     contains the array of labels for a given field.
+      %         NOTE: The order of elements of `fields` is not respected in 
+      %         the output `c`. Instead, the columns of `c` are ordered 
+      %         with respect to the index of the field in `obj.fields`.
+      %     OUT:
+      %       - `c` (cell array of strings) -- M*N cell array, where M is 
+      %         the number of unique combinations, and N is the number of 
+      %         fields in `fields` (or the number of fields in `obj.fields`, 
+      %         if unspecified). Each cell contains a label, and each column
+      %         contains the array of labels for a given field.
       
       unqs = uniques( obj );
       if ( nargin < 2 ), c = allcomb( unqs ); return; end;
@@ -141,18 +149,19 @@ classdef Labels
     function obj = replace(obj, search_for, with)
       
       %   REPLACE -- replace a given number of labels with a single label.
-      %   All of the to-be-replaced labels must be in the same field; it is
-      %   an error to place the same label in multiple fields. If no
-      %   elements are found, a warning is printed, and the original object
-      %   is returned.
       %
-      %   IN:
-      %     `search_for` (cell array of strings, char) -- Labels to
-      %     replace. If an element cannot be found, that element will be
-      %     ignored, and a warning will be printed.
-      %   OUT:
-      %     `obj` (Labels) -- Object with its labels property updated to
-      %     reflect the replacements
+      %     All of the to-be-replaced labels must be in the same field; it 
+      %     is an error to place the same label in multiple fields. If no
+      %     elements are found, a warning is printed, and the original 
+      %     object is returned.
+      %
+      %     IN:
+      %       - `search_for` (cell array of strings, char) -- Labels to
+      %         replace. If an element cannot be found, that element will 
+      %         be ignored, and a warning will be printed.
+      %     OUT:
+      %       - `obj` (Labels) -- Object with its labels property updated
+      %         to reflect the replacements
       
       search_for = Labels.ensure_cell( search_for );
       Assertions.assert__is_cellstr( search_for );
@@ -188,16 +197,17 @@ classdef Labels
     
     function labs = get_fields(obj, fields)
       
-      %   GET_FIELDS -- obtain labels in the fields `fields`. If any
-      %   fields in `fields` are not in the object, an error is thrown.
-      %   Fields are allowed to be repeated.
+      %   GET_FIELDS -- obtain labels in the fields `fields`. 
       %
-      %   IN:
-      %     `fields` (cell array of strings, char) -- fields from which to
-      %     draw labels
-      %   OUT:
-      %     `labs` (cell array of strings) -- columns of `obj.labels` that
-      %     match the fields in `fields`.
+      %     If any fields in `fields` are not in the object, an error is 
+      %     thrown. Fields are allowed to be repeated.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- fields from which 
+      %         to draw labels.
+      %     OUT:
+      %       - `labs` (cell array of strings) -- columns of `obj.labels` 
+      %         that match the fields in `fields`.
       
       inds = find_fields( obj, fields );
       labs = obj.labels(:, inds);
@@ -206,20 +216,22 @@ classdef Labels
     function [labs, fields] = get_fields_except(obj, fields)
       
       %   GET_FIELDS_EXCEPT -- obtain the labels in all fields except those
-      %   in `fields`. If any fields in `fields` are not in the object, an
-      %   error is thrown. If all fields in the object are specified, an
-      %   error is thrown. Note that the order of columns of the outputted
-      %   labels are not guarenteed to match those of the inputted fields;
-      %   for this reason, you can specify a second output `fields` to
-      %   properly identify columns of `labels`.
+      %     in `fields`. 
       %
-      %   IN:
-      %     `fields` (cell array of strings, char) -- fields to ignore. 
-      %   OUT:
-      %     `labs` (cell array of strings) -- labels in the object that
-      %     correspond to the non-desired fields
-      %     `fields` (cell array of strings) -- fields that correspond to
-      %     the returned labels
+      %     If any fields in `fields` are not in the object, an error is 
+      %     thrown. If all fields in the object are specified, an error is 
+      %     thrown. Note that the order of columns of the outputted labels 
+      %     are not guarenteed to match those of the inputted fields;
+      %     for this reason, you can specify a second output `fields` to
+      %     properly identify columns of `labels`.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- fields to ignore. 
+      %     OUT:
+      %       - `labs` (cell array of strings) -- labels in the object that
+      %         correspond to the non-desired fields.
+      %       - `fields` (cell array of strings) -- fields that correspond 
+      %         to the returned labels.
       
       desired = sort( setdiff( 1:numel(obj.fields), find_fields(obj, fields)) );
       assert( ~isempty(desired), ...
@@ -230,16 +242,17 @@ classdef Labels
     
     function obj = rename_field(obj, field, name)
       
-      %   RENAME_FIELD -- change the fieldname of `field` to `name`. If
-      %   `field` does not exist in the object, an error is thrown. If
-      %   `name` is already the name of a field in the object, an error is
-      %   thrown.
+      %   RENAME_FIELD -- change the fieldname of `field` to `name`. 
       %
-      %   IN:
-      %     `field` (char) -- name of field to rename
-      %     `name` (char) -- new name of the field
-      %   OUT:
-      %     `obj` (Labels) -- object with the renamed field
+      %     If `field` does not exist in the object, an error is thrown. If
+      %     `name` is already the name of a field in the object, an error 
+      %     is thrown.
+      %
+      %     IN:
+      %       - `field` (char) -- name of field to rename.
+      %       - `name` (char) -- new name of the field.
+      %     OUT:
+      %       - `obj` (Labels) -- object with the renamed field.
       
       Assertions.assert__isa( field, 'char' );
       Assertions.assert__isa( name, 'char' );
@@ -252,26 +265,28 @@ classdef Labels
     function obj = set_field(obj, field, values, index)
       
       %   SET_FIELD -- set the contents of a given `field` at a given
-      %   `index` to the desired `values`. If no index is specified, the
-      %   entire field is attempted to be replaced. If `values` is a cell
-      %   array of strings, and `index` is specified, the number of
-      %   values must match the sum of the index. Otherwise, if
-      %   `index` is unspecified, the number of values must match the
-      %   number of rows in the Labels object. If `values` is a char, the
-      %   values will be repeated and placed at each point in the index.
+      %     `index` to the desired `values`. 
       %
-      %   IN:
-      %     `field` (char) -- Field in which labels are to be set
-      %     `values` (cell array, char) -- New labels to set. If `values`
-      %     is a cell array and `index` is unspecified, the number of
-      %     values must equal the current number of labels in the field.
-      %     If `values` is a cell array and `index` is specified, the
-      %     number of values must equal the number of true elements in the
-      %     index.
-      %     `index` (logical) |COLUMN| |OPTIONAL| -- index of which
-      %     elements in the field are to be replaced / set.
-      %   OUT:
-      %     `obj` (Labels) -- updated Labels object.
+      %     If no index is specified, the entire field is attempted to be 
+      %     replaced. If `values` is a cell array of strings, and `index` 
+      %     is specified, the number of values must match the sum of the 
+      %     index. Otherwise, if `index` is unspecified, the number of 
+      %     values must match the number of rows in the Labels object. If 
+      %     `values` is a char, the values will be repeated and placed at 
+      %     each point in the index.
+      %
+      %     IN:
+      %       - `field` (char) -- Field in which labels are to be set.
+      %       - `values` (cell array, char) -- New labels to set. If 
+      %         `values` is a cell array and `index` is unspecified, the 
+      %         number of values must equal the current number of labels in 
+      %         the field. If `values` is a cell array and `index` is 
+      %         specified, the number of values must equal the number of 
+      %         true elements in the index.
+      %       - `index` (logical) |COLUMN| |OPTIONAL| -- index of which
+      %         elements in the field are to be replaced / set.
+      %     OUT:
+      %       - `obj` (Labels) -- updated Labels object.
       
       if ( nargin < 4 ), index = true( shape(obj, 1), 1 ); end
       if ( ~obj.IGNORE_CHECKS )
@@ -301,15 +316,16 @@ classdef Labels
     
     function obj = rm_fields(obj, fields)
       
-      %   RM_FIELDS -- remove specified field(s) from the object. An error
-      %   is thrown if even one of the specified fields is not found. It is
-      %   ok to delete all fields from the object.
+      %   RM_FIELDS -- remove specified field(s) from the object.
       %
-      %   IN:
-      %     `fields` (cell array of strings, char) -- field or fields to
-      %     remove from the object.
-      %   OUT:
-      %     `obj` (Labels) -- object with the desired fields removed
+      %     An error is thrown if even one of the specified fields is not 
+      %     found. It is ok to delete all fields from the object.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- field or fields 
+      %         to remove from the object.
+      %     OUT:
+      %       - `obj` (Labels) -- object with the desired fields removed.
       
       inds = find_fields( obj, fields );
       obj.fields(inds) = [];
@@ -323,17 +339,17 @@ classdef Labels
     function obj = keep(obj, ind)
       
       %   KEEP -- given a logical column vector, return a `Labels` object
-      %   where the rows of `obj.labels` correspond to the true elements of
-      %   the input vector. The number of elements in the vector must equal
-      %   the number of rows in the object.
+      %     where the rows of `obj.labels` correspond to the true elements 
+      %     of the input vector. The number of elements in the vector must 
+      %     equal the number of rows in the object.
       %
-      %   IN:
-      %     `ind` (logical) |COLUMN VECTOR| -- index of elements to retain.
-      %     numel( `ind` ) must equal shape(obj, 1) (i.e., the number of
-      %     rows in the object).
-      %   OUT:
-      %     `obj` (Labels) -- same as the input object, but with false
-      %     elements of `ind` removed
+      %     IN:
+      %       - `ind` (logical) |COLUMN VECTOR| -- index of elements to 
+      %         retain. numel( `ind` ) must equal shape(obj, 1) (i.e., the 
+      %         number of rows in the object).
+      %     OUT:
+      %       - `obj` (Labels) -- same as the input object, but with false
+      %         elements of `ind` removed
       
       if ( ~obj.IGNORE_CHECKS )
         msg = ['The index must be a logical column vector with the same number' ...
@@ -348,15 +364,16 @@ classdef Labels
     function [obj, full_ind] = remove(obj, selectors)
       
       %   REMOVE -- remove rows of labels for which any of the labels in
-      %   `selectors` are found.
+      %     `selectors` are found.
       %
-      %   IN:
-      %     `selectors` (cell array of strings, char) -- labels to identify
-      %     rows to remove.
-      %   OUT:
-      %     `obj` (Labels) -- object with `selectors` removed.
-      %     `full_ind` (logical) |COLUMN| -- index of the removed elements,
-      %     with respect to the inputted (non-mutated) object.
+      %     IN:
+      %       - `selectors` (cell array of strings, char) -- labels to 
+      %         identify rows to remove.
+      %     OUT:
+      %       - `obj` (Labels) -- object with `selectors` removed.
+      %       - `full_ind` (logical) |COLUMN| -- index of the removed 
+      %         elements, with respect to the inputted (non-mutated) 
+      %         object.
       
       if ( ~obj.IGNORE_CHECKS )
         selectors = Labels.ensure_cell( selectors );
@@ -383,12 +400,14 @@ classdef Labels
       
       %   ONLY -- retain the labels that match the labels in `selectors`.
       %
-      %   IN:
-      %     `selectors` (cell array of strings, char) -- labels to retain
-      %   OUT:
-      %     `obj` (Labels) -- object with only the labels in `selectors`
-      %     `ind` (logical) -- the index used to select the labels in the
-      %     outputted object
+      %     IN:
+      %       - `selectors` (cell array of strings, char) -- labels to
+      %       retain.
+      %     OUT:
+      %       - `obj` (Labels) -- object with only the labels in
+      %       `selectors`.
+      %       - `ind` (logical) -- the index used to select the labels in
+      %         the outputted object.
       
       ind = where( obj, selectors );
       obj = keep( obj, ind );
@@ -401,18 +420,19 @@ classdef Labels
     function tf = contains(obj, selectors, unqs)
       
       %   CONTAINS -- check if the object contains any of the labels in
-      %   `selectors`
+      %     `selectors`.
       %
-      %   IN:
-      %     `selectors` (cell array of strings, char) -- labels to query
-      %     `unqs` (cell array of cell arrays of strings) |OPTIONAL| -- 
-      %     the unique elements against which the `selectors` will be
-      %     compared. This will usually be used only internally, in order
-      %     to avoid repeated calls to uniques() when the object is not
-      %     being mutated.
-      %   OUT:
-      %     `tf` (bool) -- index of whether the object contains the given
-      %     selectors. Each tf(i) corresponds to selectors(i)
+      %     IN:
+      %       - `selectors` (cell array of strings, char) -- labels to
+      %         query.
+      %       - `unqs` (cell array of cell arrays of strings) |OPTIONAL| -- 
+      %         the unique elements against which the `selectors` will be
+      %         compared. This will usually be used only internally, in
+      %         order to avoid repeated calls to uniques() when the object
+      %         is not being mutated.
+      %     OUT:
+      %       - `tf` (bool) -- index of whether the object contains the
+      %         given selectors. Each tf(i) corresponds to selectors(i).
       
       if ( ~obj.IGNORE_CHECKS )
         selectors = Labels.ensure_cell( selectors );
@@ -431,15 +451,15 @@ classdef Labels
     function ind = find_fields(obj, fields)
       
       %   FIND_FIELDS - get the index of where each desired field is stored
-      %   in `obj.fields`.
+      %     in `obj.fields`.
       %
-      %   IN:
-      %     `fields` (cell array of strings, char) -- fields to locate.
-      %     Note that fields can be repeated.
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- fields to locate.
+      %         Note that fields can be repeated.
       %
-      %   OUT:
-      %     `ind` (double) -- corresponding location of the field(s) in
-      %     `obj.fields`
+      %     OUT:
+      %       - `ind` (double) -- corresponding location of the field(s) in
+      %         `obj.fields`.
       
       fields = Labels.ensure_cell( fields );
       assert__contains_fields( obj, fields );
@@ -449,37 +469,40 @@ classdef Labels
     function [full_index, found_fields] = where(obj, selectors, labs, fields)
       
       %   WHERE -- obtain an index of the rows associated with desired
-      %   labels in `selectors`. ACROSS fields, indices are AND indices;
-      %   WITHIN a field, indices are OR indices. If any of the labels in
-      %   `selectors` is not found, the entire index is false. Also returns
-      %   the field associated with each label in `seletors`. If a given
-      %   `selectors`{i} is not found, the `found_fields`{i} will be -1.
-      %   `found_fields` will always be of the same dimensions as
-      %   `selectors`; i.e., the function is guaranteed to list the field
-      %   associated with `selectors`(i), even if, say, the very first
-      %   element of `selectors` is not found.
+      %     labels in `selectors`. 
       %
-      %   IN:
-      %     `selectors` (cell array of strings, char) -- Desired labels. 
-      %     `labs` (cell array of strings) |OPTIONAL| -- The labels to
-      %     search through. ALMOST NEVER will this input be specified by
-      %     the user; `labs` is, by default, the labels in `obj.labels`.
-      %     However, it is occassionally useful to search through a
-      %     truncated array of labels, when, for example, there are many
-      %     label fields, and it is known in advance in which fields our
-      %     `selectors` should reside. In this case, you can call
-      %     get_fields() to obtain a truncated array of labels from the
-      %     object, and pass that array into this function. Also in that
-      %     case, you must provide the `fields` that correspond to the
-      %     inputted `labels`
-      %     `fields` (cell array of strings) -- fields that correspond to
-      %     the manually inputted labels.
-      %   OUT:
-      %     `full_index` (logical) |COLUMN| -- Index of which rows
-      %     correspond to the `selectors`.
-      %     `found_fields` (cell array) -- The field associated with the
-      %     found `selectors`(i), or else -1 if `selectors`(i) is not
-      %     found.
+      %     ACROSS fields, indices are AND indices; WITHIN a field, indices 
+      %     are OR indices. If any of the labels in `selectors` is not 
+      %     found, the entire index is false. Also returns the field 
+      %     associated with each label in `seletors`. If a given 
+      %     `selectors`{i} is not found, the `found_fields`{i} will be -1.
+      %     `found_fields` will always be of the same dimensions as
+      %     `selectors`; i.e., the function is guaranteed to list the field
+      %     associated with `selectors`(i), even if, say, the very first
+      %     element of `selectors` is not found.
+      %
+      %     IN:
+      %       - `selectors` (cell array of strings, char) -- Desired
+      %         labels.
+      %       - `labs` (cell array of strings) |OPTIONAL| -- The labels to
+      %         search through. ALMOST NEVER will this input be specified
+      %         by the user; `labs` is, by default, the labels in
+      %         `obj.labels`. However, it is occassionally useful to search
+      %         through a truncated array of labels, when, for example, 
+      %         there are many label fields, and it is known in advance in 
+      %         which fields our `selectors` should reside. In this case, 
+      %         you can call get_fields() to obtain a truncated array of 
+      %         labels from the object, and pass that array into this
+      %         function. Also in that case, you must provide the `fields` 
+      %         that correspond to the inputted `labels`.
+      %       - `fields` (cell array of strings) -- fields that correspond
+      %         to the manually inputted labels.
+      %     OUT:
+      %       - `full_index` (logical) |COLUMN| -- Index of which rows
+      %         correspond to the `selectors`.
+      %       - `found_fields` (cell array) -- The field associated with
+      %         the found `selectors`(i), or else -1 if `selectors`(i) is
+      %         not found.
       
       if ( nargin < 3 )
         labs = obj.labels; 
@@ -563,21 +586,27 @@ classdef Labels
     function [indices, c] = get_indices(obj, fields)
       
       %   GET_INDICES -- return an array of indices corresponding to all
-      %   unique combinations of labels in the specified fields for which
-      %   there is a match. I.e., some unique combinations of labels might
-      %   not exist in the object, and if so, the index of their location
-      %   is not returned. Thus when calling keep() on the object with each
-      %   index returned by get_indices(), it is guarenteed that the object
-      %   will not be empty. The idea behind this function is to avoid
-      %   nested loops -- instead, you can call get_indices with the desired
-      %   specificty, and then only loop through the resulting indices.
+      %     unique combinations of labels in the specified fields for which
+      %     there is a match. 
       %
-      %   IN:
-      %     `fields` (cell array of strings, char) -- Fields from which to
-      %     draw unique combinations of labels. Can be thought of as the
-      %     specificity of the indexing.
-      %   OUT:
-      %     `indices` (cell array of logical column vectors) -- Indices 
+      %     I.e., some unique combinations of labels might not exist in the 
+      %     object, and if so, the index of their location is not returned. 
+      %     Thus when calling keep() on the object with each index returned 
+      %     by get_indices(), it is guarenteed that the object will not be 
+      %     empty. The idea behind this function is to avoid nested loops 
+      %     -- instead, you can call get_indices with the desired 
+      %     specificty, and then only loop through the resulting indices.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields from which 
+      %         to draw unique combinations of labels. Can be thought of as 
+      %         the specificity of the indexing.
+      %     OUT:
+      %       - `indices` (cell array of logical column vectors) -- Indices
+      %         of the unique combinations of labels in `c`. Each row (i)
+      %         in `indices` corresponds to the unique labels in `c`(i).
+      %       - `c` (cell array of strings) -- Unique combinations
+      %         identified by each index in `indices`(i).
       
       c = combs( obj, fields );
       labels = get_fields( obj, fields );
@@ -603,13 +632,15 @@ classdef Labels
     function tf = fields_match(obj, B)
       
       %   FIELDS_MATCH -- Check if the fields of two `Labels` objects
-      %   match. If the tested input is not a `Labels` object, tf is false
+      %     match. 
       %
-      %   IN:
-      %     `B` (/any/) -- values to test
-      %   OUT:
-      %     `tf` (bool) -- true if `B` is a Labels object with fields that
-      %     match the other object
+      %     If the tested input is not a `Labels` object, tf is false.
+      %
+      %     IN:
+      %       - `B` (/any/) -- values to test.
+      %     OUT:
+      %       - `tf` (bool) -- true if `B` is a Labels object with fields
+      %         that match the other object.
       
       tf = false;
       if ( ~isa(B, 'Labels') ), return; end;
@@ -619,13 +650,15 @@ classdef Labels
     function tf = shapes_match(obj, B)
       
       %   SHAPES_MATCH -- Check if the shapes of two `Labels` objects
-      %   match. If the tested input is not a `Labels` object, tf is false
+      %     match.
+      %   
+      %     If the tested input is not a `Labels` object, tf is false.
       %
-      %   IN:
-      %     `B` (/any/) -- values to test
-      %   OUT:
-      %     `tf` (bool) -- true if `B` is a Labels object with a shape that
-      %     matches the shape of the other object
+      %     IN:
+      %       - `B` (/any/) -- values to test
+      %     OUT:
+      %       - `tf` (bool) -- true if `B` is a Labels object with a shape 
+      %         that matches the shape of the other object.
       
       tf = false;
       if ( ~isa(B, 'Labels') ), return; end;
@@ -635,13 +668,13 @@ classdef Labels
     function tf = eq(obj, B)
       
       %   EQ -- Check equality between two `Labels` objects. If the tested
-      %   input is not a `Labels` object, the output is false
+      %     input is not a `Labels` object, the output is false.
       %
-      %   IN:
-      %     `B` (/any/) -- values to test
-      %   OUT:
-      %     `tf` (bool) -- true if `B` is a Labels object with fields,
-      %     shape, and labels that match the other object.
+      %     IN:
+      %       - `B` (/any/) -- values to test.
+      %     OUT:
+      %       - `tf` (bool) -- true if `B` is a Labels object with fields,
+      %       shape, and labels that match the other object.
       
       tf = false;
       if ( ~isa(B, 'Labels') ), return; end;
@@ -653,7 +686,7 @@ classdef Labels
     
     function tf = ne(obj, B)
       
-      %   NE -- ~eq(). See `help Labels/eq` for more info.
+      %   NE -- ~eq(). See `help Labels/eq` for more information.
       
       tf = ~eq(obj, B);
     end
@@ -665,22 +698,23 @@ classdef Labels
     function obj = preallocate(obj, sizes)
       
       %   PREALLOCATE -- return a preallocated object in which the cells of
-      %   `obj.labels` are filled with a predefined expression: '/*/'. The
-      %   initial object must be empty (i.e., derived from a call to
-      %   Labels() without input arguments). Otherwise, an error will be
-      %   thrown. Depending on the size of the object, preallocating can be
-      %   much faster than using the append() method, which simply
-      %   concatenates label arrays.
+      %     `obj.labels` are filled with a predefined expression: '/*/'. 
       %
-      %   Call populate() to continuously fill the object with new
-      %   `Labels`. Then call cleanup() to remove excess elements as
-      %   necessary.
+      %     The initial object must be empty (i.e., derived from a call to
+      %     Labels() without input arguments). Otherwise, an error will be
+      %     thrown. Depending on the size of the object, preallocating can 
+      %     be much faster than using the append() method, which simply
+      %     concatenates label arrays.
       %
-      %   IN:
-      %     `sizes` (2 element double) -- Specify the size of the labels 
-      %     cell array. Note that, in order to properly populate the object, 
-      %     the number of columns must match the number of columns in the target
-      %     (to-fill-with) object. 
+      %     Call populate() to continuously fill the object with new
+      %     `Labels`. Then call cleanup() to remove excess elements as
+      %     necessary.
+      %
+      %     IN:
+      %       - `sizes` (2 element double) -- Specify the size of the
+      %         labels cell array. Note that, in order to properly populate 
+      %         the object, the number of columns must match the number of 
+      %         columns in the target (to-fill-with) object. 
       
       assert( isempty(obj), 'When preallocating, the starting object must be empty' );
       assert( numel(sizes) == 2, 'Specify two dimensions' );
@@ -694,22 +728,24 @@ classdef Labels
     function obj = populate(obj, B)
       
       %   POPULATE -- fill a preallocating object with the contents of
-      %   another object. If the preallocating object is empty ( i.e., if
-      %   this is the first call to populate() after preallocate() ), the
-      %   fields of the preallocating object will be overwritten with the
-      %   fields of the incoming object. Subsequent calls to populate()
-      %   will then require the fields of the incoming object to match
-      %   those of the preallocating object.
-      %   
-      %   With each call to populate(), the function will fill labels
-      %   starting from `obj.PREALLOCATION_ROW`; the index is updated at
-      %   the end of the function call.
+      %     another object. 
       %
-      %   IN:
-      %     `B` (Labels) -- The incoming object with which to populate the
-      %     preallocating object
-      %   OUT:
-      %     `obj` (Labels) -- The populated object          
+      %     If the preallocating object is empty ( i.e., if this is the 
+      %     first call to populate() after preallocate() ), the fields of 
+      %     the preallocating object will be overwritten with the fields of 
+      %     the incoming object. Subsequent calls to populate() will then 
+      %     require the fields of the incoming object to match those of 
+      %     the preallocating object.
+      %   
+      %     With each call to populate(), the function will fill labels
+      %     starting from `obj.PREALLOCATION_ROW`; the index is updated at
+      %     the end of the function call.
+      %
+      %     IN:
+      %       - `B` (Labels) -- The incoming object with which to populate
+      %         the preallocating object
+      %     OUT:
+      %       - `obj` (Labels) -- The populated object          
       
       assert( obj.IS_PREALLOCATING, ...
         'Can only populate after an explicit call to preallocate()' );
@@ -734,10 +770,12 @@ classdef Labels
     function obj = cleanup(obj)
       
       %   CLEANUP -- removes excess `PREALLOCATION_EXPRESSION` rows in the
-      %   object as necessary, and marks that the object is done preallocating. 
-      %   Call this function only after the object is fully populated. It
-      %   is an error to call cleanup() before at least one call to
-      %   populate() has been made.
+      %     object as necessary, and marks that the object is done
+      %     preallocating.
+      %     
+      %     Call this function only after the object is fully populated. It
+      %     is an error to call cleanup() before at least one call to
+      %     populate() has been made.
       
       if ( ~obj.IS_PREALLOCATING ), return; end;
       assert( obj.BEEN_POPULATED, ...
@@ -760,13 +798,13 @@ classdef Labels
     function obj = append(obj, B)
       
       %   APPEND -- append the contents of one `Labels` object to another.
-      %   If the first object is empty, the second will be returned.
-      %   Otherwise, the fields of the two objects must match.
+      %     If the first object is empty, the second will be returned.
+      %     Otherwise, the fields of the two objects must match.
       %
-      %   IN:
-      %     `B` (Labels) -- object to append.
-      %   OUT:
-      %     `obj` (Labels) -- object with `B` appended.
+      %     IN:
+      %       - `B` (Labels) -- object to append.
+      %     OUT:
+      %       - `obj` (Labels) -- object with `B` appended.
       
       Assertions.assert__isa( B, 'Labels' );
       if ( isempty(obj) ), obj = B; return; end;
@@ -774,18 +812,39 @@ classdef Labels
       obj.labels = [obj.labels; B.labels];
     end
     
+    function obj = overwrite(obj, B, index)
+      
+      %   OVERWRITE -- Assign the contents of another Label object to the
+      %     current object at a given `index`.
+      %
+      %     IN:
+      %       - `B` (Labels) -- Object whose contents are to be assigned.
+      %         Fields must match between objects.
+      %       - `index` (logical) -- Index of where in the assigned-to
+      %         object the new labels should be placed. Need have the same
+      %         number of true elements as the incoming object, but the
+      %         same number of *rows* as the assigned-to object.
+      %     OUT:
+      %       - `obj` (Labels) -- Object with newly assigned values.
+      
+      if ( ~obj.IGNORE_CHECKS )
+        assert__fields_match( obj, B );
+        assert__is_properly_dimensioned_logical( obj, index );
+        assert( sum(index) == shape(B, 1), ['The number of true elements' ...
+          , ' in the index must match the number\n of rows in the' ...
+          , ' incoming object'] );
+      end
+      obj.labels(index, :) = B.labels;
+    end
+    
     %{
         UTIL
     %}
     
-    function tf = isempty(obj)
-      tf = isempty( obj.labels );
-    end
-    
     function disp(obj)
       
       %   DISP -- print the fields and labels in the object, and indicate
-      %   the frequency of each label.
+      %     the frequency of each label.
       
       unqs = uniques( obj );
       fields = obj.fields; %#ok<*PROP>
@@ -808,12 +867,54 @@ classdef Labels
       fprintf( '\n\n' );
     end
     
+    function ind = create_index(obj, tf)
+      
+      %   CREATE_INDEX -- Generate an all-false or all-true column index
+      %     with the same number of rows as the object.
+      %
+      %     IN:
+      %       - `tf` (logical) -- If true, `ind` is all true, otherwise all
+      %         false.
+      %     OUT:
+      %       - `ind` (logical) |COLUMN| -- Returned index.
+      
+      rows = shape( obj, 1 );
+      if ( tf ), ind = true( rows, 1 ); else ind = false( rows, 1 ); end;
+    end
+    
+    function s = label_struct(obj)
+      
+      %   LABEL_STRUCT -- Convert an object's cell array of labels into a
+      %     struct with fields `obj.fields`.
+      %
+      %     OUT:
+      %       - `s` (struct) -- Structure with fields `obj.fields`; each
+      %         field contains one column of labels from `obj.labels`.
+      
+      fields = obj.fields;
+      for i = 1:numel(fields)
+        s.(fields{i}) = obj.labels(:,i);
+      end
+    end
+    
     %{
         LABELS-SPECIFIC ASSERTIONS
     %}
     
+    function assert__is_properly_dimensioned_logical(obj, B, opts)
+      if ( nargin < 3 )
+        opts.msg = ['Index must be a logical column vector with the same' ...
+          , ' number of rows as the object'];
+      end
+      Assertions.assert__isa( B, 'logical' );
+      assert( iscolumn(B), opts.msg );
+      assert( size(B, 1) == shape(obj, 1), opts.msg );
+    end
+    
     function assert__fields_and_shapes_match(obj, B, opts)
-      if ( nargin < 3 ), opts.msg = 'Fields and shapes must match between objects'; end;
+      if ( nargin < 3 )
+        opts.msg = 'Fields and shapes must match between objects'; 
+      end
       assert( isa(B, 'Labels'), 'The second input must be a Labels object' );
       assert( fields_match(obj, B) & shapes_match(obj, B), opts.msg );
     end

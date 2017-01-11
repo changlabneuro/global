@@ -328,7 +328,61 @@ assert( sum(ind) == 1 & find(ind) == 1, FAIL_MSG );
 fprintf( ['\n - OK: where() correctly identified rows when search-labels' ...
   , ' \n\t were drawn from overlapping fields'] );
 
+%{
   
+    TEST -- overwrite() should fail when the index is improperly
+    dimensioned
+  
+%}
+  
+FAIL_MSG = ['UNCAUGHT: overwrite() allowed an improperly dimensioned index' ...
+  , '\n\tto be used to set labels'];
+
+try
+  s = struct( ...
+    'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+    'rewards', {{ 'high'; 'low'; 'high' }} );
+  labels = Labels( s );
+  ind = true( shape(labels,1), 1); ind(1) = false;
+  labels2 = keep( labels, ind );
+  labels = overwrite( labels, labels2, ~ind );
+  error( FAIL_MSG );
+catch err
+  msg = [ 'The number of true elements in the index must match the number' ...
+    , '\n of rows in the incoming object' ];
+  assert( isequal(err.message, msg), FAIL_MSG );
+end
+
+fprintf( ['\n - OK: overwrite() failed when the number of elements in the' ...
+  , '\n\tincoming object did not match the number of true elements in the index' ] );
+
+%{
+    TEST -- overwrite() should succeed when the index matches the shape of
+    the assigned-to object; when the number of true elements match the 
+    number of rows of the assigning object; and when the fields of the two
+    objects match
+%}
+  
+FAIL_MSG = 'UNCAUGHT: overwrite() did not successfully assign new values';
+
+s = struct( ...
+  'outcomes', {{ 'self'; 'both'; 'other' }}, ...
+  'rewards', {{ 'high'; 'low'; 'high' }} );
+s2 = struct( ...
+  'outcomes', {{ 'NONE'; 'NONE'; }}, ...
+  'rewards', {{ 'medium'; 'medium'; }} );
+labels = Labels( s );
+labels2 = Labels( s2 );
+ind = create_index( labels, false );
+ind(1:shape(labels2, 1)) = true;
+labels = overwrite( labels, labels2, ind );
+assert( contains(labels, 'NONE') & contains(labels, 'medium'), ...
+  FAIL_MSG );
+
+fprintf( ['\n - OK: overwrite() succeeded when the assigned-to and assigning' ...
+  , '\n\tobjects had equivalent fields; when the index was properly dimensioned;' ...
+  , '\n\tand when the number of true elements in the index matched the number' ...
+  , '\n\tof rows in the assigning object'] );
 
 
 %{
