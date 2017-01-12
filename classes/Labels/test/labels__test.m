@@ -147,8 +147,8 @@ try
   l1 = keep( l1, ind );
   error( FAIL_MSG );
 catch err
-  msg = ['The index must be a logical column vector with the same number' ...
-          , ' of elements as shape(obj, 1)'];
+	msg = ['The index must be a column vector with the same number' ...
+          , ' of rows as the object (3). The inputted index had (2) elements'];
   assert( isequal(err.message, msg), FAIL_MSG );
 end
 

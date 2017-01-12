@@ -1,3 +1,165 @@
+%   LABELS -- Create a searchable array of labels to identify rows of data.
+%
+%     // INSTANTIATION
+%
+%     IN:
+%       - `s` (struct) |OPTIONAL| -- A struct whose N fields are M-by-1
+%         cell arrays of strings (labels). I.e., each field in `s` must
+%         have the same number of rows, and only one column. Additionally,
+%         the same string cannot appear in multiple fields of `s`; that is, 
+%         the unique values of each field cannot overlap in any way. If 
+%         specified, the returned object will have a `labels` property that 
+%         is an MxN cell array of strings, and a `fields` property that is
+%         a 1-by-N cell array of strings derived from the fieldnames in
+%         `s`. Each `field`(i) identifies the column of `labels`(:, i).
+%
+%         If unspecified, the returned object has `labels` and `field`
+%         properties that are both empty 0x0 cell arrays. Note that the
+%         object is not designed to be incrementally constructed in this
+%         way; it's intended to facilitate preallocation *only*. 
+%         See `help Labels/preallocate` for more information.
+%
+%     // EXAMPLE
+%
+%     s.rewards = { 'high'; 'low'; 'medium' };
+%     s.trialtypes = { 'cued'; 'choice'; 'cued' };
+%
+%     labels = Labels(s);
+%
+%     disp( labels );
+%
+%     labels = 
+%
+%       * trialtypes
+%           - choice (1)
+%           - cued (2)
+%       * rewards
+%           - high (1)
+%           - low (1)
+%           - medium (1)
+%
+%     labels.where( {'cued'} )
+%
+%     -> [ 1; 0; 1 ];
+%
+%     labels.where( {'choice', 'low'} );
+%
+%     -> [ 0; 1; 0;];
+%
+%     // PROPERTIES
+%
+%       //  PUBLIC
+%           
+%           - `labels` (cell array of strings) -- An MxN cell array of
+%             strings in which each column `n` denotes a `field`, or
+%             category, of labels, and each row `m` a set of labels. It is
+%             an error for the same label to appear in multiple columns of
+%             `labels`.
+%           - `fields` (cell array of string) -- Category names; names that
+%             identify each column of `labels`.
+%
+%       //  PROTECTED
+%
+%           - `IGNORE_CHECKS` (logical) |SCALAR| -- Specifies whether to
+%             more thoroughly check the validity of inputs to several
+%             methods, in order to avoid cryptic error messages. Is used
+%             internally to avoid such checks when there are many repeated
+%             calls to a given method; in that case, the input is validated
+%             before the repeated function call.
+%           - `IS_PREALLOCATING` (logical) |SCALAR| -- Indicates whether
+%             the object is or is not currently preallocating. Is set
+%             `true` after a call to preallocate(), and `false` after a
+%             call to `cleanup()`. See `help Labels/preallocate`, `help
+%             Labels/populate`, `help Labels/cleanup` for more information.
+%           - `BEEN_POPULATED` (logical) |SCALAR| -- `true` if a call to
+%             preallocate() has been made followed by a valid call to
+%             populate(); `false` otherwise.
+%           - `PREALLOCATION_EXPRESSION` (char) -- Indicates the expression
+%             each cell will be filled with in the preallocated cell array
+%             after a call to preallocate(). See `help Labels/preallocate`
+%             for more information.
+%           - `PREALLOCATION_ROW` (number, NaN) -- Indicates the row of the
+%             cell array of strings `obj.labels` at which a call to
+%             to populate() will begin assigning values to the array. NaN
+%             if the object is not currently preallocating.
+%           - `PREALLOCATION_SIZE` (number, NaN) -- Indicates the number of
+%             rows specified in the original call to preallocate(); NaN if
+%             the object is not currently preallocating.
+%           - `EMPTY_FIELDNAME` (char) -- Indicates how each empty field
+%             will be identified after a call to preallocate().
+%           - `COLLAPSED_EXPRESSION` (char) -- Indicates the string that
+%             will be prepended to the `field` in a call to
+%             collapse_fields(). See `help Labels/collapse_fields` for more
+%             information.
+%           - `VERBOSE` (logical) |SCALAR| -- Indicates whether methods
+%             should display more or less verbose warning / status / debug
+%             information.
+%           - `MAX_DISPLAY_ITEMS` (number) -- Indicates the maximum number
+%             of unique labels to display in a call to disp() when 
+%             VERBOSE is `false`. 
+%
+%     // METHODS
+%     
+%     Type `help Labels/NAME` to get more information about the methods
+%     listed here
+%
+%       //  NON-STATIC
+%
+%           - `Labels`
+%           - `verbosity`
+%           - `shape`
+%           - `nfields`
+%           - `uniques`
+%           - `uniques_in_fields`
+%           - `combs`
+%           - `replace`
+%           - `get_fields`
+%           - `get_fields_except`
+%           - `rename_field`
+%           - `set_field`
+%           - `rm_fields`
+%           - `add_field`
+%           - `collapse_fields`
+%           - `collapse`
+%           - `keep`
+%           - `remove`
+%           - `rm`
+%           - `only`
+%           - `contains`
+%           - `find_fields`
+%           - `where`
+%           - `get_indices`
+%           - `fields_match`
+%           - `shape_match`
+%           - `eq`
+%           - `ne`
+%           - `preallocate`
+%           - `populate`
+%           - `cleanup`
+%           - `append`
+%           - `disp`
+%           - `create_index`
+%           - `label_struct`
+%           - `eq`
+%           - `ne`
+%           - `preallocate`
+%           - `populate`
+%           - `cleanup`
+%           - `append`
+%           - `disp`
+%           - `create_index`
+%           - `label_struct`
+%           - `assert__contains_fields`
+%           - `assert__does_not_contain_fields`
+%           - `assert__fields_and_shapes_match`         
+%           - `assert__fields_match`
+%           - `assert__is_properly_dimensioned_logical`
+%
+%       //  STATIC
+%
+%           - `validate__initial_input`
+%           - `ensure_cell`
+
 classdef Labels
   
   properties (Access = public)
@@ -352,6 +514,9 @@ classdef Labels
       %         `index` input is not supported here).
       
       Assertions.assert__isa( field, 'char' );
+      assert( ~isempty(obj), ['Cannot add fields to an empty object.' ...
+        , ' See `help Labels/preallocate()` for information on how to assign' ...
+        , ' values to an empty object.'] );
       opts.msg = '\nThe field ''%s'' already exists in the object';
       assert__does_not_contain_fields( obj, field, opts );
       obj.fields{end+1} = field;
@@ -411,11 +576,7 @@ classdef Labels
       %         elements of `ind` removed
       
       if ( ~obj.IGNORE_CHECKS )
-        msg = ['The index must be a logical column vector with the same number' ...
-          , ' of elements as shape(obj, 1)'];
-        assert( iscolumn(ind), msg );
-        assert( numel(ind) == shape(obj, 1), msg );
-        assert( islogical(ind), msg );
+        assert__is_properly_dimensioned_logical( obj, ind );
       end
       obj.labels = obj.labels(ind, :);
     end
@@ -966,7 +1127,7 @@ classdef Labels
           , ' of rows as the object (%d). The inputted index had (%d) elements'] ...
           , shape(obj, 1), numel(B) );
       end
-      Assertions.assert__isa( B, 'logical' );
+      assert( islogical(B), opts.msg );
       assert( iscolumn(B), opts.msg );
       assert( size(B, 1) == shape(obj, 1), opts.msg );
     end
@@ -1042,3 +1203,9 @@ classdef Labels
   
   
 end
+
+%         msg = ['The index must be a logical column vector with the same number' ...
+%           , ' of elements as shape(obj, 1)'];
+%         assert( iscolumn(ind), msg );
+%         assert( numel(ind) == shape(obj, 1), msg );
+%         assert( islogical(ind), msg );
