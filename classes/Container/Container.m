@@ -564,7 +564,7 @@ classdef Container
             matches = maybe_you_meant( obj, subs );
             if ( ~isempty(matches) )
               fprintf( '\n Perhaps you meant ... \n' );
-              cellfun( @(x) fprintf( '\n - %s', x ), matches ); fprintf( '\n\n' );
+              cellfun( @(x) fprintf('\n - %s', x), matches ); fprintf( '\n\n' );
             end
             error( 'No properties or methods matched the name ''%s''', subs );
           end

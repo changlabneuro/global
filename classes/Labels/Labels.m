@@ -13,6 +13,7 @@ classdef Labels
     PREALLOCATION_ROW = NaN;
     PREALLOCATION_SIZE = NaN;
     EMPTY_FIELDNAME = 'EMPTY FIELD';
+    COLLAPSED_EXPRESSION = 'all__';
     VERBOSE = false;
     MAX_DISPLAY_ITEMS = 10;
   end
@@ -357,6 +358,37 @@ classdef Labels
       obj.labels(:, end+1) = { obj.EMPTY_FIELDNAME };
       ind = true( shape(obj,1), 1 );
       obj = set_field( obj, field, set_as, ind );      
+    end
+    
+    function obj = collapse_fields(obj, fields)
+      
+      %   COLLAPSE_FIELDS -- Replace labels in a field or fields with a
+      %     repeated, field-namespaced expression: 'all__`field`'.
+      %
+      %     An error is thrown if even one of the specified fields is not
+      %     found.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- field or fields
+      %         to collapse.
+      %     OUT:
+      %       - `obj` (Labels) -- object with the appropriate fields
+      %         collapsed.
+      
+      fields = unique( Labels.ensure_cell(fields) );
+      inds = find_fields( obj, fields );
+      for i = 1:numel( fields )
+        obj.labels(:, inds(i)) = { [obj.COLLAPSED_EXPRESSION fields{i}] };
+      end
+    end
+    
+    function obj = collapse(obj, fields)
+      
+      %   COLLAPSE -- Shorthand alias for `collapse_fields()`.
+      %
+      %     See `help Labels/collapse_fields` for more info.
+      
+      obj = collapse_fields( obj, fields );
     end
     
     %{
