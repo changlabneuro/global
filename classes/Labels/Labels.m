@@ -826,6 +826,8 @@ classdef Labels
       %       - `c` (cell array of strings) -- Unique combinations
       %         identified by each index in `indices`(i).
       
+      fields = Labels.ensure_cell( fields );
+      Assertions.assert__is_cellstr( fields );
       c = combs( obj, fields );
       labels = get_fields( obj, fields );
       indices = cell( size(c,1), 1 );

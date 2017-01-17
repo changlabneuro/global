@@ -1293,6 +1293,22 @@ classdef Container
       end
     end
     
+    function obj = prealc(varargin)
+      
+      %   PREALC -- Shortcut to instantiate and preallocate a new Container
+      %     object.
+      %   
+      %     See `help Container/preallocate` for more information on
+      %     formatting inputs.
+      %
+      %     OUT:
+      %       - `obj` (Container) -- Empty Container object preallocated
+      %         with the specified values.
+      
+      obj = Container();
+      obj = preallocate( obj, varargin{:} );
+    end
+    
     function obj = create_from(obj)
       
       %   CREATE_FROM -- create a Container from another class of object.
