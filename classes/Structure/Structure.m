@@ -638,6 +638,34 @@ classdef Structure
     function arr = ensure_cell(arr)
       if ( ~iscell(arr) ), arr = { arr }; end;
     end
+    
+    function obj = create(field_names, fill_with)
+      
+      %   CREATE -- Generate a structure with an arbitrary number of fields
+      %     filled with the same values.
+      %
+      %     This is useful if you wish to, say, create a Structure filled
+      %     with several empty Container objects, in preparation for
+      %     preallocating them.
+      %
+      %     IN:
+      %       - `field_names` (cell array of strings, char) -- Fieldnames
+      %         of the to-be-created Structure. Must be valid struct
+      %         fieldnames.
+      %       - `fill_with` (/any/) -- Values to assign to each field in
+      %         `field_names`. Note that, no matter the class or dimensions 
+      %         of `fill_with`, each field in the resulting Structure will
+      %         have the *same* unmodified `fill_with`.
+      %     OUT:
+      %       - `obj` (Structure) -- Populated Structure object.
+      
+      obj = Structure();
+      field_names = Structure.ensure_cell( field_names );
+      for i = 1:numel(field_names)
+        obj = subsasgn( obj, struct('type', '.', 'subs', { field_names{i} }), ...
+          fill_with );
+      end
+    end
   end
   
 end

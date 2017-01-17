@@ -243,6 +243,88 @@ classdef Container
     end
     
     %{
+        OVERLOADED LABELS
+    %}
+    
+    function unqs = uniques(obj, varargin)
+      
+      %   UNIQUES -- Get unique labels in each field of `obj.labels`
+      %
+      %     See `help Labels/uniques` for more information.
+      %
+      %     OUT:
+      %       - `unqs` (cell array of cell array(s) of strings)
+      
+      unqs = uniques( obj.labels, varargin{:} );
+    end
+    
+    function obj = replace(obj, search_for, with)
+      
+      %   REPLACE -- Replace labels in `search_for` with those in `with`.
+      %
+      %     See `help Labels/replace` for more information.
+      %
+      %     IN:
+      %       - `search_for` (cell array of strings, char) -- Labels to
+      %         replace.
+      %       - `with` (char) -- Label to replace-with.
+      %     OUT:
+      %       - `obj` (Container) -- Container object with its labels
+      %         mutated.
+      
+      obj.labels = replace( obj.labels, search_for, with );
+    end
+    
+    function obj = rm_fields(obj, fields)
+      
+      %   RM_FIELDS -- Remove specified fields from the labels object.
+      %
+      %     See `help Labels/rm_fields` for more info.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields to remove.
+      %     OUT:
+      %       - `obj` (Container) -- Container object with its labels
+      %         mutated.
+      
+      obj.labels = rm_fields( obj.labels, fields );
+    end
+    
+    function obj = add_field(obj, field, set_as)
+      
+      %   ADD_FIELD -- Add a new field of labels to the labels object.
+      %
+      %     See `help Labels/add_field` for more info.
+      %
+      %     IN:
+      %       - `field` (char) -- Name of the new field.
+      %       - `set_as` (cell array of strings, char) -- Labels to set to
+      %         the new field.
+      %     OUT:
+      %       - `obj` (Container) -- Container object with its labels
+      %         mutated.
+      
+      obj.labels = add_field( obj.labels, field, set_as );
+    end
+    
+    function obj = collapse(obj, fields)
+      
+      %   COLLAPSE -- Replace labels in a field or fields with a
+      %     repeated, field-namespaced expression: 'all__`field`'.
+      %
+      %     See `help Labels/collapse_fields` for more info.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields to
+      %         collapse.
+      %     OUT:
+      %       - `obj` (Container) -- Container object with its labels
+      %         mutated.
+      
+      obj.labels = collapse( obj.labels, fields );
+    end
+    
+    %{
         ASSIGNMENT
     %}
     

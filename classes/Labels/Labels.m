@@ -331,7 +331,7 @@ classdef Labels
       Assertions.assert__isa( with, 'char' );
       cols = nan(1, numel(search_for) );
       labs = obj.labels;
-      for i = 1:numel( search_for )
+      for i = 1:numel(search_for)
         [ind, field] = where( obj, search_for{i} );
         if ( isequal(field{1}, -1) )
           fprintf( '\n ! Labels/replace: Could not find ''%s''\n', search_for{i} );
@@ -342,9 +342,7 @@ classdef Labels
           error( 'It is an error to replace an element in multiple fields' );
         end
         labs(ind, cols(i)) = { with };
-        if ( obj.VERBOSE )
-          fprintf( '\n ! Labels/replace: Made %d replacements\n', sum(ind) );
-        end
+        fprintf( '\n ! Labels/replace: Made %d replacements\n', sum(ind) );
       end
       if ( all(isnan(cols)) )
         fprintf( ['\n ! Labels/replace: Could not find any of the search' ...
