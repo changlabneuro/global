@@ -1,3 +1,131 @@
+%   STRUCTURE -- Extend the functionality of a struct by allowing function
+%     calls to a single Structure object to automatically be applied to 
+%     each field in the object.
+%
+%     Call functions on each field in a Structure simply by using the
+%     standard '.' syntax: mutated_structure = structure.some_function().
+%     For functions that are not native methods of the class of values in
+%     the object, use function `each`:
+%
+%     mutated_structure = structure.each( @some_function );
+%
+%     The fields of a Structure must all be (are guarenteed to be) values
+%     of the same class.
+%
+%     Assignment works just like assignment to a standard MATLAB struct,
+%     with the exception that a) `objects` and `dtype` are 'reserved words'
+%     that cannot be used as fieldnames and b) the assigned values must be
+%     values of the same class.
+%
+%     // INSTANTIATION
+%
+%     IN:
+%       - `s` (struct) |OPTIONAL| -- A struct whose fields are values of
+%         the same class.
+%     OUT:
+%       - `obj` (Structure) -- Constructed Structure object with fields
+%         equivalent to `fieldnames( s )`, if `s` is supplied, or else no
+%         fields if `s` is not supplied.
+%
+%     // PROPERTIES
+%
+%       // PUBLIC
+%
+%         Note that, despite being public properties, it is an error to
+%         directly modify either of these properties. Rather than replacing
+%         the `objects` property, create new Structure with the
+%         to-be-replaced `objects` as input.
+%
+%         - `objects` (struct) -- standard MATLAB struct housing the values
+%           of the Structure object.
+%         - `dtype` (char) -- class of values in the object.
+%
+%       // PROTECTED
+%
+%         - EMPTY_DTYPE (char) -- Identifies the `dtype` of the object when
+%           the object is empty; i.e., when `obj.objects` is a struct with
+%           no fields.
+%
+%     // EXAMPLE 0 -- Assign new values to an empty Structure.
+%
+%     structure = Structure();
+%     structure.name = 'steve';
+%     structure.city = 'oakland';
+%
+%     disp(structure);
+%
+%     structure = 
+%       
+%       'char' type Structure with fields:
+%
+%           name: 'steve'
+%           city: 'oakland'
+%
+%     % assignment of values of a different class is an error
+%
+%     structure.age = 10;
+%
+%     % Error using Structure/assert__compatible_values
+%     % The class of values must match the dtype of the Structure. Current 
+%     % dtype is 'char'; values were of class 'double'
+%
+%     // EXAMPLE 1 -- Preallocate multiple Container objects.
+%
+%     s.reward_onset = Container();
+%     s.target_onset = Container();
+%     s.mag_onset = Container();
+%
+%     structure = Structure( s );
+%
+%     disp( structure );
+%     
+%     'Container' type Structure with fields:
+%
+%         reward_onset: [1x1 Container]
+%         target_onset: [1x1 Container]
+%            mag_onset: [1x1 Container]
+%
+%     % preallocate each Container in the Structure with a 10e3-by-1 array
+%     % of zeros, and a Labels object with 8 fields.
+%
+%     preallocating = structure.preallocate( zeros(10e3,1), 8 );
+%
+%     % preallocate() is *not* a Structure method; it's a Container method.
+%     % But when you call preallocate() on the structure object, it's
+%     % applied to each field in the Structure.
+%
+%     % Roughly speaking, the above is equivalent to:
+%
+%     % regular_struct = s;
+%     % regular_struct = ...
+%         structfun( @(x) preallocate(x, zeros(10e3), 8), 'UniformOutput',
+%         false );
+%
+%     // EXAMPLE 2 -- Replace labels in multiple Container objects.
+%
+%     % s is a standard MATLAB struct with fields 'reward_onset', 
+%     % 'target_onset', and 'mag_onset'. Each field is a populated 
+%     % Container object with several fields and lots data.
+%
+%     disp(s);
+%
+%     s = 
+%
+%         reward_onset: [1x1 Container]
+%         target_onset: [1x1 Container]
+%            mag_onset: [1x1 Container]
+%
+%     structure = Structure(s);
+%
+%     % replace occurrences of 'neg' or 'nega' with 'negative' for each
+%     % field in the Structure.
+%
+%     structure = structure.replace( {'neg', 'nega'}, 'negative' );
+%
+%     % replace() is *not* a Structure method; it's a Container method.
+%     % But when you call replace() on the structure object, it's
+%     % applied to each field in the Structure. 
+
 classdef Structure
   
   properties (Access = public)
@@ -662,7 +790,7 @@ classdef Structure
       obj = Structure();
       field_names = Structure.ensure_cell( field_names );
       for i = 1:numel(field_names)
-        obj = subsasgn( obj, struct('type', '.', 'subs', { field_names{i} }), ...
+        obj = subsasgn( obj, struct('type', '.', 'subs', field_names(i)), ...
           fill_with );
       end
     end
