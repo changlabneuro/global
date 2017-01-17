@@ -261,18 +261,26 @@ classdef Structure
       %     given `values`.
       %
       %     The validity of the fieldname will be confirmed. The class of
-      %     the incoming values must match the `dtype` of the object.
+      %     the incoming values must match the `dtype` of the object,
+      %     unless the object is empty, in which case the object will take
+      %     on the `dtype` of the incoming values.
       %
       %     IN:
       %       - `field` (char) -- Name of the field of `obj.objects` to
       %         assign. Must be a valid struct fieldname; otherwise, an
       %         error is thrown.
       %       - `values` (/any/) -- Values to assign. Class of `values`
-      %         must match `obj.dtype`.
+      %         must match `obj.dtype`, unless the object is empty (has
+      %         `dtype` 'NONE')
       
       assert__valid_fieldname( obj, field );
-      assert__compatible_values( obj, values );
+      was_empty = false;
+      if ( ~isempty(obj) )
+        assert__compatible_values( obj, values );
+      else was_empty = true;
+      end
       obj.objects.(field) = values;
+      if ( was_empty ), obj.dtype = get_dtype( obj ); end;
     end
     
     %{
