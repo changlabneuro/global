@@ -437,7 +437,7 @@ classdef Container
                   , ' and the second is, optionally, the index.'] );
               end
               obj.labels = set_field( obj.labels, subs{1}, values, index );
-            case 'double'
+            case { 'double', 'logical' }
               %   if the format is Container(1:10) = `container_2` or 
               %   Container(ind) = [], i.e., if we're performing element 
               %   deletion, convert subs{1} to a logical index. If values 
