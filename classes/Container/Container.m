@@ -762,6 +762,19 @@ classdef Container
         OPERATIONS
     %}
     
+    function obj = opc(obj, B, fields, func, varargin)
+      
+      %   OPC -- Perform operations *after* collapsing the given fields of
+      %     both inputted objects.
+      %
+      %     In all other respects, `opc()` is equivalent to `op`. See `help
+      %     Container/op` for more information on formatting inputs.
+      
+      collapsed = collapse( obj, fields );
+      B = collapse( B, fields );
+      obj = op( collapsed, B, func, varargin{:} );
+    end
+    
     function obj = op(obj, B, func, varargin)
       
       %   OP -- call a function `func` elementwise on the data in two 
