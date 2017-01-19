@@ -325,6 +325,13 @@ classdef Structure
               , ' or a %s method'], ...
               subs, obj.dtype );
           end
+        case '{}'
+          msg = [ 'When referencing with ''{}'', subscripts must be single' ...
+            , ' numeric values' ];
+          assert( numel(subs) == 1, msg );
+          refs = subs{1};
+          name = field_name_from_number( obj, refs );
+          out = obj.objects.(name);
         otherwise
           error( 'Referencing with ''%s'' is not supported', type );
       end
@@ -364,6 +371,12 @@ classdef Structure
           %   validate the prop name, and assign to the `obj.objects`
           %   struct
           obj = assign_to_objects( obj, prop, values );
+        case '{}'
+          %   get the Nth fieldname is the format is obj{N}
+          name = field_name_from_number( obj, s(1).subs{1} );
+          s(1).type = '.';
+          s(1).subs = name;
+          obj = subsasgn( obj, s, values );
         otherwise
           error( 'Referencing with ''%s'' is not supported', s(1).type );
       end
@@ -588,6 +601,28 @@ classdef Structure
       if ( isempty(obj) ), dtype = obj.EMPTY_DTYPE; return; end;
       fs = fields( obj );
       dtype = class( obj.objects.(fs{1}) );
+    end
+    
+    function name = field_name_from_number(obj, N)
+      
+      %   FIELD_NAME_FROM_NUMBER -- Get the Nth fieldname in the object.
+      %
+      %     An exception is thrown if the object is empty, or if N is
+      %     greater than the number of fields in the object.
+      %
+      %     IN:
+      %       - `N` (number) -- Nth fieldname to obtain.
+      %     OUT:
+      %       - `name` (char) -- fieldname.
+      
+      assert( ~isempty(obj), 'The object is empty.' );
+      Assertions.assert__isa( N, 'double' );
+      assert( N > 0, 'Index must be greater than 0' );
+      assert( N <= nfields(obj) && N > 0, ['Index exceeds number of fields' ...
+        , ' in the object; requested field %d, but there are only %d fields.'], ...
+        N, nfields(obj) );
+      fs = fields( obj );
+      name = fs{ N };
     end
     
     %{
