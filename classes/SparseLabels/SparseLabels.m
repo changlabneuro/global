@@ -46,12 +46,24 @@ classdef SparseLabels
       %   SHAPE -- get the size of the labels cell array.
       %
       %     IN:
-      %       - `dim` |OPTIONAL| (double) -- dimension of the array of 
+      %       - `dim` (double) |OPTIONAL| -- dimension of the array of 
       %         labels to query. E.g., size(obj, 1).
+      %     OUT:
+      %       - `s` (double) -- Dimensions
       
       if ( isempty(obj) ), s = [0 0]; else s = size( obj.indices{1} ); end;
       if ( nargin < 2 ), return; end;
       s = s( dim );
+    end
+    
+    function n = nels(obj)
+      
+      %   NELS -- Number of labels, indices, and categories in the object.
+      %
+      %     OUT:
+      %       - `n` (double) |SCALAR|
+      
+      n = numel( obj.labels );
     end
     
     function tf = isempty(obj)
