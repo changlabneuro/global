@@ -1087,6 +1087,22 @@ classdef Labels
       fprintf( '\n\n' );
     end
     
+    function obj = sparse(obj)
+      
+      %   SPARSE -- Conver the current Labels object to a SparseLabels
+      %     object.
+      %
+      %     See `help SparseLabels/SparseLabels` for more information.
+      %
+      %     IN:
+      %       - `obj` (Labels) -- Object to convert.
+      %     OUT:
+      %       - `obj` (SparseLabels) -- Object converted to a SparseLabels
+      %         object.
+      
+      obj = SparseLabels( obj );
+    end
+    
     function ind = create_index(obj, tf)
       
       %   CREATE_INDEX -- Generate an all-false or all-true column index

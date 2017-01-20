@@ -632,7 +632,7 @@ classdef Container
             %   assign it back to the Container.labels object, and return
             %   the object. Otherwise, return the output as is.
             labs = func( obj.labels, inputs{:} );
-            if ( isa(labs, 'Labels') )
+            if ( isa(labs, 'Labels') || isa(labs, 'SparseLabels') )
               obj.labels = labs; out = obj; return;
             else out = labs; return;
             end
@@ -1102,7 +1102,9 @@ classdef Container
         opts = struct( 'msg', ['When overwriting the labels property on the object,' ...
           , ' the to-be-assigned values must be a Label object with the same shape' ...
           , ' as the Container object'] );
-        Assertions.assert__isa( values, 'Labels', opts );
+        if ( ~isa(values, 'SparseLabels') )
+          Assertions.assert__isa( values, 'Labels', opts );
+        end
         assert( shape(obj, 1) == shape(values, 1), opts.msg );
         valid_prop = true;
       end
