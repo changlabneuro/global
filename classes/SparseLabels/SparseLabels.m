@@ -3,7 +3,7 @@ classdef SparseLabels
   properties
     labels = {};
     categories = {};
-    indices = {};
+    indices = sparse([]);
   end
   
   properties (Access = protected)
@@ -24,17 +24,17 @@ classdef SparseLabels
       all_labs = cellfun( @(x) x', uniques(labs), 'UniformOutput', false );
       all_labs = [ all_labs{:} ];
       labels = cell( numel(all_labs), 1 );
-      indices = cell( size(labels) );
-      categories = cell( size(indices) );
+      categories = cell( size(labels) );
+      indices = false( shape(labs,1), numel(all_labs) );
       for i = 1:numel(all_labs)
         [ind, category] = where( labs, all_labs{i} );
-        indices{i} = sparse( ind );
+        indices(:, i) = ind;
         categories{i} = category{1};
         labels{i} = all_labs{i};
       end
       obj.labels = labels;
       obj.categories = categories;
-      obj.indices = indices;
+      obj.indices = sparse( indices );
     end
     
     %{
@@ -51,7 +51,7 @@ classdef SparseLabels
       %     OUT:
       %       - `s` (double) -- Dimensions
       
-      if ( isempty(obj) ), s = [0 0]; else s = size( obj.indices{1} ); end;
+      if ( isempty(obj) ), s = [0 0]; else s = size( obj.indices ); end;
       if ( nargin < 2 ), return; end;
       s = s( dim );
     end
@@ -92,7 +92,7 @@ classdef SparseLabels
       assert( isa(label, 'char'), ...
         'Label must be a char; was a ''%s''', class(label) );
       assert( contains(obj, label) );
-      ind = obj.indices{ strcmp(obj.labels, label) };
+      ind = obj.indices( :, strcmp(obj.labels, label) );
     end
     
     %{
@@ -197,10 +197,11 @@ classdef SparseLabels
       %     IN:
       %       - `ind` (logical) |COLUMN VECTOR| -- index of elements to 
       %         retain. numel( `ind` ) must equal shape(obj, 1).
+      
       if ( ~obj.IGNORE_CHECKS )
         assert__is_properly_dimensioned_logical( obj, ind );
       end
-      obj.indices = cellfun( @(x) x(ind), obj.indices, 'UniformOutput', false );
+      obj.indices = obj.indices(ind, :);
       obj = rehash( obj );
     end
     
@@ -237,23 +238,27 @@ classdef SparseLabels
       full_index = rep_logic( obj, false );
       all_false = false;
       cats = cell( size(selectors) );
-      inds = cell( size(selectors) );
+      inds = false( shape(obj,1), numel(selectors) );
       for i = 1:numel(selectors)
         label_ind = strcmp( obj.labels, selectors{i} );
         if ( ~any(label_ind) ), all_false = true; cats{i} = -1; continue; end;
-        inds{i} = obj.indices{ label_ind };
+        inds(:,i) = obj.indices( :, label_ind );
         cats{i} = obj.categories{ label_ind  };
       end
       if ( all_false ), return; end;
       unqs = unique( cats );
       n_unqs = numel( unqs );
-      if ( n_unqs == numel(cats) ), full_index = all( [inds{:}], 2 ); return; end;
+      if ( n_unqs == numel(cats) )
+        full_index = sparse( all(inds, 2) ); 
+        return; 
+      end;
       full_index(:) = true;
       for i = 1:n_unqs
-        current = inds( strcmp(cats, unqs{i}) );
-        full_index = full_index & any( [current{:}], 2 );
-        if ( ~any(full_index) ), return; end;
+        current = inds( :, strcmp(cats, unqs{i}) );
+        full_index = full_index & any(current, 2);
+        if ( ~any(full_index) ), full_index = sparse(full_index); return; end;
       end
+      full_index = sparse( full_index );
     end
     
     %{
@@ -267,10 +272,10 @@ classdef SparseLabels
       %
       %     Note that calls to `rehash` can leave the object empty.
       
-      empties = cellfun( @(x) ~any(full(x)), obj.indices );
+      empties = ~any( obj.indices )';
       obj.labels(empties) = [];
       obj.categories(empties) = [];
-      obj.indices(empties) = [];
+      obj.indices(:, empties) = [];
     end
     
     %{
@@ -363,7 +368,7 @@ classdef SparseLabels
         INTER-OBJECT HANDLING
     %}
     
-    function obj = append(obj, B)
+    function new = append(obj, B)
       
       %   APPEND -- Append one `SparseLabels` object to another.
       %
@@ -374,34 +379,42 @@ classdef SparseLabels
       %     IN:
       %       - `B` (SparseLabels) -- Object to append.
       %     OUT:
-      %       - `obj` (SparseLabels) -- Object with `B` appended.
+      %       - `new` (SparseLabels) -- Object with `B` appended.
       
-      if ( isempty(obj) ), obj = B; return; end;
+      if ( isempty(obj) ), new = B; return; end;
       assert__categories_match( obj, B );
       b_labs = B.labels;
       own_labs = obj.labels;
+      own_rows = shape( obj, 1 );
+      own_cols = shape( obj, 2 );
+      b_rows = shape( B, 1 );
       shared = intersect( b_labs, own_labs );
+      new = obj;
+      new.indices = false( own_rows + b_rows, own_cols );
       if ( ~isempty(shared) )
-        for i = 1:numel(shared)
-          current = shared{i};
-          own_ind = get_index( obj, current );
-          b_ind = get_index( B, current );
-          combined = [own_ind; b_ind];
-          obj.indices( strcmp(obj.labels, current) ) = {combined};
-          own_labs( strcmp(own_labs, current) ) = [];
-          b_labs( strcmp(b_labs, current) ) = [];
-        end
+        own_inds = cellfun( @(x) find(strcmp(obj.labels, x)), shared );
+        b_inds = cellfun( @(x) find(strcmp(B.labels, x)), shared );
+        new.indices( :, own_inds ) = [obj.indices(:, own_inds); B.indices(:, b_inds)];
+        own_labs = setdiff( own_labs, shared );
+        b_labs = setdiff( b_labs, shared );
       end
-      for i = 1:numel(own_labs)
-        ind = strcmp( obj.labels, own_labs{i} );
-        obj.indices(ind) = {[rep_logic(B, false); obj.indices{ind}]};
+      if ( isempty(own_labs) && isempty(b_labs) )
+        new.indices = sparse( new.indices );
+        return; 
       end
-      for i = 1:numel(b_labs)
-        ind = [get_index(B, b_labs{i}); rep_logic(obj, false)];
-        obj.indices{end+1} = ind;
-        obj.labels{end+1} = b_labs{i};
-        obj.categories{end+1} = B.categories{ strcmp(B.labels, b_labs{i}) };
+      if ( ~isempty(own_labs) )
+        inds = cellfun( @(x) find(strcmp(obj.labels, x)), own_labs );
+        new.indices(1:own_rows, inds) = obj.indices(:, inds);
       end
+      if ( isempty(b_labs) ), new.indices = sparse( new.indices ); return; end;
+      inds = cellfun( @(x) find(strcmp(B.labels, x)), b_labs );
+      cols = numel( new.labels );
+      new_cols = numel(inds);
+      new.indices(:, cols+1:cols+new_cols) = false;
+      new.indices(own_rows+1:end, cols+1:cols+new_cols) = B.indices(:, inds);
+      new.labels(end+1:end+new_cols) = B.labels(inds);
+      new.categories(end+1:end+new_cols) = B.categories(inds);
+      new.indices = sparse( new.indices );
     end
     
     %{
@@ -450,7 +463,7 @@ classdef SparseLabels
       labs = obj.labels;
       for i = 1:numel(labs)
         label_ind = strcmp( obj.labels, labs{i} );
-        index = obj.indices{ label_ind };
+        index = obj.indices( :, label_ind );
         cat = obj.categories{ label_ind };
         s.(cat)(index) = labs(i);
       end
