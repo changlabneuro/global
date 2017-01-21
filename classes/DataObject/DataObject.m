@@ -1372,6 +1372,16 @@ classdef DataObject
         %   helpers
         %   -
         
+        function cont = to_container(obj)
+          
+          %   TO_CONTAINER -- Convert the DataObject to a Container object.
+          %
+          %     OUT:
+          %       - `obj` (Container) -- Converted object.
+          
+          cont = Container.create_from( obj );
+        end
+        
         %   Group like elements in <new_obj> into a cell array. When
         %   finished, each element in <new_obj.data> will be identified by
         %   a unique combination of labels.

@@ -369,6 +369,37 @@ classdef SparseLabels
     %}
     
     function new = append(obj, B)
+      if ( isempty(obj) ), new = B; return; end;
+      assert__categories_match( obj, B );
+      own_n_true = sum( sum(obj.indices) );
+      other_n_true = sum( sum(B.indices) );
+      own_rows = shape( obj, 1 );
+      own_cols = shape( obj, 2 );
+      other_rows = shape( B, 1 );
+      shared_labs = intersect( obj.labels, B.labels );
+      other_labs = setdiff( B.labels, shared_labs );
+      n_other = numel( other_labs );
+      new = obj;
+      [current_row_inds, current_col_inds] = find( obj.indices );
+      new.indices = sparse( current_row_inds, current_col_inds, true, ...
+        own_rows+other_rows, own_cols+n_other, own_n_true+other_n_true );
+      if ( ~isempty(shared_labs) )
+        other_shared_inds = ...
+          B.indices( :, cellfun(@(x) find(strcmp(B.labels, x)), shared_labs) );
+        own_category_inds = ...
+          cellfun( @(x) find(strcmp(obj.labels, x)), shared_labs );
+        new.indices( own_rows+1:end, own_category_inds ) = other_shared_inds;
+      end
+      if ( ~isempty(other_labs) )
+        other_label_inds = cellfun(@(x) find(strcmp(B.labels, x)), other_labs);
+        other_inds = B.indices( :, other_label_inds );
+        new.indices( own_rows+1:end, own_cols+1:end ) = other_inds;
+        new.categories(end+1:end+n_other) = other_labs;
+        new.labels(end+1:end+n_other) = B.categories( other_label_inds );
+      end
+    end
+    
+    function new = append2(obj, B)
       
       %   APPEND -- Append one `SparseLabels` object to another.
       %
@@ -380,7 +411,7 @@ classdef SparseLabels
       %       - `B` (SparseLabels) -- Object to append.
       %     OUT:
       %       - `new` (SparseLabels) -- Object with `B` appended.
-      
+      tic;
       if ( isempty(obj) ), new = B; return; end;
       assert__categories_match( obj, B );
       b_labs = B.labels;
@@ -415,6 +446,7 @@ classdef SparseLabels
       new.labels(end+1:end+new_cols) = B.labels(inds);
       new.categories(end+1:end+new_cols) = B.categories(inds);
       new.indices = sparse( new.indices );
+      toc;
     end
     
     %{

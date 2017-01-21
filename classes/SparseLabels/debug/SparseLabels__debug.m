@@ -29,7 +29,33 @@ end
 toc;
 
 %%
-
+tester = fix_;
 tic;
-im_cs.get_indices({'monkeys','rois','imgGaze'})
+tester.get_indices({'monkeys','rois','imgGaze'})
 toc;
+
+%%
+tester2 = fix_sparse;
+tic;
+% lag = tester.only('lager');
+% cron = tester.only('cron');
+% comb = lag.append( cron );
+% profile on;
+newer2 = append(tester2, tester2);
+newer2 = append(newer2, tester2);
+% newer = append(newer, tester);
+% newer = append(newer, tester);
+% newer = append(newer, tester);
+% profile viewer;
+% tester = tester.append(tester);
+% tester = tester.append(tester);
+
+toc;
+
+%%
+
+tester = fix_sparse;
+tic;
+tester.only({'cron','1','ubdl','ubdn'});
+toc;
+%%
