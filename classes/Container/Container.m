@@ -760,6 +760,25 @@ classdef Container
       obj.data = [ obj.data; B.data ];
     end
     
+    function obj = extend(obj, varargin)
+      
+      %   EXTEND -- append any number of Container objects to an existing
+      %     object, sequentially.
+      %
+      %     See `help Container/append` for restrictions on appending.
+      %
+      %     IN:
+      %       - `varargin` (cell array of Container objects) -- Objects to
+      %         append (in order) to the current object.
+      %     OUT:
+      %       - `obj` (Container) -- Container with each object in
+      %         `varargin` appended to it.
+      
+      for i = 1:numel(varargin)
+        obj = append( obj, varargin{i} );
+      end
+    end
+    
     %{
         OPERATIONS
     %}
