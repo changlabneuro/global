@@ -10,6 +10,7 @@ classdef SparseLabels
     IGNORE_CHECKS = false;
     VERBOSE = false;
     MAX_DISPLAY_ITEMS = 10;
+    COLLAPSED_EXPRESSION = 'all__';
   end
   
   methods
@@ -99,6 +100,10 @@ classdef SparseLabels
         LABEL HANDLING
     %}
     
+    function labs = get_fields(obj, cat)
+      labs = labels_in_category( obj, cat );
+    end
+    
     function labs = labels_in_category(obj, cat)
       
       %   LABELS_IN_CATEGORY -- Get the labels in a given category.
@@ -141,8 +146,7 @@ classdef SparseLabels
       if ( nargin < 2 ), cats = unique(obj.categories); end;
       if ( ~obj.IGNORE_CHECKS )
         cats = SparseLabels.ensure_cell( cats );
-        assert( iscellstr(cats), ['Categories must be a cell array of' ...
-          , ' strings, or a char'] );
+        SparseLabels.assert__is_cellstr_or_char( cats );
       end
       unqs = cell( 1, numel(cats) );
       for i = 1:numel(cats)
@@ -159,12 +163,83 @@ classdef SparseLabels
       %       - `labels` (cell array of strings, char) -- Label(s) to test.
       %     OUT:
       %       - `tf` (logical) -- Vector of true/false values where each
-      %       `tf`(i) corresponds to each `labels`(i).
+      %         `tf`(i) corresponds to each `labels`(i).
       
       labels = SparseLabels.ensure_cell( labels );
-      assert( iscellstr(labels), ['Inputted label must be a cell array of' ...
-        , ' strings, or a char'] );
+      SparseLabels.assert__is_cellstr_or_char( labels );
       tf = cellfun( @(x) any(strcmp(obj.labels, x)), labels );
+    end
+    
+    function obj = replace(obj, search_for, with)
+      
+      %   REPLACE -- replace a given number of labels with a single label.
+      %
+      %     All of the to-be-replaced labels must be in the same field; it 
+      %     is an error to place the same label in multiple fields. If no
+      %     elements are found, a warning is printed, and the original 
+      %     object is returned.
+      %
+      %     IN:
+      %       - `search_for` (cell array of strings, char) -- Labels to
+      %         replace. If an element cannot be found, that element will 
+      %         be ignored, and a warning will be printed.
+      %     OUT:
+      %       - `obj` (Labels) -- Object with its labels property updated
+      %         to reflect the replacements.
+      
+      search_for = SparseLabels.ensure_cell( search_for );
+      SparseLabels.assert__is_cellstr_or_char( search_for );
+      Assertions.assert__isa( with, 'char' );
+      tf = contains( obj, search_for );
+      search_for( ~tf ) = [];
+      if ( isempty(search_for) )
+        fprintf( ['\n ! SparseLabels/replace: Could not find any of the' ...
+          , ' search terms\n'] );
+        return;
+      end
+      lab_inds = cellfun( @(x) find(strcmp(obj.labels, x)), search_for );
+      cats = obj.categories( lab_inds );
+      if ( numel(unique(cats)) ~= 1 )
+        error( ['Replacing the search term(s) with ''%s'' would place ''%s''' ...
+          , ' in multiple categories.'], with, with );
+      end
+      tf = contains( obj, with );
+      if ( tf )
+        categ = obj.categories( strcmp(obj.labels, with) );
+        assert( strcmp(unique(cats), categ), ['The search term ''%s'' already' ...
+          , ' exists in the category ''%s''; attempted to place ''%s'' in' ...
+          , ' the category ''%s''.'], with, categ{1}, with, cats{1} );
+      end
+      new_inds = any( obj.indices(:, lab_inds), 2 );
+      obj.labels( lab_inds(1) ) = { with };
+      obj.indices(:, lab_inds(1)) = new_inds;
+      if ( numel(lab_inds) == 1 ), return; end;
+      obj.labels( lab_inds(2:end) ) = [];
+      obj.categories( lab_inds(2:end) ) = [];
+      obj.indices(:, lab_inds(2:end)) = [];
+    end
+    
+    function obj = collapse(obj, cats)
+      
+      %   COLLAPSE -- Replace labels in a category or categories with a
+      %     repeated, category-namespaced expression: 'all__`category`'.
+      %
+      %     An error is thrown if even one of the specified categories is
+      %     not found.
+      %
+      %     IN:
+      %       - `cats` (cell array of strings, char) -- category or
+      %         categories to collapse.
+      %     OUT:
+      %       - `obj` (Labels) -- object with the appropriate categories
+      %         collapsed.
+      
+      cats = unique( SparseLabels.ensure_cell(cats) );
+      labs = cellfun( @(x) labels_in_category(obj, x)', cats, ...
+        'UniformOutput', false );
+      for i = 1:numel(labs)
+        obj = replace( obj, labs{i}, [obj.COLLAPSED_EXPRESSION cats{i}] );
+      end      
     end
     
     %{
@@ -200,9 +275,38 @@ classdef SparseLabels
       
       if ( ~obj.IGNORE_CHECKS )
         assert__is_properly_dimensioned_logical( obj, ind );
+        if ( ~issparse(ind) ), ind = sparse( ind ); end;
       end
       obj.indices = obj.indices(ind, :);
-      obj = rehash( obj );
+      empties = ~any( obj.indices )';
+      obj.labels(empties) = [];
+      obj.categories(empties) = [];
+      obj.indices(:, empties) = [];
+    end
+    
+    function [obj, ind] = remove(obj, selectors)
+      
+      %   REMOVE -- remove rows of labels for which any of the labels in
+      %     `selectors` are found.
+      %
+      %     IN:
+      %       - `selectors` (cell array of strings, char) -- labels to 
+      %         identify rows to remove.
+      %     OUT:
+      %       - `obj` (SparseLabels) -- object with `selectors` removed.
+      %       - `ind` (logical) |COLUMN| -- index of the removed 
+      %         elements, with respect to the inputted (non-mutated) 
+      %         object.
+      
+      ind = rep_logic( obj, false );
+      selectors = SparseLabels.ensure_cell( selectors );
+      for i = 1:numel(selectors)
+        ind = ind | where( obj, selectors{i} );
+      end
+      obj = keep( obj, ~ind );
+      if ( obj.VERBOSE )
+        fprintf( '\n ! SparseLabels/remove: Removed %d rows', sum(full_ind) );
+      end
     end
     
     function [full_index, cats] = where(obj, selectors)
@@ -243,14 +347,13 @@ classdef SparseLabels
         label_ind = strcmp( obj.labels, selectors{i} );
         if ( ~any(label_ind) ), all_false = true; cats{i} = -1; continue; end;
         inds(:,i) = obj.indices( :, label_ind );
-        cats{i} = obj.categories{ label_ind  };
+        cats(i) = obj.categories( label_ind  );
       end
       if ( all_false ), return; end;
       unqs = unique( cats );
       n_unqs = numel( unqs );
       if ( n_unqs == numel(cats) )
-        full_index = sparse( all(inds, 2) ); 
-        return; 
+        full_index = sparse( all(inds, 2) ); return; 
       end;
       full_index(:) = true;
       for i = 1:n_unqs
@@ -259,23 +362,6 @@ classdef SparseLabels
         if ( ~any(full_index) ), full_index = sparse(full_index); return; end;
       end
       full_index = sparse( full_index );
-    end
-    
-    %{
-        REHASHING
-    %}
-    
-    function obj = rehash(obj)
-      
-      %   REHASH -- Remove the labels(i), categories(i) and indices(i) for
-      %     which there are no true elements in indices(i).
-      %
-      %     Note that calls to `rehash` can leave the object empty.
-      
-      empties = ~any( obj.indices )';
-      obj.labels(empties) = [];
-      obj.categories(empties) = [];
-      obj.indices(:, empties) = [];
     end
     
     %{
@@ -345,13 +431,58 @@ classdef SparseLabels
         INTER-OBJECT COMPATIBILITY
     %}
     
+    function tf = eq(obj, B)
+      
+      %   EQ -- Test equality of a `SparseLabels` object with other values.
+      %
+      %     If the tested values are not a `SparseLabels` object, false is
+      %     returned. Otherwise, if the dimensions of the indices in each
+      %     object are not consistent; or if the dimensions are consistent, 
+      %     but the unique categories in each object are different; or if
+      %     the dimensions and categories are consistent, but the labels
+      %     in each object are different; or if the dimensions, categories,
+      %     and labels are consistent, but the indices are inconsistent --
+      %     false is returned.
+      %
+      %     NOTE that objects are considered equivalent even if the *order*
+      %     of the elements in their label-arrays are different. For
+      %     example:
+      %
+      %     %   object `A` has labels { 'john', '30yrs' }
+      %     B = A;
+      %     B == A                  
+      %     %   ans -> true
+      %     B = sort_labels( B );
+      %     %   sort_labels sorts the labels in the object, and then
+      %     %   rearranges its categories and indices in accordance with
+      %     %   the sorting index.
+      %     B.labels 
+      %     %   ans -> { '30yrs', 'john' }
+      %     B == A
+      %     %   ans -> true
+      
+      tf = false;
+      if ( ~shapes_match(obj, B) ), return; end;
+      if ( ~categories_match(obj, B) ), return; end;
+      if ( ~labels_match(obj, B) ), return; end;
+      obj = sort_labels( obj );
+      B = sort_labels( B );
+      tf = isequal( obj.indices, B.indices );
+    end
+    
+    function tf = ne(obj, B)
+      tf = ~eq(obj, B);
+    end
+    
     function tf = categories_match(obj, B)
       
       %   CATEGORIES_MATCH -- Determine whether the comparitor is a
-      %     SparseLabels object with equivalent categories.
+      %     `SparseLabels` object with equivalent categories.
       %
       %     Note that equivalent in this context means that the unique
-      %     categories in each object are the same.
+      %     categories in each object are the same; objects with different
+      %     sized `categories` arrays, but whose unique values match, are
+      %     still equivalent.
       %
       %     IN:
       %       - `B` (/any/) -- Values to test.
@@ -364,11 +495,72 @@ classdef SparseLabels
       tf = isequal( unique(obj.categories), unique(B.categories) );
     end
     
+    function tf = cols_match(obj, B)
+      
+      %   COLS_MATCH -- Check if two `SparseLabels` objects are equivalent
+      %     in the second dimension.
+      %
+      %     If the tested input is not a `SparseLabels` object, tf is false.
+      %
+      %     IN:
+      %       - `B` (/any/) -- values to test
+      %     OUT:
+      %       - `tf` (logical) |SCALAR -- true if `B` is a SparseLabels 
+      %         object with the same number of columns as B
+      
+      tf = false;
+      if ( ~isa(B, 'SparseLabels') ), return; end;
+      tf = shape( obj, 2 ) == shape( B, 2 );
+    end
+    
+    function tf = shapes_match(obj, B)
+      
+      %   SHAPES_MATCH -- Check if the shapes of two `SparseLabels` objects
+      %     match.
+      %   
+      %     If the tested input is not a `SparseLabels` object, tf is false.
+      %
+      %     IN:
+      %       - `B` (/any/) -- values to test
+      %     OUT:
+      %       - `tf` (logical) |SCALAR -- true if `B` is a SparseLabels 
+      %         object with a shape that matches the shape of the other 
+      %         object.
+      
+      tf = false;
+      if ( ~isa(B, 'SparseLabels') ), return; end;
+      tf = isequal( shape(obj), shape(B) );
+    end
+    
+    function tf = labels_match(obj, B)
+      
+      %   LABELS_MATCH -- Check if the labels in two `SparseLabels` objects
+      %     are equivalent.
+      %
+      %     Note that the ordering of labels is intentionally not tested.
+      
+      tf = false;
+      if ( ~isa(B, 'SparseLabels') ), return; end;
+      tf = isequal( sort(obj.labels), sort(B.labels) );
+    end
+    
     %{
         INTER-OBJECT HANDLING
     %}
     
     function new = append(obj, B)
+      
+      %   APPEND -- Append one `SparseLabels` object to another.
+      %
+      %     If the original object is empty, B is returned unchanged.
+      %     Otherwise, categories must match between objects; an error is
+      %     thrown if B is not a SparseLabels object.
+      %
+      %     IN:
+      %       - `B` (SparseLabels) -- Object to append.
+      %     OUT:
+      %       - `new` (SparseLabels) -- Object with `B` appended.
+      
       if ( isempty(obj) ), new = B; return; end;
       assert__categories_match( obj, B );
       own_n_true = sum( sum(obj.indices) );
@@ -394,59 +586,80 @@ classdef SparseLabels
         other_label_inds = cellfun(@(x) find(strcmp(B.labels, x)), other_labs);
         other_inds = B.indices( :, other_label_inds );
         new.indices( own_rows+1:end, own_cols+1:end ) = other_inds;
-        new.categories(end+1:end+n_other) = other_labs;
-        new.labels(end+1:end+n_other) = B.categories( other_label_inds );
+        new.labels(end+1:end+n_other) = other_labs;
+        new.categories(end+1:end+n_other) = B.categories( other_label_inds );
       end
     end
     
-    function new = append2(obj, B)
+    function obj = overwrite(obj, B, index)
       
-      %   APPEND -- Append one `SparseLabels` object to another.
-      %
-      %     If the original object is empty, B is returned unchanged.
-      %     Otherwise, categories must match between objects; an error is
-      %     thrown if B is not a SparseLabels object.
+      %   OVERWRITE -- Assign the contents of another SparseLabels object
+      %     to the current object at a given `index`.
       %
       %     IN:
-      %       - `B` (SparseLabels) -- Object to append.
+      %       - `B` (SparseLabels) -- Object whose contents are to be
+      %         assigned. Unique categories must match between objects.
+      %       - `index` (logical) -- Index of where in the assigned-to
+      %         object the new labels should be placed. Need have the same
+      %         number of true elements as the incoming object, but the
+      %         same number of *rows* as the assigned-to object.
       %     OUT:
-      %       - `new` (SparseLabels) -- Object with `B` appended.
-      tic;
-      if ( isempty(obj) ), new = B; return; end;
-      assert__categories_match( obj, B );
-      b_labs = B.labels;
-      own_labs = obj.labels;
-      own_rows = shape( obj, 1 );
-      own_cols = shape( obj, 2 );
-      b_rows = shape( B, 1 );
-      shared = intersect( b_labs, own_labs );
-      new = obj;
-      new.indices = false( own_rows + b_rows, own_cols );
+      %       - `obj` (SparseLabels) -- Object with newly assigned values.
+      
+      if ( ~obj.IGNORE_CHECKS )
+        assert( isa(B, 'SparseLabels'), ['Cannot overwrite a SparseLabels' ...
+          , ' object with values of class ''%s'''], class(B) );
+        assert__is_properly_dimensioned_logical( obj, index );
+        assert( shape(B, 1) == sum(index), ['Improperly dimensioned index;' ...
+          , ' attempted to assign %d rows, but the index has %d true values'], ...
+          shape(B, 1), sum(index) );
+      end
+      if ( ~issparse(index) ), index = sparse( index ); end;
+      assert( categories_match(obj, B), 'Categories do not match between objects' );
+      shared = intersect( obj.labels, B.labels );
+      others = setdiff( B.labels, obj.labels );
       if ( ~isempty(shared) )
         own_inds = cellfun( @(x) find(strcmp(obj.labels, x)), shared );
-        b_inds = cellfun( @(x) find(strcmp(B.labels, x)), shared );
-        new.indices( :, own_inds ) = [obj.indices(:, own_inds); B.indices(:, b_inds)];
-        own_labs = setdiff( own_labs, shared );
-        b_labs = setdiff( b_labs, shared );
+        other_inds = cellfun( @(x) find(strcmp(B.labels, x)), shared );
+        obj.indices(index, own_inds) = B.indices( :, other_inds );
       end
-      if ( isempty(own_labs) && isempty(b_labs) )
-        new.indices = sparse( new.indices );
-        return; 
-      end
-      if ( ~isempty(own_labs) )
-        inds = cellfun( @(x) find(strcmp(obj.labels, x)), own_labs );
-        new.indices(1:own_rows, inds) = obj.indices(:, inds);
-      end
-      if ( isempty(b_labs) ), new.indices = sparse( new.indices ); return; end;
-      inds = cellfun( @(x) find(strcmp(B.labels, x)), b_labs );
-      cols = numel( new.labels );
-      new_cols = numel(inds);
-      new.indices(:, cols+1:cols+new_cols) = false;
-      new.indices(own_rows+1:end, cols+1:cols+new_cols) = B.indices(:, inds);
-      new.labels(end+1:end+new_cols) = B.labels(inds);
-      new.categories(end+1:end+new_cols) = B.categories(inds);
-      new.indices = sparse( new.indices );
-      toc;
+      if ( isempty(others) ), return; end;
+      new_inds = repmat( rep_logic(obj, false), 1, numel(others) );
+      other_inds = cellfun( @(x) find(strcmp(B.labels, x)), others );
+      new_inds(index,:) = B.indices(:, other_inds);
+      obj.indices = [obj.indices new_inds];
+      obj.labels = [obj.labels; B.labels(other_inds)];
+      obj.categories = [obj.categories; B.categories(other_inds)];
+    end
+    
+    %{
+        SORTING
+    %}
+    
+    function obj = sort_labels(obj)
+      
+      %   SORT_LABELS -- Sort the labels in `obj.labels`, and then reorder 
+      %     the categories and indices to match the new sorted order.
+      %
+      %     OUT:
+      %       - `obj` (SparseLabels) -- Object with its labels sorted.
+      
+      [obj.labels, ind] = sort( obj.labels );
+      obj.categories = obj.categories( ind );
+      obj.indices = obj.indices( :, ind );
+    end
+    
+    function obj = sort_categories(obj)
+      
+      %   SORT_CATEGORIES -- Sort the categories in `obj.labels`, and then
+      %     reorder the labels and indices to match the new sorted order.
+      %
+      %     OUT:
+      %       - `obj` (SparseLabels) -- Object with its categories sorted.
+      
+      [obj.categories, ind] = sort( obj.categories );
+      obj.labels = obj.labels( ind );
+      obj.indices = obj.indices( :, ind );
     end
     
     %{
@@ -582,6 +795,13 @@ classdef SparseLabels
     
     function arr = ensure_cell(arr)
       if ( ~iscell(arr) ), arr = { arr }; end;
+    end
+    
+    function assert__is_cellstr_or_char( in )
+      if ( ~ischar(in) )
+        assert( iscellstr(in), ['Input must be a cell array of' ...
+          , ' strings, or a char'] );
+      end
     end
   end
 end

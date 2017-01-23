@@ -403,8 +403,8 @@ classdef Structure
       %
       %     The validity of the fieldname will be confirmed. The class of
       %     the incoming values must match the `dtype` of the object,
-      %     unless the object is empty, in which case the object will take
-      %     on the `dtype` of the incoming values.
+      %     unless the object is empty, or has one field, in which case the 
+      %     object will take on the `dtype` of the incoming values.
       %
       %     IN:
       %       - `field` (char) -- Name of the field of `obj.objects` to
@@ -415,13 +415,13 @@ classdef Structure
       %         `dtype` 'NONE')
       
       assert__valid_fieldname( obj, field );
-      was_empty = false;
-      if ( ~isempty(obj) )
+      update_dtype = false;
+      if ( nfields(obj) > 1 )
         assert__compatible_values( obj, values );
-      else was_empty = true;
+      else update_dtype = true;
       end
       obj.objects.(field) = values;
-      if ( was_empty ), obj.dtype = get_dtype( obj ); end;
+      if ( update_dtype ), obj.dtype = get_dtype( obj ); end;
     end
     
     %{
@@ -501,21 +501,21 @@ classdef Structure
       tf = isequal( obj.dtype, B.dtype );
     end
     
-    function obj = structure_wise(obj, B, func, varargin)
+    function obj = field_wise(obj, B, func, varargin)
       
-      %   STRUCTURE_WISE -- Apply a function field-wise on two Structure 
+      %   FIELD_WISE -- Apply a function field-wise on two Structure 
       %     objects.
       %
-      %     The two structures need have identical fields and dtypes. The 
-      %     given function must be configured to accept the field of the 
-      %     first Structure as its first argument, and the field of the 
-      %     second Structure as its second argument. Any other additional
-      %     arguments will be applied with each call of the function. The 
-      %     function must return only one output; and while the class of 
-      %     the returned values needn't be the same as the dtype of the
-      %     inputted objects, it must be the same with each call to `func`. 
-      %     I.e., calling the function cannot produce a struct whose fields 
-      %     have values of different classes.
+      %     The two structures need have identical fields, but can have
+      %     different `dtype`s. The given function must be configured to 
+      %     accept the field of the first Structure as its first argument, 
+      %     and the field of the second Structure as its second argument. 
+      %     Any other additional arguments will be applied with each call 
+      %     of the function. The function must return only one output; and 
+      %     while the class of the returned values needn't be the same as 
+      %     the dtype of the inputted objects, it must be the same with 
+      %     each call to `func`. I.e., calling the function cannot produce 
+      %     a struct whose fields have values of different classes.
       %
       %     EXAMPLES:
       %
@@ -526,7 +526,7 @@ classdef Structure
       %     in `B` to the 'sums' Container in `obj`, the 'proportions' 
       %     Container in `B` to the 'proportions' Container in `obj`, etc.
       %
-      %     appended = obj.structure_wise( B, @append );
+      %     appended = obj.field_wise( B, @append );
       %
       %     //
       %
@@ -534,7 +534,7 @@ classdef Structure
       %     'proportions', and 'means'. Subtract the 'sums' array in
       %     `B` from the 'sums' array in `obj`, etc. 
       %     
-      %     subtracted = obj.structure_wise( B, @minus );
+      %     subtracted = obj.field_wise( B, @minus );
       %
       %     IN:
       %       - `B` (Structure) -- The second Structure in the call to
@@ -563,12 +563,12 @@ classdef Structure
       obj.dtype = get_dtype( obj );
     end
     
-    function obj = swise(obj, B, func, varargin)
+    function obj = fwise(obj, B, func, varargin)
       
-      %   SWISE -- Shorthand alias for `structure_wise`. See help
-      %     `Structure/structure_wise` for more information.
+      %   FWISE -- Shorthand alias for `field_wise`. See help
+      %     `Structure/field_wise` for more information.
       
-      obj = structure_wise( obj, B, func, varargin{:} );
+      obj = field_wise( obj, B, func, varargin{:} );
     end
     
     %{
@@ -632,7 +632,7 @@ classdef Structure
     function assert__capable_of_fieldwise_operations(obj, B, opts)
       
       %   ASSERT__CAPABLE_OF_FIELDWISE_OPERATIONS -- Ensure two Structures
-      %     have equivalent fields and dtypes
+      %     have equivalent fields.
       %
       %     IN:
       %       - `B` (Structure) -- Structure to validate.
@@ -642,10 +642,10 @@ classdef Structure
       
       if ( nargin < 3 )
         opts.msg = [ 'When attempting field-wise function calls, the two objects' ...
-          , ' must be Structures with the same dtypes and fields.' ];
+          , ' must be Structures with the same fields.' ];
       end
       assert( isa(B, 'Structure'), opts.msg );
-      assert__dtypes_match( obj, B, struct('msg', opts.msg) );
+%       assert__dtypes_match( obj, B, struct('msg', opts.msg) );
       assert__fields_match( obj, B, struct('msg', opts.msg) );
     end
     

@@ -19,6 +19,7 @@ classdef Container
     PREALLOCATION_ROW = NaN;
     PREALLOCATION_SIZE = NaN;
     BEEN_POPULATED = false;
+    LABELS_ARE_SPARSE = false;
   end
   
   methods
@@ -624,8 +625,9 @@ classdef Container
             %   if the ref is to a method, but is called without (), an
             %   error is thrown. E.g., Container.uniques -> error ...
             if ( numel(s) == 0 )
-              error( ['''%s'' is the name of a Label method, but was' ...
-                , ' referenced as if it were a property'], subs );
+              error( ['''%s'' is the name of a %s method, but was' ...
+                , ' referenced as if it were a property'], subs, ...
+                class(obj.labels) );
             end
             inputs = { s(:).subs{:} };
             %   if the output of the called function is a `Labels` object,
@@ -957,12 +959,46 @@ classdef Container
     end    
     
     %{
+        SPARSITY
+    %}
+    
+    function obj = full(obj)
+      
+      %   FULL -- Convert the SparseLabels object in `obj.labels` to a full
+      %     Labels object.
+      %
+      %     A warning is printed if the object's labels are already full.
+      
+      if ( obj.LABELS_ARE_SPARSE )
+        obj.labels = full( obj.labels );
+        obj.LABELS_ARE_SPARSE = false;
+      else fprintf( '\n ! Container/full: labels are already full Labels' );
+      end
+    end
+    
+    function obj = sparse(obj)
+      
+      %   SPARSE -- Convert the Labels object in `obj.labels` to a
+      %     SparseLabels object.
+      %
+      %     A warning is printed if the object's labels are already
+      %     SparseLabels.
+      
+      if ( obj.LABELS_ARE_SPARSE )
+        fprintf( '\n ! Container/sparse: labels are already SparseLabels' );
+        return;
+      end
+      obj.LABELS_ARE_SPARSE = true;
+      obj.labels = sparse( obj.labels );
+    end
+    
+    %{
         UTIL
     %}
     
     function disp(obj)
-      fprintf('\n\n%d-by-%d %s Container with Labels:\n', ...
-        shape(obj, 1), shape(obj, 2), obj.dtype );
+      fprintf('\n\n%d-by-%d %s Container with %s:\n', ...
+        shape(obj, 1), shape(obj, 2), obj.dtype, class(obj.labels) );
       disp( obj.labels );
     end
     
@@ -977,7 +1013,7 @@ classdef Container
       %     method name.
       %
       %     Searches the properties and labels of both the Container and
-      %     Labels objects, and identifies methods as
+      %     labels objects, and identifies methods as
       %     `obj_type`/`method_name` if a potential match is a method, or
       %     `obj_type`.`prop_name` if a potential match is a property.
       %
@@ -991,7 +1027,7 @@ classdef Container
       %         potential matches are computed. If no matches are found,
       %         `all_matches` is an empty cell array.
       
-      obj_kinds = { 'Container', 'Labels' };
+      obj_kinds = { 'Container', class(obj.labels) };
       ref_kinds = { 'methods', 'properties' };
       
       all_matches = {};
@@ -1076,8 +1112,12 @@ classdef Container
       %     must have the same number of rows as the object. For an 
       %     overwritten `labels` property to be valid, the new values must 
       %     be a `Labels` object with the same number of rows as the 
-      %     object. If the new `data` values are valid, the object's 
-      %     `dtype` is updated to reflect the class of those values.
+      %     object, or a `SparseLabels` object of the appropriate
+      %     dimensions. The object's `LABELS_ARE_SPARSE` private property
+      %     will be updated to reflect the class of labels object
+      %     to-be-assigned. If the new `data` values are valid, the 
+      %     object's `dtype` is  updated to reflect the class of those 
+      %     values.
       %
       %     IN:
       %       - `prop` ('data' or 'labels') -- name of the property to 
@@ -1100,10 +1140,12 @@ classdef Container
       end
       if ( strcmp(prop, 'labels') )
         opts = struct( 'msg', ['When overwriting the labels property on the object,' ...
-          , ' the to-be-assigned values must be a Label object with the same shape' ...
-          , ' as the Container object'] );
+          , ' the to-be-assigned values must be a Labels or SparseLabels object' ...
+          , ' with the same number of rows as the Container object.'] );
         if ( ~isa(values, 'SparseLabels') )
           Assertions.assert__isa( values, 'Labels', opts );
+          obj.LABELS_ARE_SPARSE = false;
+        else obj.LABELS_ARE_SPARSE = true;
         end
         assert( shape(obj, 1) == shape(values, 1), opts.msg );
         valid_prop = true;
@@ -1166,7 +1208,6 @@ classdef Container
       obj.dtype = class( with );
       obj.data = with;
       obj.labels = preallocate( obj.labels, [size(with, 1) n_fields] );
-      
     end
     
     function obj = populate(obj, with)
