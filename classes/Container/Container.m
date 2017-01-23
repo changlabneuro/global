@@ -1095,6 +1095,9 @@ classdef Container
       %       - `obj` (DataObject) -- DataObject representation of the data
       %         and labels in the Container.
       
+      if ( obj.LABELS_ARE_SPARSE )
+        obj = full( obj );
+      end
       labels = label_struct( obj.labels );
       obj = DataObject( obj.data, labels );
     end

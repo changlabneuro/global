@@ -474,6 +474,9 @@ classdef Structure
       %   FIELDS_MATCH -- True if `B` is a Structure whose fields are
       %     identical to those of the current object.
       %
+      %     Note that the order of fields in the structure is *not*
+      %     respected.
+      %
       %     IN:
       %       `B` (/any/) -- Values to compare.
       %     OUT:
@@ -482,7 +485,7 @@ classdef Structure
       
       tf = false;
       if ( ~isa(B, 'Structure') ), return; end;
-      tf = isequal( fields(obj), fields(B) );
+      tf = isequal( sort(fields(obj)), sort(fields(B)) );
     end
     
     function tf = dtypes_match(obj, B)

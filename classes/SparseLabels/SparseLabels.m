@@ -278,7 +278,7 @@ classdef SparseLabels
         if ( ~issparse(ind) ), ind = sparse( ind ); end;
       end
       obj.indices = obj.indices(ind, :);
-      empties = ~any( obj.indices )';
+      empties = ~any( obj.indices, 1 )';
       obj.labels(empties) = [];
       obj.categories(empties) = [];
       obj.indices(:, empties) = [];
