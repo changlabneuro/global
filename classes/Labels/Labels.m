@@ -666,9 +666,28 @@ classdef Labels
       end
     end
     
+    function tf = contains_fields(obj, fs)
+      
+      %   CONTAINS_FIELDS -- Determine whether the desired fields are in
+      %     the object.
+      %
+      %     IN:
+      %       - `fs` (cell array of strings, char) -- Fields to test.
+      %     OUT:
+      %       - `tf` (logical) -- Index of whether the `fs`(i) is a field
+      %         in the object.
+  
+      if ( ~obj.IGNORE_CHECKS )
+        fs = Labels.ensure_cell( fs );
+        Assertions.assert__is_cellstr( fs );
+      end
+      
+      tf = cellfun( @(x) any(strcmp(obj.fields, x)), fs );
+    end
+    
     function ind = find_fields(obj, fields)
       
-      %   FIND_FIELDS - get the index of where each desired field is stored
+      %   FIND_FIELDS -- get the index of where each desired field is stored
       %     in `obj.fields`.
       %
       %     IN:

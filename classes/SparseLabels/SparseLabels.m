@@ -170,6 +170,33 @@ classdef SparseLabels
       tf = cellfun( @(x) any(strcmp(obj.labels, x)), labels );
     end
     
+    function tf = contains_categories(obj, fs)
+      
+      %   CONTAINS_CATEGORIES -- Obtain an index of whether the given 
+      %     categories(s) are present in the `obj.categories` cell array.
+      %
+      %     IN:
+      %       - `categories` (cell array of strings, char) -- Categories(s)
+      %         to test.
+      %     OUT:
+      %       - `tf` (logical) -- Vector of true/false values where each
+      %         `tf`(i) corresponds to each `categories`(i).
+      
+      fs = SparseLabels.ensure_cell( fs );
+      SparseLabels.assert__is_cellstr_or_char( fs );
+      tf = cellfun( @(x) any(strcmp(obj.categories, x)), fs );
+    end
+    
+    function tf = contains_fields(obj, fs)
+      
+      %   CONTAINS_FIELDS -- Alias for `contains_categories()`.
+      %
+      %     See `help SparseLabels/contains_categories()` for more
+      %     information.
+      
+      tf = contains_categories( obj, fs );
+    end
+    
     function obj = replace(obj, search_for, with)
       
       %   REPLACE -- replace a given number of labels with a single label.
@@ -206,7 +233,7 @@ classdef SparseLabels
       tf = contains( obj, with );
       if ( tf )
         categ = obj.categories( strcmp(obj.labels, with) );
-        assert( strcmp(unique(cats), categ), ['The search term ''%s'' already' ...
+        assert( all(strcmp(unique(cats), categ)), ['The search term ''%s'' already' ...
           , ' exists in the category ''%s''; attempted to place ''%s'' in' ...
           , ' the category ''%s''.'], with, categ{1}, with, cats{1} );
       end
