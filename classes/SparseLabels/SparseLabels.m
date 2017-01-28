@@ -18,6 +18,13 @@ classdef SparseLabels
       if ( nargin < 1 ), return; end;
       if ( isstruct(labs) )
         labs = SparseLabels.convert_struct_input_to_labels( labs );
+      elseif ( iscell(labs) )
+        SparseLabels.validate__cell_input( labs );
+        obj.labels = cellfun( @(x) x.label, labs, 'un', false );
+        obj.categories = cellfun( @(x) x.category, labs, 'un', false );
+        indices = cellfun( @(x) x.index, labs, 'un', false );
+        obj.indices = [ indices{:} ];
+        return;
       elseif ( ~isa(labs, 'Labels') )
         error( ['Cannot create a SparseLabels object from input of class' ...
             , ' ''%s'''], class(labs) );
@@ -224,23 +231,32 @@ classdef SparseLabels
           , ' search terms\n'] );
         return;
       end
+      %   where are the current search terms in the obj.labels cell array?
       lab_inds = cellfun( @(x) find(strcmp(obj.labels, x)), search_for );
       cats = obj.categories( lab_inds );
+      %   make sure the categories of the search terms are all the same.
       if ( numel(unique(cats)) ~= 1 )
         error( ['Replacing the search term(s) with ''%s'' would place ''%s''' ...
           , ' in multiple categories.'], with, with );
       end
       tf = contains( obj, with );
+      %   if the object already contains the replace-with term, make sure
+      %   its category is consistent with those of `search_for`, and add
+      %   its index to the `lab_inds` array.
       if ( tf )
-        categ = obj.categories( strcmp(obj.labels, with) );
+        current_ind = strcmp( obj.labels, with );
+        categ = obj.categories( current_ind );
         assert( all(strcmp(unique(cats), categ)), ['The search term ''%s'' already' ...
           , ' exists in the category ''%s''; attempted to place ''%s'' in' ...
           , ' the category ''%s''.'], with, categ{1}, with, cats{1} );
+        lab_inds = [ lab_inds, find(current_ind) ];
       end
       new_inds = any( obj.indices(:, lab_inds), 2 );
       obj.labels( lab_inds(1) ) = { with };
       obj.indices(:, lab_inds(1)) = new_inds;
       if ( numel(lab_inds) == 1 ), return; end;
+      %   remove category, labels, and indices associated with the
+      %   duplicates
       obj.labels( lab_inds(2:end) ) = [];
       obj.categories( lab_inds(2:end) ) = [];
       obj.indices(:, lab_inds(2:end)) = [];
@@ -817,6 +833,40 @@ classdef SparseLabels
           , '\nInstantiating a Labels object with this input failed with the' ...
           , ' following message:\n'] );
         error( err.message );
+      end
+    end
+    
+    function validate__cell_input( c )
+      
+      msg = [ 'If instantiating a SparseLabels object with a cell array' ...
+        , ' as input, the array must be an array of structs with ''label'',' ...
+        , ' ''index'', and ''category'' fields, in which a) all labels and' ...
+        , ' categories are strings, b) no labels are repeated,' ...
+        , ' c) all indices are logical column vectors with the same' ...
+        , ' number of rows, and d) the indices of labels in a given category have no' ...
+        , ' overlapping true elements.' ];
+      assert( all(cellfun(@isstruct, c)), msg );
+      required_fields = { 'label', 'category', 'index' };
+      for i = 1:numel(required_fields)
+        assert( all(cellfun(@(x) isfield(x, required_fields{i}), c)), msg );
+      end
+      assert( all(cellfun(@(x) isa(x.label, 'char'), c)), msg );
+      assert( all(cellfun(@(x) isa(x.category, 'char'), c)), msg );
+      assert( all(cellfun(@(x) isa(x.index, 'logical'), c)), msg );
+      assert( all(cellfun(@(x) size(x.index, 2) == 1, c)), msg );
+      if ( numel(c) == 1 ), return; end;
+      assert( all(diff(cellfun(@(x) size(x.index, 1), c)) == 0), msg );
+      labs = cellfun( @(x) x.label, c, 'un', false );
+      assert( numel(unique(labs)) == numel(labs), msg );
+      %   make sure labels in overlapping categories do not share true
+      %   elements
+      cats = unique( cellfun(@(x) x.category, c, 'un', false) );
+      for i = 1:numel(cats)
+        matches_cat = any( cellfun(@(x) strcmp(x.category, cats{i}), c), 1 );
+        current_cats = c( matches_cat );
+        current_cat_inds = cellfun( @(x) x.index, current_cats, 'un', false );
+        current_cat_inds = [ current_cat_inds{:} ];
+        assert( ~any(any(current_cat_inds, 2)), msg );
       end
     end
     
