@@ -1333,7 +1333,7 @@ classdef Container
     function [data, labels] = validate__initial_input(data, labels)
       %   make sure labels is a Labels object, or else try converting it
       %   into one
-      if ( ~isa(labels, 'Labels') )
+      if ( ~isa(labels, 'Labels') && ~isa(labels, 'SparseLabels') )
         try
           labels = Labels( labels ); 
         catch err
