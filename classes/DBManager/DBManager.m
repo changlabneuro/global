@@ -255,21 +255,10 @@ classdef DBManager
       row = row{1};
     end
     
-    function data = get_fields(obj, field_names, table_name)
+    function query = get_fields_select_query(obj, field_names, table_name)
       
-      %   GET_FIELDS -- Get all data in the requested fields.
-      %
-      %     It is an error to request fields that do not exist. It is an
-      %     error to specify a nonexistent table. Specify `field_names` as
-      %     '*' to get all fields.
-      %
-      %     IN:
-      %       - `field_names` (cell array of strings, char) -- Field
-      %         name(s) from which to draw data. If `field_names` is '*',
-      %         all fields will be used.
-      %       - `table_name` (char) -- Table from which to draw the data.
-      %     OUT:
-      %       - `data` (cell array) -- Data in the specified fields.
+      %   GET_FIELDS_SELECT_QUERY -- Internal function to construct a query
+      %     to select data in various fields and a given table.
       
       if ( ~isequal(field_names, '*') )
         field_names = DBManager.ensure_cell( field_names );
@@ -286,6 +275,67 @@ classdef DBManager
           , ' not exist'], table_name );
         query = sprintf( 'SELECT * FROM %s', table_name );
       end
+    end
+    
+    function data = get_fields_where(obj, field_names, table_name, conditions)
+      
+      %   GET_FIELDS_WHERE -- Get all data in the requested fields where
+      %     `conditions` are met.
+      %
+      %     It is an error to request fields that do not exist. It is an
+      %     error to specify a nonexistent table. Specify `field_names` as
+      %     '*' to get all fields. Specify conditions as comma separated
+      %     cell arrays of strings.
+      %
+      %     IN:
+      %       - `field_names` (cell array of strings, char) -- Field
+      %         name(s) from which to draw data. If `field_names` is '*',
+      %         all fields will be used.
+      %       - `table_name` (char) -- Table from which to draw the data.
+      %       - `conditions` (cell array of strings) -- Clauses converted
+      %         into WHERE commands in a sql query. Must be specified in
+      %         (field, value) pairs like so: { 'field1', 'value1',
+      %         'field1', 'value2' }. Such an array will be transformed
+      %         into: SELECT ... WHERE field1=value1 AND field2=value2;
+      %     OUT:
+      %       - `data` (cell array) -- Data in the specified fields.
+      
+      assert( numel(conditions) > 0, '`Conditions` cannot be empty' );
+      assert( mod(numel(conditions)/2, 1) == 0, ...
+        'Conditions must have an even number of elements' );
+      assert( iscellstr(conditions), ['Conditions must be a cell array' ...
+        , ' of strings; was a ''%s'''], class(conditions) );
+      query = get_fields_select_query( obj, field_names, table_name );
+      conditions = reshape( conditions, 2, numel(conditions)/2 );
+      selector = ...
+        sprintf( 'WHERE %s=%s', conditions{1,1}, conditions{2,1} );
+      if ( size(conditions, 2) > 1 )
+        for i = 2:size(conditions, 2)
+          selector = sprintf( '%s AND %s=%s', selector ...
+            , conditions{1,i}, conditions{2,i} );
+        end
+      end
+      query = sprintf( '%s %s;', query, selector );
+      data = exec_and_gather( obj, query );
+    end
+    
+    function data = get_fields(obj, field_names, table_name)
+      
+      %   GET_FIELDS -- Get all data in the requested fields.
+      %
+      %     It is an error to request fields that do not exist. It is an
+      %     error to specify a nonexistent table. Specify `field_names` as
+      %     '*' to get all fields.
+      %
+      %     IN:
+      %       - `field_names` (cell array of strings, char) -- Field
+      %         name(s) from which to draw data. If `field_names` is '*',
+      %         all fields will be used.
+      %       - `table_name` (char) -- Table from which to draw the data.
+      %     OUT:
+      %       - `data` (cell array) -- Data in the specified fields.
+      
+      query = get_fields_select_query( obj, field_names, table_name );
       data = exec_and_gather( obj, query );
     end
     

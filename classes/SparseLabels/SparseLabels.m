@@ -865,8 +865,9 @@ classdef SparseLabels
         matches_cat = any( cellfun(@(x) strcmp(x.category, cats{i}), c), 1 );
         current_cats = c( matches_cat );
         current_cat_inds = cellfun( @(x) x.index, current_cats, 'un', false );
-        current_cat_inds = [ current_cat_inds{:} ];
-        assert( ~any(any(current_cat_inds, 2)), msg );
+        current_cat_inds = [ current_cat_inds{:} ];        
+        if ( size(current_cat_inds, 2) == 1 ), continue; end;
+        assert( ~any(all(current_cat_inds, 2)), msg );
       end
     end
     
