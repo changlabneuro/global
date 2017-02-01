@@ -285,6 +285,80 @@ classdef SparseLabels
       end      
     end
     
+    function obj = add_field(obj, name, labs)
+      
+      %   ADD_FIELD -- Alias for `add_category`.
+      %
+      %     See `help SparseLabels/add_category` for more info.
+      
+      obj = add_category( obj, name, labs );
+    end
+    
+    function obj = add_category(obj, name, labs)
+      
+      %   ADD_CATEGORY -- Insert new labels and indices in a given category
+      %     into the object.
+      %
+      %     Input must be valid input to a Labels and SparseLabels object.
+      %     It is an error to add a category that already exists in the
+      %     object. It is an error to add labels that already exist in the
+      %     object.
+      %
+      %     IN:
+      %       - `name` (char) -- Name of the category to add. Cannot be a
+      %         current value of `obj.categories`.
+      %       - `labs` (cell array of strings) -- New labels to add. Must
+      %         have the same number of elements as there are rows in the
+      %         object. Cannot have any elements that are current labels in
+      %         `obj.labels`.
+      %     OUT:
+      %       - `obj` (SparseLabels) -- Object with the category added.
+      
+      assert( isa(name, 'char'), 'Category name must be a char; was a ''%s''' ...
+        , class(name) );
+      assert( ~contains_categories(obj, name), ['The category ''%s'' already' ...
+        , ' exists in the object'], name );
+      labs = SparseLabels.ensure_cell( labs );
+      assert( iscellstr(labs), 'Labels must be a cell array of strings' );
+      if ( numel(labs) ~= 1 )
+        assert( numel(labs) == shape(obj, 1), ['The number of inputted labels' ...
+          , ' must match the current number of rows in the object'] );
+      else labs = repmat( labs, shape(obj, 1), 1 );
+      end
+      exists = cellfun( @(x) any(strcmp(obj.labels, x)), unique(labs) );
+      assert( ~any(exists), ['It is an error to insert duplicate labels' ...
+        , 'into the object'] );
+      try
+        s.(name) = labs;
+      catch err
+        fprintf( ['\n ! SparseLabels/add_category: The following error' ...
+          , ' occurred when attempting to instantiate a struct with fieldname' ...
+          , ' ''%s'':'], name );
+        error( err.message );
+      end
+      try
+        labs = Labels( s );
+      catch err
+        fprintf( ['\n ! SparseLabels/add_category: When adding a category,' ...
+          , ' the input must be valid input to a Labels object. Instantiating' ...
+          , ' a Labels object with the given input failed with the following' ...
+          , ' message:'] );
+        error( err.message );
+      end
+      try
+        labs = sparse( labs );
+      catch err
+        fprintf( ['\n ! SparseLabels/add_category: When adding a category,' ...
+          , ' the input must be valid input to a SparseLabels object. Instantiating' ...
+          , ' a SparseLabels object with the given input failed with the following' ...
+          , ' message:'] );
+        error( err.message );
+      end
+      obj.labels = [obj.labels labs.labels];
+      obj.categories = [obj.categories labs.categories];
+      obj.indices = [obj.indices labs.indices];
+    end
+    
     %{
         INDEXING
     %}

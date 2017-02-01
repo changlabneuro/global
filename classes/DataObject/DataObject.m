@@ -337,6 +337,25 @@ classdef DataObject
             if ( isempty(obj) ); fprintf('\nObject is empty\n\n'); end;
         end
         
+        function allcombs = getcombs(obj, fields)
+          
+          %   GETCOMBS -- Get all unique combinations of unique labels in
+          %     the specified fields.
+          %
+          %     IN:
+          %       - `fields` (cell array of strings) -- Fields from which
+          %       to draw labels. It is an error to specify non-existent
+          %       fields.
+          
+          fields = cell_if_not_cell( obj, fields );  
+          uniques = cell( size(fields) );
+          for k = 1:length(fields)
+            uniques(k) = { unique(obj.labels.(fields{k})) };
+          end
+          %   get all unique combinations of data labels
+          allcombs = allcomb( uniques );          
+        end
+        
         %   return <indices> of all the unique combinations of unique
         %   labels in the categories of <fields>. <allcombs> indicates the 
         %   combination of labels used to construct each index.
@@ -1283,6 +1302,12 @@ classdef DataObject
                 tot = max(size(obj.data));
             else tot = size(obj.data,dim);
             end
+        end
+        
+        %   for compatibility with Containers
+        
+        function tot = shape(obj,varargin)
+          tot = count( obj, varargin{:} );
         end
         
         %   data dimensions
