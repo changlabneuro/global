@@ -132,7 +132,8 @@ classdef Container
       %         elements of `ind`.
       
       obj.labels = keep( obj.labels, ind );
-      obj.data = obj.data(ind, :);
+      colons = repmat( {':'}, 1, ndims(obj.data)-1 );
+      obj.data = obj.data(ind, colons{:});
     end
     
     function [obj, ind] = remove(obj, selectors)
@@ -1016,8 +1017,17 @@ classdef Container
     %}
     
     function disp(obj)
-      fprintf('\n\n%d-by-%d %s Container with %s:\n', ...
-        shape(obj, 1), shape(obj, 2), obj.dtype, class(obj.labels) );
+      
+      %   DISP -- Print the size of the data in the object, the class of
+      %     data in the object, and the object's labels.
+      
+      n_dims = ndims( obj.data );
+      size_str = num2str( size(obj.data, 1) );
+      for i = 2:n_dims
+        size_str = sprintf( '%s-by-%d', size_str, size(obj.data, i) );
+      end
+      fprintf('\n\n%s %s Container with %s:\n', ...
+        size_str, obj.dtype, class(obj.labels) );
       disp( obj.labels );
     end
     
