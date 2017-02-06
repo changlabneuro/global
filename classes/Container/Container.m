@@ -600,23 +600,16 @@ classdef Container
           %   on the Container object (with whatever other inputs are
           %   passed), and return
           if ( any(strcmp(methods(obj), subs)) && proceed )
-%             func = eval( sprintf('@Container.%s', subs) );
             func = eval( sprintf('@%s', subs) );
             %   if the ref is to a method, but is called without (), an
             %   error is thrown. E.g., Container.eq -> error ...
             if ( numel(s) == 0 )
-              error( ['''%s'' is the name of a Container method, but was' ...
-                , ' referenced as if it were a property'], subs );
+              error( ['''%s'' is the name of a %s method, but was' ...
+                , ' referenced as if it were a property.'], subs, class(obj) );
             end
             inputs = [ {obj} {s(:).subs{:}} ];
-            %   if no outputs are requested, execute the function without
-            %   assigning anything to `out`. Otherwise, assign `out` to the
-            %   output of func() and return
+            %   assign `out` to the output of func() and return
             out = func( inputs{:} );
-%             if ( nargout(func) > 0 )
-%               out = func( inputs{:} );
-%             else func( inputs{:} );
-%             end
             return; %   note -- in this case, we do not proceed
           end
           %   check if the ref is a method of the label object in
