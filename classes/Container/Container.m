@@ -356,8 +356,8 @@ classdef Container
       %     attempting to assign new data to the Container object, the new 
       %     data must have the same number of rows as the object. If 
       %     attempting to assign new labels to the object, the new labels 
-      %     must be a `Labels` object, and have the same number of rows as
-      %     the `Container`.
+      %     must be a `Labels`, or a `SparseLabels` object, and have the 
+      %     same number of rows as the `Container`.
       %
       %     // '()' assignment //
       %
@@ -371,14 +371,18 @@ classdef Container
       %     Container.labels = ...
       %       Container.labels.set_field( 'fieldname', 'values' );
       %
-      %     You can optionally input an index after 'fieldname' to specify
-      %     which elements in 'fieldname' are overwritten:
+      %     If labels is a Labels object, you can optionally input an 
+      %     index after 'fieldname' to specify which elements in 
+      %     'fieldname' are overwritten:
       %
       %     Container('fieldname', `index`) = 'values', which is equivalent
       %     to:
       %
       %     Container.labels = ...
       %       Container.labels.set_field( 'fieldname', 'values', `index` );
+      %
+      %     Note that indexing is not possible if the labels are
+      %     SparseLabels.
       %
       %     In case b), Container(`index`) = [] deletes the elements
       %     specified by the index. If `index` is a logical, it must be
@@ -441,7 +445,7 @@ classdef Container
             case 'char'
               if ( obj.LABELS_ARE_SPARSE )
                 assert( numel(subs) == 1, ['You cannot specify indices' ...
-                  , ' for assigning labels if the labels are SparseLabels'] );
+                  , ' for assigning labels if the labels are SparseLabels.'] );
               end
               if ( numel(subs) == 1 )
                 index = true( shape(obj, 1), 1 ); 
@@ -505,9 +509,12 @@ classdef Container
       if ( ~obj.IGNORE_CHECKS )
         assert__dtypes_match( obj, B );
         assert__columns_match( obj, B );
+        assert( obj.LABELS_ARE_SPARSE == B.LABELS_ARE_SPARSE, ...
+          ['The to-be-assigned object must have the same class of labels' ...
+          , ' object as the assigned-to object.'] );
       end
       obj.labels = overwrite( obj.labels, B.labels, index );
-      obj.data(index,:) = B.data;
+      obj.data(index, :) = B.data;
     end
     
     %{
