@@ -29,6 +29,7 @@ classdef Container
       obj.data = data;
       obj.labels = labels;
       obj.dtype = class( data );
+      obj = update_label_sparsity( obj );
     end
     
     %{
@@ -74,6 +75,14 @@ classdef Container
         fprintf( ['\n ! Container/toggle_verbosity: Turned verbosity' ...
           , ' ''on''\n\n'] );
       end
+    end
+    
+    function obj = update_label_sparsity(obj)
+      
+      %   UPDATE_LABEL_SPARSITY -- Indicate whether the object currently
+      %     has SparseLabels or regular Labels.
+      
+      obj.LABELS_ARE_SPARSE = isa( obj.labels, 'SparseLabels' );
     end
     
     %{
@@ -430,6 +439,10 @@ classdef Container
             %   if we're going to set a field of the Container.labels
             %   object, e.g., Container('monkeys') = 'jodo'
             case 'char'
+              if ( obj.LABELS_ARE_SPARSE )
+                assert( numel(subs) == 1, ['You cannot specify indices' ...
+                  , ' for assigning labels if the labels are SparseLabels'] );
+              end
               if ( numel(subs) == 1 )
                 index = true( shape(obj, 1), 1 ); 
               elseif ( numel(subs) == 2 )
@@ -439,7 +452,11 @@ classdef Container
                   , ' setting a field -- the first is the fieldname,' ...
                   , ' and the second is, optionally, the index.'] );
               end
-              obj.labels = set_field( obj.labels, subs{1}, values, index );
+              if ( obj.LABELS_ARE_SPARSE )
+                obj.labels = set_field( obj.labels, subs{1}, values );
+              else
+                obj.labels = set_field( obj.labels, subs{1}, values, index );
+              end
             case { 'double', 'logical' }
               %   if the format is Container(1:10) = `container_2` or 
               %   Container(ind) = [], i.e., if we're performing element 
@@ -1170,12 +1187,9 @@ classdef Container
         opts = struct( 'msg', ['When overwriting the labels property on the object,' ...
           , ' the to-be-assigned values must be a Labels or SparseLabels object' ...
           , ' with the same number of rows as the Container object.'] );
-        if ( ~isa(values, 'SparseLabels') )
-          Assertions.assert__isa( values, 'Labels', opts );
-          obj.LABELS_ARE_SPARSE = false;
-        else obj.LABELS_ARE_SPARSE = true;
-        end
+        assert( isa(values, 'Labels') || isa(values, 'SparseLabels'), opts.msg );
         assert( shape(obj, 1) == shape(values, 1), opts.msg );
+        obj.LABELS_ARE_SPARSE = isa( values, 'SparseLabels' );
         valid_prop = true;
       end
       if ( ~valid_prop )

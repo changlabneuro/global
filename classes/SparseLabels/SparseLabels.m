@@ -107,6 +107,40 @@ classdef SparseLabels
         LABEL HANDLING
     %}
     
+    function obj = set_field(obj, cat, set_as)
+      
+      %   SET_FIELD -- Alias for `set_category` to match the syntax of a
+      %     Labels object.
+      %
+      %     See `help SparseLabels/set_category` for more info.
+      
+      obj = set_category( obj, cat, set_as );
+    end
+    
+    function obj = set_category(obj, cat, set_as)
+      
+      %   SET_CATEGORY -- Assign all labels in a given category to a
+      %     specified string.
+      %
+      %     Note the restrictions of set_category in comparison to
+      %     set_field for a Labels object: It is currently only possible to
+      %     set the entire contents of a given category to a single string.
+      %
+      %     IN:
+      %       - `cat` (char) -- Name of the category to set. An error is
+      %         thrown if it is not found in the object.
+      %       - `set_as` (char) -- Label to assign to the values in `cat`.
+      
+      char_msg = 'Expected %s to be a char; was a ''%s''';
+      assert( isa(cat, 'char'), char_msg, 'category name', class(cat) );
+      assert( isa(set_as, 'char'), char_msg, 'the labels-to-be-set' ... 
+        , class(set_as) );
+      assert( contains_categories(obj, cat), ['The specified category ''%s''' ...
+        , ' does not exist'], cat );
+      labels_to_replace = labels_in_category( obj, cat );
+      obj = replace( obj, labels_to_replace, set_as );
+    end
+    
     function labs = get_fields(obj, cat)
       labs = labels_in_category( obj, cat );
     end
