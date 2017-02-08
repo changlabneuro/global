@@ -319,6 +319,20 @@ classdef Container
       obj.labels = add_field( obj.labels, field, set_as );
     end
     
+    function fields = field_names(obj)
+      
+      %   FIELD_NAMES -- Get the field / category names of the labels in
+      %     the object.
+      %
+      %     OUT:
+      %       - `fields` (cell array of strings) -- Field / category names.
+      
+      if ( obj.LABELS_ARE_SPARSE )
+        fields = unique( obj.labels.categories );
+      else fields = obj.labels.fields;
+      end      
+    end
+    
     function obj = collapse(obj, fields)
       
       %   COLLAPSE -- Replace labels in a field or fields with a
@@ -617,13 +631,13 @@ classdef Container
         case '.'
           %   if the ref is the name of a Container property, return the
           %   property
-          if ( any(strcmp(properties(obj), subs)) && proceed )
+          if ( proceed && any(strcmp(properties(obj), subs)) )
             out = obj.(subs); proceed = false;
           end
           %   if the ref is the name of a Container method, call the method
           %   on the Container object (with whatever other inputs are
           %   passed), and return
-          if ( any(strcmp(methods(obj), subs)) && proceed )
+          if ( proceed && any(strcmp(methods(obj), subs)) )
             func = eval( sprintf('@%s', subs) );
             %   if the ref is to a method, but is called without (), an
             %   error is thrown. E.g., Container.eq -> error ...
@@ -641,7 +655,7 @@ classdef Container
           %   object (with whatever other inputs are passed), mutate the
           %   `obj.labels` object, and return
           label_methods = methods( obj.labels );
-          if ( any(strcmp(label_methods, subs)) && proceed )
+          if ( proceed && any(strcmp(label_methods, subs)) )
             func = eval( sprintf('@%s', subs) );
             %   if the ref is to a method, but is called without (), an
             %   error is thrown. E.g., Container.uniques -> error ...
@@ -872,6 +886,47 @@ classdef Container
       %     requirements for operations to occur.
       
       obj = op( obj, B, @minus );
+    end
+    
+    function new_obj = do_per(obj, fields, func, varargin)
+      
+      %   DO_PER -- Apply a function to the data associated with each
+      %     unique combination of labels in the specified fields.
+      %
+      %     The specified function must be configured to accept a Container
+      %     object as its first input; additional inputs (applied with each
+      %     call to the function) can be passed with varargin. Crucially,
+      %     the function must return a Container object; an error is thrown
+      %     otherwise.
+      %
+      %     See also Labels/combs
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields from which
+      %         to draw unique combinations of labels. An error is thrown
+      %         if any of the fields do not exist in the labels object.
+      %       - `func` (function_handle) -- Handle to the function
+      %         configured as specified above.
+      %       - `varargin` (/any/) -- Additional inputs to pass to each
+      %       	function call.
+      %     OUT:
+      %       - `new_obj` (Container) -- Cumulative result of all
+      %         function-calls.
+      
+      assert( isa(func, 'function_handle'), ['Expected a function_handle' ...
+        , ' as input; was a ''%s'''], class(func) );
+      c = combs( obj.labels, fields );
+      new_obj = Container();
+      for i = 1:size(c, 1)
+        ind = where( obj, c(i, :) );
+        if ( ~any(ind) ), continue; end;
+        extr = keep( obj, ind );
+        result = func( extr, varargin{:} );
+        assert( isa(result, 'Container'), ['The returned value of a function' ...
+          , ' called with do_per() must be a Container; was a ''%s'''] ...
+          , class(result) );
+        new_obj = append( new_obj, result );
+      end
     end
     
     %{

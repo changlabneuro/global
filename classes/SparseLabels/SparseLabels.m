@@ -142,6 +142,12 @@ classdef SparseLabels
     end
     
     function labs = get_fields(obj, cat)
+      
+      %   GET_FIELDS -- Alias for `labels_in_category` to allow proper
+      %     compatibility with a Container object.
+      %
+      %     See `help SparseLabels/labels_in_category` for more info.
+      
       labs = labels_in_category( obj, cat );
     end
     
@@ -193,6 +199,30 @@ classdef SparseLabels
       for i = 1:numel(cats)
         unqs{i} = labels_in_category( obj, cats{i} );
       end
+    end
+    
+    function unqs = flat_uniques(obj, cats)
+      
+      %   FLAT_UNIQUES -- Obtained a flattened cell array of the unique
+      %     values in the given categories.
+      %
+      %     Rather than a 1xM array of unique values per M categories, the
+      %     output is a 1xM array of all M unique values in the specified
+      %     categories.
+      %
+      %     IN:
+      %       - `cats` (cell array of strings, char) -- Categories from
+      %         which to draw labels.
+      %     OUT:
+      %       - `unqs` (cell array of strings) -- Unique labels in a
+      %         flattened cell array.
+      
+      if ( nargin < 2 ), cats = unique( obj.categories ); end;
+      unqs = uniques( obj, cats );
+      assert( all(cellfun(@(x) isrow(x), unqs)), ['Not all unique values' ...
+        , ' were a row vector. This is possibly due to manually overwriting' ...
+        , ' the labels property of the object'] );
+      unqs = [ unqs{:} ];
     end
     
     function tf = contains(obj, labels)
@@ -391,6 +421,39 @@ classdef SparseLabels
       obj.labels = [obj.labels labs.labels];
       obj.categories = [obj.categories labs.categories];
       obj.indices = [obj.indices labs.indices];
+    end
+    
+    function obj = rm_fields( obj, fields )
+      
+      %   RM_FIELDS -- Alias for `rm_categories` to ensure proper
+      %     Container functionality.
+      %
+      %     See `help SparseLabels/rm_categories` for more info.
+      
+      obj = rm_categories( obj, fields );
+    end
+    
+    function obj = rm_categories( obj, cats )
+      
+      %   RM_CATEGORIES -- Remove all labels, indices, and category names
+      %     associated with the specified categories.
+      %
+      %     An error is thrown if any of the specified categories do not
+      %     exist.
+      %
+      %     IN:
+      %       - `cats` (cell array of strings, char) -- Categories to
+      %         remove.
+      
+      cats = SparseLabels.ensure_cell( cats );
+      SparseLabels.assert__is_cellstr_or_char( cats );
+      assert__categories_exist( obj, cats );
+      for i = 1:numel(cats)
+        ind = strcmp( obj.categories, cats{i} );
+        obj.labels( ind ) = [];
+        obj.categories( ind ) = [];
+        obj.indices( :, ind ) = [];
+      end      
     end
     
     %{
