@@ -15,6 +15,8 @@ classdef ContainerPlotter < handle
       , 'shape', [] ...
       , 'bins', [] ...
       , 'order_by', [] ...
+      , 'save_outer_folder', [] ...
+      , 'save_folder_hierarcy', [] ...
     );
     params;
   end
@@ -125,6 +127,14 @@ classdef ContainerPlotter < handle
       end      
     end
     
+    function plot_and_save(obj, within, func, cont, varargin)
+      
+      obj.assert__isa( func, 'function_handle', 'plotting function' );
+      obj.assert__is_container( cont );
+      obj.params = obj.parse_params_struct( obj.params, varargin{:} );
+      
+    end
+    
     %{
         UTIL
     %}
@@ -135,8 +145,8 @@ classdef ContainerPlotter < handle
       %   APPLY_IF_NOT_EMPTY -- Automatically set certain figure properties
       %     if they are specified in the obj.params struct.
       %
-      %     Current assignments are limited to: xLim, yLim, xLabel, yLabel,
-      %     and title.
+      %     Current assignments are limited to: x_lim, y_lim, x_label,
+      %     y_label, title, and x_tick_rotation.
       %
       %     IN:
       %       - `ax` (axes object) |OPTIONAL| -- Handle to the axis on

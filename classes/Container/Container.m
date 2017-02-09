@@ -145,6 +145,24 @@ classdef Container
       obj.data = obj.data( ind, colons{:} );
     end
     
+    function obj = keep_one(obj, N)
+      
+      %   KEEP_ONE -- Obtain a single row of the object.
+      %
+      %     IN:
+      %       - `N` (double) |SCALAR| -- Numeric index specifying the
+      %         row-number to obtain. Must be greater than 0 and less than
+      %         the number of rows in the object.
+      %     OUT:
+      %       - `obj` (Container) -- Object with one row's worth of data
+      %         and labels.
+      
+      Assertions.assert__isa( N, 'double' );
+      assert( isscalar(N), 'Specify a scalar numeric index' );
+      ref_struct = struct( 'type', '()', 'subs', {{N}} );
+      obj = subsref( obj, ref_struct );      
+    end
+    
     function [obj, ind] = remove(obj, selectors)
       
       %   REMOVE -- remove rows of data and labels identified by
@@ -348,6 +366,16 @@ classdef Container
       %         mutated.
       
       obj.labels = collapse( obj.labels, fields );
+    end
+    
+    function obj = collapse_non_uniform(obj)
+      
+      %   COLLAPSE_NON_UNIFORM -- Collapse categories for which there is
+      %     more than one label present in the category.
+      %
+      %     See `help SparseLabels/get_uniform_categories` for more info.
+      
+      obj.labels = collapse_non_uniform( obj.labels );
     end
     
     %{
@@ -929,6 +957,75 @@ classdef Container
       end
     end
     
+    function obj = row_op(obj, func, varargin)
+      
+      %   ROW_OP -- Execute a function that collapses the object's data
+      %     across the first-dimension.
+      %
+      %     The resulting object will be of size 1xNx ... and thus have
+      %     uniform labels. Non-uniform fields of the inputted object will
+      %     be collapsed.
+      %
+      %     This function is not meant to be called directly; instead, it
+      %     is the generalized form of function such as mean, sum, std,
+      %     etc.
+      %
+      %     It is an error to call a function via row_op whose result is a
+      %     matrix with more than one row (i.e., the result must be of size
+      %     1xMx ... ).
+      %
+      %     The object must be of dtype 'double'.
+      %
+      %     IN:
+      %       - `func` (function_handle) -- Function to execute.
+      %       - `varargin` (/any/) -- Any additional inputs to pass to the
+      %         function (usually, dimension specifiers).
+      %     OUT:
+      %       - `obj` (Container) -- Object whose data are a 1xNx ...
+      %         matrix, and whose labels are uniform.
+      
+      assert( isa(func, 'function_handle'), ['Expected a function_handle' ...
+        , ' as input; was a ''%s'''], class(func) );
+      assert__dtype_is( obj, 'double' );
+      data = func( obj.data, varargin{:} );
+      assert( size(data, 1) == 1, ['Data in the inputted object are improperly' ...
+        , ' dimensioned; executing function ''%s'' resulted in an object' ...
+        , ' whose data have more than one row'] );
+      obj = collapse_non_uniform( obj );
+      obj = keep_one( obj, 1 );
+      obj.data = data;
+    end
+    
+    function obj = mean(obj)
+      
+      %   MEAN -- Return an object whose data have been averaged across the
+      %     first dimension.
+      %
+      %     See `help Container/row_op` for more information.
+      
+      obj = row_op( obj, @mean, 1 );
+    end
+    
+    function obj = sum(obj)
+      
+      %   SUM -- Return an object whose data have been summed across the
+      %     first dimension.
+      %
+      %     See `help Container/row_op` for more information.
+      
+      obj = row_op( obj, @sum, 1 );
+    end
+    
+    function obj = std(obj)
+      
+      %   STD -- Return an object whose data are the standard-deviation of
+      %     the data in the inputted object, across the 1-st dimension.
+      %
+      %     See `help Container/row_op` for more information.
+      
+      obj = row_op( obj, @std, [], 1 );
+    end
+    
     %{
         COMPRESSION + DECOMPRESSION
     %}
@@ -1407,6 +1504,11 @@ classdef Container
       assert( any(strcmp(supports, obj.dtype)), ...
         'The ''%s'' operation is not supported with objects of type ''%s''', ...
         op_kind, obj.dtype );      
+    end
+    
+    function assert__dtype_is(obj, kind)
+      assert( strcmp(obj.dtype, kind), ['Expected the object''s dtype to be ''%s''' ...
+        , ' but was ''%s'''], kind, obj.dtype );
     end
     
   end

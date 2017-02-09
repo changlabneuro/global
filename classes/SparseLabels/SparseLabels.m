@@ -107,6 +107,20 @@ classdef SparseLabels
         LABEL HANDLING
     %}
     
+    function uniform = get_uniform_categories(obj)
+      
+      %   GET_UNIFORM_CATEGORIES -- Return an array of category names for
+      %     which there is only one label present in the category.
+      %
+      %     OUT:
+      %       - `uniform` (cell array of strings) -- Category names.
+      
+      cats = obj.categories;
+      unique_cats = unique( cats );
+      uniform_ind = cellfun( @(x) sum(strcmp(cats, x)) == 1, unique_cats );
+      uniform = unique_cats( uniform_ind );
+    end
+    
     function obj = set_field(obj, cat, set_as)
       
       %   SET_FIELD -- Alias for `set_category` to match the syntax of a
@@ -295,6 +309,8 @@ classdef SparseLabels
           , ' search terms\n'] );
         return;
       end
+      search_for( strcmp(search_for, with) ) = [];
+      if ( isempty(search_for) ), return; end
       %   where are the current search terms in the obj.labels cell array?
       lab_inds = cellfun( @(x) find(strcmp(obj.labels, x)), search_for );
       cats = obj.categories( lab_inds );
@@ -347,6 +363,18 @@ classdef SparseLabels
       for i = 1:numel(labs)
         obj = replace( obj, labs{i}, [obj.COLLAPSED_EXPRESSION cats{i}] );
       end      
+    end
+    
+    function obj = collapse_non_uniform(obj)
+      
+      %   COLLAPSE_NON_UNIFORM -- Collapse categories for which there is
+      %     more than one label present in the category.
+      %
+      %     See `help SparseLabels/get_uniform_categories` for more info.
+      
+      uniform = get_uniform_categories( obj );
+      non_uniform = setdiff( unique(obj.categories), uniform );
+      obj = collapse( obj, non_uniform );
     end
     
     function obj = add_field(obj, name, labs)

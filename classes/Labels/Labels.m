@@ -356,6 +356,21 @@ classdef Labels
         FIELD HANDLING
     %}
     
+    function uniform = get_uniform_fields(obj)
+      
+      %   GET_UNIFORM_FIELDS -- Return an array of field names for
+      %     which there is only one unique label present in the field.
+      %
+      %     OUT:
+      %       - `uniform` (cell array of strings) -- Category names.
+      
+      uniform_ind = false( 1, size(obj.labels, 2) );
+      for i = 1:size(obj.labels, 2)
+        uniform_ind(i) = numel( unique(obj.labels(:, i)) ) == 1;
+      end
+      uniform = obj.fields( uniform_ind );
+    end
+    
     function labs = get_fields(obj, fields)
       
       %   GET_FIELDS -- obtain labels in the fields `fields`. 
@@ -552,6 +567,18 @@ classdef Labels
       %     See `help Labels/collapse_fields` for more info.
       
       obj = collapse_fields( obj, fields );
+    end
+    
+    function obj = collapse_non_uniform(obj)
+      
+      %   COLLAPSE_NON_UNIFORM -- Collapse fields for which there is
+      %     more than one label present in the field.
+      %
+      %     See `help Labels/get_uniform_fields` for more info.
+      
+      uniform = get_uniform_fields( obj );
+      non_uniform = setdiff( obj.fields, uniform );
+      obj = collapse_fields( obj, non_uniform );
     end
     
     %{
