@@ -7,6 +7,7 @@ classdef ContainerPlotter < handle
       , 'y_lim', [] ...
       , 'x_label', [] ...
       , 'y_label', [] ...
+      , 'x_tick_rotation', 60 ...
       , 'error_function', @ContainerPlotter.sem ...
       , 'x_tick_label', [] ...
       , 'y_tick_label', [] ...
@@ -36,11 +37,34 @@ classdef ContainerPlotter < handle
       %         Data in the object must be an Mx1 column vector.
       %       - `category` (char) -- Specifies the category of labels that
       %         will form the x-axis.
-      %       - `group_by` (cell array of strings, char) -- 
+      %       - `group_by` (cell array of strings, char, []) -- Specify
+      %         categories by which to group sets of data. If [], no
+      %         grouping is applied.
       %       - `within` (cell array of strings, char, []) -- Each
       %       	unique combination of labels in these categories will
       %       	receive its own subplot. If [], the resulting plot will
       %       	have only a single panel.
+      %     OUT:
+      %       - `h` (cell array of graphics handles)
+      %
+      %     Ex 1. //
+      %
+      %     %   Create a plot where, for each image category, the effects
+      %     %   of each dose are plotted on separate subplots for each
+      %     %   monkey.
+      %
+      %     plotter = ContainerPlotter();
+      %     plotter.bar( looking_behavior, 'images', 'doses', 'monkeys' );
+      %
+      %     Ex 2. //
+      %
+      %     %   Create a plot where, for each image category, the effects
+      %     %   of each dose of each drug are plotted on separate subplots
+      %     %   for each monkey.
+      %
+      %     plotter = ContainerPlotter();
+      %     plotter.bar( looking_behavior, 'images', {'doses','drugs'}, ...
+      %     'monkeys' )
       
       obj.params = obj.parse_params_struct( obj.params, varargin{:} );
       obj.assert__is_container( cont );
@@ -93,7 +117,6 @@ classdef ContainerPlotter < handle
         set( gca, 'xtick', 1:numel(labs) );
         set( gca, 'xticklabel', labs );
         current_axis = gca;
-        current_axis.XTickLabelRotation = 60;
         title( title_labels );
         if ( add_legend )
           legend( legend_items );
@@ -127,6 +150,9 @@ classdef ContainerPlotter < handle
       if ( ~isempty(params.x_label) ), xlabel( ax, params.x_label ); end;
       if ( ~isempty(params.y_label) ), ylabel( ax, params.y_label ); end;
       if ( ~isempty(params.title) ), 	title( ax, params.title ); end;
+      if ( ~isempty(params.x_tick_rotation) )
+        ax.XTickLabelRotation = params.x_tick_rotation;
+      end
     end
     
     function obj = default(obj)
