@@ -282,6 +282,31 @@ classdef Labels
       unqs = uniques( obj, labs );
     end
     
+    function unqs = flat_uniques(obj, fs)
+      
+      %   FLAT_UNIQUES -- Obtained a flattened cell array of the unique
+      %     values in the given categories.
+      %
+      %     Rather than a 1xM array of unique values per M categories, the
+      %     output is a 1xM array of all M unique values in the specified
+      %     categories.
+      %
+      %     IN:
+      %       - `cats` (cell array of strings, char) -- Categories from
+      %         which to draw labels.
+      %     OUT:
+      %       - `unqs` (cell array of strings) -- Unique labels in a
+      %         flattened cell array.
+      
+      if ( nargin < 2 ), fs = obj.fields; end;
+      unqs = uniques_in_fields( obj, fs );
+      unqs = cellfun( @(x) x(:)', unqs, 'un', false );
+      assert( all(cellfun(@(x) isrow(x), unqs)), ['Not all unique values' ...
+        , ' were a row vector. This is possibly due to manually overwriting' ...
+        , ' the labels property of the object'] );
+      unqs = [ unqs{:} ];
+    end
+    
     function c = combs(obj, fields)
       
       %   COMBS -- get the unique combinations of unique labels in the

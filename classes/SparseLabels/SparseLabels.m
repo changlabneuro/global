@@ -233,6 +233,7 @@ classdef SparseLabels
       
       if ( nargin < 2 ), cats = unique( obj.categories ); end;
       unqs = uniques( obj, cats );
+      unqs = cellfun( @(x) x(:)', unqs, 'un', false );
       assert( all(cellfun(@(x) isrow(x), unqs)), ['Not all unique values' ...
         , ' were a row vector. This is possibly due to manually overwriting' ...
         , ' the labels property of the object'] );

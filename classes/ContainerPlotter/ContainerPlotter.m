@@ -3,7 +3,8 @@ classdef ContainerPlotter < handle
   properties
     
     defaults = struct ( ...
-        'x_lim', [] ...
+        'x', [] ...
+      , 'x_lim', [] ...
       , 'y_lim', [] ...
       , 'x_label', [] ...
       , 'y_label', [] ...
@@ -17,6 +18,10 @@ classdef ContainerPlotter < handle
       , 'order_by', [] ...
       , 'save_outer_folder', [] ...
       , 'save_folder_hierarcy', [] ...
+      , 'add_ribbon', false ...
+      , 'main_line_width', 3 ...
+      , 'ribbon_line_width', .5 ...
+      , 'full_screen', false ...
     );
     params;
   end
@@ -70,6 +75,7 @@ classdef ContainerPlotter < handle
       
       obj.params = obj.parse_params_struct( obj.params, varargin{:} );
       obj.assert__is_container( cont );
+      assert( ~isempty(cont), 'The Container object is empty.' );
       obj.assert__n_dimensional_data( cont, 2 );
       obj.assert__data_are_of_size( cont, [], 1 );
       obj.assert__isa( category, 'char', 'category name' );
@@ -77,8 +83,8 @@ classdef ContainerPlotter < handle
         inds = { true(shape(cont, 1), 1) };
         within = field_names( cont );
       else inds = get_indices( cont, within );
-      end      
-      obj.assign_shape( numel(inds) );      
+      end
+      obj.assign_shape( numel(inds) );
       labs = unique( get_fields(cont.labels, category) );
       if ( ~isempty(obj.params.order_by) )
         labs = obj.preferred_order( labs, obj.params.order_by );
@@ -124,15 +130,108 @@ classdef ContainerPlotter < handle
           legend( legend_items );
         end
         obj.apply_if_not_empty( current_axis );
-      end      
+      end  
+      if ( obj.params.full_screen )
+        set( gcf, 'units', 'normalized', 'outerposition', [0 0 1 1] );
+      end
     end
     
-    function plot_and_save(obj, within, func, cont, varargin)
+    function h = plot(obj, cont, categories, within, varargin)
       
-      obj.assert__isa( func, 'function_handle', 'plotting function' );
-      obj.assert__is_container( cont );
+      %   PLOT -- Plot two-dimensional data in a Container object.
+      %
+      %     IN:
+      %       - `cont` (Container) -- Object whose data are to be plotted.
+      %         Data in the object must be an MxN matrix, where N > 1.
+      %       - `categories` (cell array of strings, char, []) -- Specify
+      %         the categories of labels that will form separate lines on
+      %         each subplot. If [], each subplot will have only one line.
+      %       - `within` (cell array of strings, char, []) -- Each
+      %       	unique combination of labels in these categories will
+      %       	receive its own subplot. If [], the resulting plot will
+      %       	have only a single panel.
+      %     OUT:
+      %       - `h` (cell array of graphics handles)
+      
       obj.params = obj.parse_params_struct( obj.params, varargin{:} );
-      
+      obj.assert__is_container( cont );
+      obj.assert__n_dimensional_data( cont, 2 );
+      assert( ~isempty(cont), 'The Container is empty.' );
+      if ( ~isempty(obj.params.x) )
+        assert( numel(obj.params.x) == shape(cont, 2) ...
+          , ['If specifying x coordinates,' ...
+          , ' the number of coordinates must match the number of columns' ...
+          , ' in the Container. Current number of columns is %d; %d were' ...
+          , ' specified'], shape(cont, 2), numel(obj.params.x) );
+        x = obj.params.x;
+      else x = 1:shape(cont, 2);
+      end
+      if ( isempty(within) )
+        inds = { true(shape(cont, 1), 1) };
+      else inds = get_indices( cont, within );
+      end
+      obj.assign_shape( numel(inds) );
+      if ( ~isempty(categories) )
+        [~, label_combs] = get_indices( cont, categories );
+        if ( ~isempty(obj.params.order_by) )
+          assert( size(label_combs, 2) == 1, ['It is an error to specify a' ...
+            , ' label order when the number of categories is greater than 1'] );
+          label_combs = obj.preferred_order( label_combs, obj.params.order_by );
+        end
+        add_legend = true;
+      else
+        to_collapse = setdiff( field_names(cont), within );
+        cont = collapse( cont, to_collapse );
+        label_combs = unique( get_fields(cont.labels, to_collapse{1}) );
+        add_legend = false;
+      end
+      h = cell( 1, numel(inds) );
+      for i = 1:numel(inds)
+        one_panel = keep( cont, inds{i} );
+        if ( ~isempty(within) )
+          title_labels = ...
+            strjoin( flat_uniques(one_panel.labels, within), ' | ' );
+        else title_labels = obj.params.title;
+        end
+        h{i} = subplot( obj.params.shape(1), obj.params.shape(2), i );
+        hold off;
+        legend_items = {};
+        line_stp = 1;
+        one_line = [];
+        for k = 1:size(label_combs, 1)
+          per_lab = only( one_panel, label_combs(k, :) );
+          if ( isempty(per_lab) ), continue; end
+          if ( add_legend )
+            legend_items = [ legend_items; strjoin(label_combs(k, :), ' | ') ];
+          end
+          means = mean( per_lab.data, 1 );
+          main_line_width = obj.params.main_line_width;
+          one_line(line_stp) = plot( x, means, 'linewidth', main_line_width );
+          hold on;
+          if ( obj.params.add_ribbon )
+            color = get( one_line(line_stp), 'color' );
+            if ( shape(per_lab, 1) == 1 )
+              errors = 0;
+            else errors = obj.params.error_function( per_lab.data );
+            end
+            r_line_width = obj.params.ribbon_line_width;
+            r(1) = plot( x, means + errors, 'linewidth', r_line_width );
+            r(2) = plot( x, means - errors, 'linewidth', r_line_width );
+            set(r(1), 'color', color );
+            set(r(2), 'color', color );
+          end
+          line_stp = line_stp + 1;
+        end
+        current_axis = gca;
+        title( title_labels );
+        if ( add_legend )
+          legend( one_line, legend_items );
+        end
+        obj.apply_if_not_empty( current_axis );
+      end
+      if ( obj.params.full_screen )
+        set( gcf, 'units', 'normalized', 'outerposition', [0 0 1 1] );
+      end
     end
     
     %{
@@ -186,8 +285,7 @@ classdef ContainerPlotter < handle
         obj.params.shape = [1, n_required];
       else obj.assert__adequate_shape( obj.params.shape, n_required );
       end
-    end
-    
+    end    
   end
   
   methods (Static = true)
@@ -347,14 +445,16 @@ classdef ContainerPlotter < handle
       %         as desired.
       
       reformatted = {};
+      actual = actual(:);
+      full_ind = true( size(actual) );
       for i = 1:numel(preferred)
         ind = strcmp( actual, preferred{i} );
         if ( ~any(ind) ), continue; end;
-        reformatted = [reformatted(:); preferred{i}];
+        reformatted = [reformatted; actual(ind)];
+        full_ind(ind) = false;
       end
-      not_located = setdiff( actual(:), reformatted(:) );
-      if ( isempty(not_located) ), return; end;
-      reformatted = [reformatted(:); not_located(:)];
+      if ( ~any(full_ind) ), return; end;
+      reformatted = [reformatted; actual(full_ind)];
     end
     
     function y = sem(x, dim)
