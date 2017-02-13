@@ -16,6 +16,8 @@ classdef ContainerPlotter < handle
       , 'shape', [] ...
       , 'bins', [] ...
       , 'order_by', [] ...
+      , 'order_groups_by', [] ...
+      , 'order_panels_by', [] ...
       , 'save_outer_folder', [] ...
       , 'save_folder_hierarcy', [] ...
       , 'add_ribbon', false ...
@@ -82,12 +84,19 @@ classdef ContainerPlotter < handle
       if ( isempty(within) )
         inds = { true(shape(cont, 1), 1) };
         within = field_names( cont );
-      else inds = get_indices( cont, within );
+      else
+        [inds, panel_combs] = get_indices( cont, within );
+        if ( ~isempty(obj.params.order_panels_by) )
+          panel_ind = ...
+            obj.preferred_order_index( panel_combs, obj.params.order_panels_by );
+          inds = inds( panel_ind, : );
+        end
       end
       obj.assign_shape( numel(inds) );
       labs = unique( get_fields(cont.labels, category) );
       if ( ~isempty(obj.params.order_by) )
-        labs = obj.preferred_order( labs, obj.params.order_by );
+        main_order_ind = obj.preferred_order_index( labs, obj.params.order_by );
+        labs = labs( main_order_ind, : );
       end
       h = cell( 1, numel(inds) );
       for i = 1:numel(inds)
@@ -96,6 +105,12 @@ classdef ContainerPlotter < handle
         if ( ~isempty(group_by) )
           add_legend = true;
           [group_inds, group_combs] = get_indices( one_panel, group_by );
+          if ( ~isempty(obj.params.order_groups_by) )
+            group_label_ind = obj.preferred_order_index( group_combs ...
+              , obj.params.order_groups_by );
+            group_inds = group_inds( group_label_ind, : );
+            group_combs = group_combs( group_label_ind, : );
+          end
           means = nan( numel(labs), numel(group_inds) );
           errors = nan( size(means) );
           legend_items = cell( 1, numel(group_inds) );
@@ -168,15 +183,21 @@ classdef ContainerPlotter < handle
       end
       if ( isempty(within) )
         inds = { true(shape(cont, 1), 1) };
-      else inds = get_indices( cont, within );
+      else
+        [inds, panel_combs] = get_indices( cont, within );
+        if ( ~isempty(obj.params.order_panels_by) )
+          panel_ind = ...
+            obj.preferred_order_index( panel_combs, obj.params.order_panels_by );
+          inds = inds( panel_ind, : );
+        end
       end
       obj.assign_shape( numel(inds) );
       if ( ~isempty(categories) )
         [~, label_combs] = get_indices( cont, categories );
         if ( ~isempty(obj.params.order_by) )
-          assert( size(label_combs, 2) == 1, ['It is an error to specify a' ...
-            , ' label order when the number of categories is greater than 1'] );
-          label_combs = obj.preferred_order( label_combs, obj.params.order_by );
+          main_order_ind = ...
+            obj.preferred_order_index( label_combs, obj.params.order_by );
+          label_combs = label_combs( main_order_ind, : );
         end
         add_legend = true;
       else
@@ -238,6 +259,12 @@ classdef ContainerPlotter < handle
         UTIL
     %}
     
+    function disp(obj)
+      
+      %   DISP -- Display the current plotting parameters.
+      fprintf( '\n ContainerPlotter with parameters:\n\n' );
+      disp( obj.params );
+    end
     
     function apply_if_not_empty(obj, ax)
       
@@ -425,6 +452,42 @@ classdef ContainerPlotter < handle
     %{
         UTIL
     %}
+    
+    function all_inds = preferred_order_index( actual, preferred )
+      
+      %   PREFERRED_ORDER_INDEX -- Obtain an ordered index of labels based
+      %     on the specified preferred order.
+      %
+      %     Actual labels must be MxN cell array of labels as obtained from
+      %     Container.get_indices() or Container.combs(), with M
+      %     combinations of labels in N categories.
+      %
+      %     IN:
+      %       - `actual` (cell array of strings) -- Labels as obtained from
+      %         get_indices().
+      %       - `preferred` (cell array of strings) -- The preferred order
+      %         of those labels. Elements in `preferred` not found in
+      %         `actual` will be skipped.
+      %     OUT:
+      %       - `all_inds` (double) -- Numeric index of the elements in
+      %         `actual` as sorted by `preferred`.
+      
+      if ( ~iscell(preferred) ), preferred = { preferred }; end;
+      ContainerPlotter.assert__iscellstr( preferred, 'preferred order' );
+      assert( numel(unique(preferred)) == numel(preferred) ...
+        , ' Do not specify duplicate order-labels.' );
+      all_inds = 1:size( actual, 1 );
+      all_inds = all_inds(:);
+      inds = cellfun( @(x) find(strcmp(preferred, x)), actual, 'un', false );
+      empties = cellfun( @isempty, inds );
+      inds( empties ) = { Inf };
+      inds = cell2mat( inds );
+      for i = 1:size( inds, 2 )
+        [~, sort_ind] = sort( inds(:, i) );
+        all_inds = all_inds( sort_ind, : );
+        inds = inds( sort_ind, : );        
+      end
+    end
     
     function reformatted = preferred_order( actual, preferred )
       
