@@ -302,6 +302,7 @@ classdef SparseLabels
       
       search_for = SparseLabels.ensure_cell( search_for );
       SparseLabels.assert__is_cellstr_or_char( search_for );
+      search_for = search_for(:)';
       Assertions.assert__isa( with, 'char' );
       tf = contains( obj, search_for );
       search_for( ~tf ) = [];
