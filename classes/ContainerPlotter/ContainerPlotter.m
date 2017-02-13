@@ -41,6 +41,9 @@ classdef ContainerPlotter < handle
       
       %   BAR -- Create a bar plot of the data in a Container object.
       %
+      %     TODO: Fix issue where single label in `category` produces
+      %     issues with legending.
+      %
       %     IN:
       %       - `cont` (Container) -- Object whose data are to be plotted.
       %         Data in the object must be an Mx1 column vector.
