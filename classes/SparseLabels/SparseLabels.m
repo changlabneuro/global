@@ -379,6 +379,17 @@ classdef SparseLabels
       obj = collapse( obj, non_uniform );
     end
     
+    function obj = collapse_uniform(obj)
+      
+      %   COLLAPSE_UNIFORM -- Collapse categories for which there is
+      %     only one label present in the category.
+      %
+      %     See `help SparseLabels/get_uniform_categories` for more info.
+      
+      uniform = get_uniform_categories( obj );
+      obj = collapse( obj, uniform );
+    end
+    
     function obj = add_field(obj, name, labs)
       
       %   ADD_FIELD -- Alias for `add_category`.

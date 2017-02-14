@@ -378,6 +378,16 @@ classdef Container
       obj.labels = collapse_non_uniform( obj.labels );
     end
     
+    function obj = collapse_uniform(obj)
+      
+      %   COLLAPSE_UNIFORM -- Collapse categories for which there is
+      %     only one label present in the category.
+      %
+      %     See `help SparseLabels/get_uniform_categories` for more info.
+      
+      obj.labels = collapse_uniform( obj.labels );
+    end
+    
     %{
         ASSIGNMENT
     %}
