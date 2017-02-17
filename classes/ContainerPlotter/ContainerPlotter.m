@@ -10,6 +10,7 @@ classdef ContainerPlotter < handle
       , 'y_label', [] ...
       , 'x_tick_rotation', 60 ...
       , 'error_function', @ContainerPlotter.sem ...
+      , 'summary_function', @mean ...
       , 'x_tick_label', [] ...
       , 'y_tick_label', [] ...
       , 'add_legend', true ...
@@ -124,7 +125,7 @@ classdef ContainerPlotter < handle
             for j = 1:numel(labs)
               per_lab = only( one_grouping, labs{j} );
               if ( isempty(per_lab) ), continue; end;
-              means(j, k) = mean( per_lab.data );
+              means(j, k) = obj.params.summary_function( per_lab.data );
               errors(j, k) = obj.params.error_function( per_lab.data );
             end
             legend_items{k} = strjoin( group_combs(k, :), ' | ' );
@@ -136,7 +137,7 @@ classdef ContainerPlotter < handle
           for k = 1:numel(labs)
             per_lab = only( one_panel, labs{k} );
             if ( isempty(per_lab) ), continue; end;
-            means(k) = mean( per_lab.data );
+            means(k) = obj.params.summary_function( per_lab.data );
             errors(k) = obj.params.error_function( per_lab.data );
           end
         end
@@ -230,7 +231,7 @@ classdef ContainerPlotter < handle
           if ( add_legend )
             legend_items = [ legend_items; strjoin(label_combs(k, :), ' | ') ];
           end
-          means = mean( per_lab.data, 1 );
+          means = obj.params.summary_function( per_lab.data, 1 );
           main_line_width = obj.params.main_line_width;
           one_line(line_stp) = plot( x, means, 'linewidth', main_line_width );
           hold on;
