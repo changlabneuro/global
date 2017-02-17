@@ -21,6 +21,7 @@ classdef ContainerPlotter < handle
       , 'order_panels_by', [] ...
       , 'save_outer_folder', [] ...
       , 'save_folder_hierarcy', [] ...
+      , 'save_formats', {{ 'epsc', 'png'}} ...
       , 'add_ribbon', false ...
       , 'main_line_width', 3 ...
       , 'ribbon_line_width', .5 ...
@@ -256,6 +257,46 @@ classdef ContainerPlotter < handle
       end
       if ( obj.params.full_screen )
         set( gcf, 'units', 'normalized', 'outerposition', [0 0 1 1] );
+      end
+    end
+    
+    function plot_and_save(obj, cont, within, func, varargin)
+      
+      obj.assert__is_container( cont );
+      obj.assert__isa( func, 'function_handle', 'plotting function' );
+      assert( ~isempty(obj.params.save_outer_folder), ['You must specify' ...
+        , ' a save_outer_folder'] );
+      assert( ~isempty(obj.params.save_formats), ['You must specify at least' ...
+        , ' one valid save format'] );
+      [inds, combs] = get_indices( cont, within );
+      save_outer_folder = obj.params.save_outer_folder;
+      formats = Labels.ensure_cell( obj.params.save_formats );
+      obj.assert__iscellstr( formats, 'formats' );
+      for i = 1:numel(inds)
+        extr = keep( cont, inds{i} );
+        try
+          func( obj, extr, varargin{:} );
+        catch err
+          fprintf( ['\n The following error occurred when attempting to' ...
+            , ' call function ''%s'':'], func2str(func) );
+          error( err.message );
+        end
+        if ( size(combs, 2) > 1 )
+          current = combs(i, end-1);
+          full_save_folder = fullfile( save_outer_folder, current{:} );
+        else full_save_folder = save_outer_folder;
+        end
+        if ( exist(full_save_folder, 'dir') ~= 7 ), mkdir(full_save_folder); end;
+        file_name = fullfile( full_save_folder, combs{i, end} );
+        for k = 1:numel( formats )
+          try
+            saveas( gcf, file_name, formats{k} );
+          catch err
+            fprintf( ['\n The following error occurred when attempting to' ...
+              , ' save file ''%s.%s'''], file_name, formats{k} );
+            error( err.message );
+          end
+        end
       end
     end
     
