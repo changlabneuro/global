@@ -235,6 +235,29 @@ classdef Container
         ITERATION
     %}
     
+    function [objs, indices, combs] = enumerate(obj, fields)
+      
+      %   ENUMERATE -- Obtain a cell array of objects, indices, and label
+      %     combinations that contain values associated with each unique
+      %     combination of labels in the specified fields.
+      %
+      %     OUT:
+      %       - `objs` (cell array of Containers) -- cell array where each
+      %         objs{i} is a Container containing the unique combination of
+      %         labels present in combs(i, :)
+      %       - `indices` (cell array of logicals) -- indices associated 
+      %         with the labels identified by each row of `c`
+      %       - `combs` (cell array of strings) -- the unique combinations 
+      %         of labels in `fields`; each row of combs is identified by
+      %         the corresponding row of `indices`.
+      
+      [indices, combs] = get_indices( obj, fields );
+      objs = cell( size(indices) );
+      for i = 1:numel(objs)
+        objs{i} = keep( obj, indices{i} );
+      end
+    end
+    
     function c = combs(obj, fields)
       
       %   COMBS -- Get all unique combinations of the labels in `fields`.
