@@ -989,6 +989,17 @@ classdef SparseLabels
       end
     end
     
+    function obj = repeat(obj, N)
+      
+      %   REPEAT -- Duplicate the indices in the object N times.
+      %
+      %     IN:
+      %       - `N` (number) -- Number of repetitions.
+      
+      assert( isscalar(N), 'Specify number of repeats as a single value.' );
+      obj.indices = repmat( obj.indices, N, 1 );
+    end
+    
     %{
         OBJECT SPECIFIC ASSERTIONS
     %}

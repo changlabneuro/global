@@ -1158,6 +1158,17 @@ classdef Labels
       fprintf( '\n\n' );
     end
     
+    function obj = repeat(obj, N)
+      
+      %   REPEAT -- Duplicate the labels in the object N times.
+      %
+      %     IN:
+      %       - `N` (number) -- Number of repetitions.
+      
+      assert( isscalar(N), 'Specify number of repeats as a single value.' );
+      obj.labels = repmat( obj.labels, N, 1 );
+    end
+    
     function obj = sparse(obj)
       
       %   SPARSE -- Conver the current Labels object to a SparseLabels

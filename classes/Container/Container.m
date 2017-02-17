@@ -518,6 +518,9 @@ classdef Container
             %   if we're going to set a field of the Container.labels
             %   object, e.g., Container('monkeys') = 'jodo'
             case 'char'
+              if ( isequal(subs{1}, ':') )
+                error( 'Assignment with '':'' is not supported.' );
+              end
               if ( obj.LABELS_ARE_SPARSE )
                 assert( numel(subs) == 1, ['You cannot specify indices' ...
                   , ' for assigning labels if the labels are SparseLabels.'] );
@@ -767,6 +770,12 @@ classdef Container
           if ( isa(subs{1}, 'logical') && proceed )
             out = keep( obj, subs{1} ); proceed = false;
           end
+          %   else, if subs{1} is ':', convert the object's data to a
+          %   column vector (consistent with the built-in behavior
+          %   associated with (:))
+          if ( proceed && isequal(subs{1}, ':') )
+            out = make_column( obj ); proceed = false;
+          end
           %   else, if subs{1} is a char, get the labels associated with the
           %   field subs{1]
           if ( isa(subs{1}, 'char') && proceed )
@@ -949,6 +958,18 @@ classdef Container
       obj = op( obj, B, @minus );
     end
     
+    function obj = make_column(obj)
+      
+      %   MAKE_COLUMN -- Convert the data in the object to a column
+      %     vector, and repeat labels to match.
+      %
+      %     Used in obj(:);
+      
+      n_repeats = shape( obj, 2 );
+      obj.data = obj.data(:);
+      obj.labels = repeat( obj.labels, n_repeats );
+    end
+    
     function new_obj = do_per(obj, fields, func, varargin)
       
       %   DO_PER -- Apply a function to the data associated with each
@@ -1060,7 +1081,7 @@ classdef Container
     end
     
     %{
-        COMPRESSION + DECOMPRESSION
+        DATA MANIPULATION
     %}
     
     function comp = compress(obj, rows, comp)
@@ -1181,7 +1202,7 @@ classdef Container
         decomped = populate( decomped, extr );
       end
       decomped = cleanup( decomped );
-    end    
+    end
     
     %{
         SPARSITY
