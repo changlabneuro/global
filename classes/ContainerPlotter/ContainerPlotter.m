@@ -20,12 +20,15 @@ classdef ContainerPlotter < handle
       , 'order_by', [] ...
       , 'order_groups_by', [] ...
       , 'order_panels_by', [] ...
+      , 'stacked_bar', false ...
       , 'save_outer_folder', [] ...
       , 'save_folder_hierarcy', [] ...
       , 'save_formats', {{ 'epsc', 'png'}} ...
       , 'add_ribbon', false ...
+      , 'add_fit_line', true ...
       , 'main_line_width', 3 ...
       , 'ribbon_line_width', .5 ...
+      , 'marker_size', 20 ...
       , 'full_screen', false ...
     );
     params;
@@ -142,7 +145,10 @@ classdef ContainerPlotter < handle
           end
         end
         subplot( obj.params.shape(1), obj.params.shape(2), i );
-        h{i} = barwitherr( errors, means );
+        if ( ~obj.params.stacked_bar )
+          h{i} = barwitherr( errors, means );
+        else h{i} = bar( means, 'stacked' );
+        end
         set( gca, 'xtick', 1:numel(labs) );
         set( gca, 'xticklabel', labs );
         current_axis = gca;
@@ -261,7 +267,130 @@ classdef ContainerPlotter < handle
       end
     end
     
+    function scatter(obj, cont1, cont2, categories, within, varargin)
+      
+      %   SCATTER -- Scatter the data in one Container against the data in
+      %     another.
+      %
+      %     IN:
+      %       - `cont1` (Container) -- Container whose data will form the
+      %         x-axis. Data in the object must be an Mx1 column vector.
+      %       - `cont2` (Container) -- Container whose data will form the
+      %         y-axis. The labels and dimensions must match those of
+      %         `cont1`.
+      %       - `categories` (cell array of strings, char, []) --
+      %         Categories by which to group points. Specify [] for no
+      %         grouping.
+      %       - `within` (cell array of strings, char, []) -- Categories
+      %         from which to generate separate panels / subplots. Specify
+      %         [] to have a single subplot.
+      %       - `varargin` ('name', value pairs) -- Values used to
+      %         overwrite parameters of the `obj.params` struct.
+      
+      obj.params = obj.parse_params_struct( obj.params, varargin{:} );
+      obj.assert__is_container( cont1 );
+      obj.assert__is_container( cont2 );
+      assert( all(cont1.shape() == cont2.shape()), ['The shapes of the' ...
+        , ' two Container objects must match'] );
+      assert( cont1.labels == cont2.labels, ['The label objects of the two' ...
+        , ' Containers must match.'] );
+      assert( ~isempty(cont1), 'The Containers cannot be empty.' );
+      obj.assert__n_dimensional_data( cont1, 2 );
+      obj.assert__data_are_of_size( cont1, [], 1 );
+      if ( isempty(within) )
+        %   the only 'segments' are the full vectors of data in the object.
+        inds = { true(shape(cont1, 1), 1) };
+        within = field_names( cont1 );
+      else
+        %   get segments corresponding to combinations of unique labels 
+        %   in the categories specified by `within`.
+        [inds, panel_combs] = get_indices( cont1, within );
+        if ( ~isempty(obj.params.order_panels_by) )
+          panel_ind = ...
+            obj.preferred_order_index( panel_combs, obj.params.order_panels_by );
+          inds = inds( panel_ind, : );
+        end
+      end
+      obj.assign_shape( numel(inds) );
+      %   Structure lets us apply Container methods to both the x and y
+      %   Containers simultaneously.
+      conts = Structure( struct('one', cont1, 'two', cont2) );
+      h = cell( 1, numel(inds) );
+      for i = 1:numel(inds)
+        %   conts_panel contains values in cont1 and cont2 for the current
+        %   subplot.
+        conts_panel = conts.keep( inds{i} );
+        if ( ~isempty(within) )
+          title_labels = ...
+            strjoin( flat_uniques(conts_panel{1}.labels, within), ' | ' );
+        else title_labels = obj.params.title;
+        end
+        if ( ~isempty(categories) )
+          [cat_inds, cat_combs] = get_indices( conts_panel{1}, categories );
+          if ( ~isempty(obj.params.order_by) )
+            cat_ind = obj.preferred_order_index( cat_combs, obj.params.order_by );
+            cat_inds = cat_inds( cat_ind, : );
+          end
+          add_legend = obj.params.add_legend;
+        else
+          cat_inds = { true(shape(conts_panel{1}, 1), 1) };
+          add_legend = false;
+        end
+        subplot( obj.params.shape(1), obj.params.shape(2), i );
+        hold off;
+        %   reorder the data according to the panel combs, category combs,
+        %   and desired orderings.
+        reordered = Structure.create( {'one', 'two'}, Container() );
+        for k = 1:numel(cat_inds)
+          extr_cat = conts_panel.keep( cat_inds{k} );
+          reordered = reordered.fwise( extr_cat, @append );
+        end
+        %   if the labels in the Containers are SparseLabels, convert them
+        %   to Labels.
+        reordered = reordered.full();
+        if ( add_legend )
+          fields = get_fields( reordered{1}.labels, categories );
+          grouping_labs = cell( size(fields, 1), 1 );
+          for k = 1:size(grouping_labs, 1)
+            grouping_labs{k} = strjoin( fields(k, :), ' | ' );
+          end
+        else grouping_labs = ones( reordered{1}.shape(1), 1 );
+        end
+        h{i} = gscatter( reordered.one.data, reordered.two.data, grouping_labs ...
+          , [], [], obj.params.marker_size);
+        if ( ~add_legend ), legend( 'off' ); end;
+        if ( obj.params.add_fit_line )
+          fitted = polyfit( reordered.one.data, reordered.two.data, 1 );
+          hold on;
+          plot( reordered.one.data(:), polyval(fitted, reordered.one.data(:)) );
+          [~, p] = corr( reordered.one.data, reordered.two.data );
+          if ( p < .05 )
+            sig_x = mean( reordered.one.data );
+            sig_y = mean( reordered.two.data );
+            plot( sig_x, sig_y, 'k*', 'markersize', obj.params.marker_size );
+          end
+          hold off;
+        end
+        current_axis = gca;
+        title( title_labels );
+        obj.apply_if_not_empty( current_axis );
+      end
+    end
+    
     function plot_and_save(obj, cont, within, func, varargin)
+      
+      %   PLOT_AND_SAVE -- Iteratively call a ContainerPlotter plotting 
+      %     function, and save each iteration.
+      %
+      %     IN:
+      %       - `cont` (Container) -- Plotted object.
+      %       - `within` (cell array of strings, char) -- Each saved plot
+      %         will feature one set of unique labels drawn from these
+      %         categories.
+      %       - `func` (function_handle) -- Handle to a ContainerPlotter
+      %         plot function.
+      %       - `varargin` (/any/) -- Any additional inputs to pass with
+      %         each call to `func`.
       
       obj.assert__is_container( cont );
       obj.assert__isa( func, 'function_handle', 'plotting function' );
