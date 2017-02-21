@@ -71,19 +71,16 @@
 %
 %     // EXAMPLE 1 -- Preallocate multiple Container objects.
 %
-%     s.reward_onset = Container();
-%     s.target_onset = Container();
-%     s.mag_onset = Container();
-%
-%     structure = Structure( s );
+%     structure = ...
+%       Structure.create( {'reward', 'target', 'mag'}, Container() );
 %
 %     disp( structure );
 %     
 %     'Container' type Structure with fields:
 %
-%         reward_onset: [1x1 Container]
-%         target_onset: [1x1 Container]
-%            mag_onset: [1x1 Container]
+%         reward: [1x1 Container]
+%         target: [1x1 Container]
+%            mag: [1x1 Container]
 %
 %     % preallocate each Container in the Structure with a 10e3-by-1 array
 %     % of zeros, and a Labels object with 8 fields.
