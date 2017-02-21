@@ -138,10 +138,14 @@ classdef Structure
   end
   
   methods
-    function obj = Structure(s)
+    function obj = Structure(varargin)
       obj.dtype = obj.EMPTY_DTYPE;
-      if ( nargin < 1 ), return; end;
-      Structure.validate__initial_input(s);
+      if ( isempty(varargin) ), return; end;
+      if ( ~isstruct(varargin{1}) )
+        s = Structure.varargin_to_struct( varargin{:} );
+      else s = varargin{1};
+      end
+      Structure.validate__initial_input( s );
       obj.objects = s;
       obj.dtype = get_dtype( obj );
     end
@@ -766,6 +770,29 @@ classdef Structure
   end
   
   methods (Static = true)
+    
+    function s = varargin_to_struct(varargin)
+      
+      %   VARARGIN_TO_STRUCT -- Convert a variable-length array of 'name',
+      %     value paired inputs to a struct.
+      %
+      %     IN:
+      %       - `varargin` ('name', value pairs) -- Each 'name' must be a
+      %         valid fieldname.
+      %     OUT:
+      %       - `s` (struct)
+      
+      n_args = numel( varargin );
+      assert( mod(n_args, 2) == 0, 'Inputs must come in ''name'', value pairs' );
+      try
+        s = struct( varargin{:} );
+      catch err
+        fprintf( ['\n ! Structure/varargin_to_struct: The following error' ...
+          , ' occurred when attempting to instantiate a struct from the' ...
+          , ' given input:\n\n'] );
+        error( err.message );
+      end
+    end
     
     function validate__initial_input(s)
       

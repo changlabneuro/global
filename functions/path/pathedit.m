@@ -19,7 +19,7 @@ catch
     error( 'path ''%s'' is not a valid path', pathstr );
 end
 
-edit( 'make_paths.m' );
+edit( fullfile(pathstr, 'make_paths.m') );
 
 cd( orig );
 

@@ -599,7 +599,7 @@ classdef Container
         REFERENCE
     %}
     
-    function out = subsref(obj, s)
+    function varargout = subsref(obj, s)
       
       %   SUBSREF -- reference properties and call methods on the Container
       %     object, as well as on the Container.labels object. 
@@ -711,7 +711,7 @@ classdef Container
             end
             inputs = [ {obj} {s(:).subs{:}} ];
             %   assign `out` to the output of func() and return
-            out = func( inputs{:} );
+            [varargout{1:nargout()}] = func( inputs{:} );
             return; %   note -- in this case, we do not proceed
           end
           %   check if the ref is a method of the label object in
@@ -734,8 +734,8 @@ classdef Container
             %   the object. Otherwise, return the output as is.
             labs = func( obj.labels, inputs{:} );
             if ( isa(labs, 'Labels') || isa(labs, 'SparseLabels') )
-              obj.labels = labs; out = obj; return;
-            else out = labs; return;
+              obj.labels = labs; varargout{1} = obj; return;
+            else varargout{1} = labs; return;
             end
           end
           if ( proceed )
@@ -792,11 +792,12 @@ classdef Container
       end
       
       if isempty(s)
+        varargout{1} = out;
         return;
       end
       %   continue referencing if this is a nested reference, e.g.
       %   obj.labels.labels
-      out = subsref( out, s );
+      [varargout{1:nargout()}] = subsref( out, s );
     end
     
     %{

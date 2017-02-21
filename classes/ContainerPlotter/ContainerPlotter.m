@@ -32,11 +32,105 @@ classdef ContainerPlotter < handle
       , 'full_screen', false ...
     );
     params;
+    parameter_names = {};
   end
   
   methods
     function obj = ContainerPlotter()
       obj.params = obj.defaults;
+      obj.parameter_names = fieldnames( obj.defaults );
+    end
+    
+    %{
+        REF + ASSIGN
+    %}
+    
+    function varargout = subsref(obj, s)
+      
+      subs = s(1).subs;
+      type = s(1).type;      
+      s(1) = [];
+      proceed = true;
+      
+      switch ( type )
+        case '.'
+          %   if the ref is the name of a ContainerPlotter property, 
+          %   return the property
+          if ( proceed && any(strcmp(properties(obj), subs)) )
+            out = obj.(subs); proceed = false;
+          end
+          if ( proceed && any(strcmp(methods(obj), subs)) )
+            func = eval( sprintf('@%s', subs) );
+            if ( numel(s) == 0 )
+              error( ['''%s'' is the name of a %s method, but was' ...
+                , ' referenced as if it were a property.'], subs, class(obj) );
+            end
+            inputs = [ {obj} {s(:).subs{:}} ];
+            %   assign `out` to the output of func() and return
+            if ( nargout() == 0 )
+              func( inputs{:} );
+            else [varargout{1:nargout()}] = func( inputs{:} );
+            end
+            return; %   note -- in this case, we do not proceed
+          end
+          %   if subs is a parameter name, return the parameter.
+          if ( proceed && any(strcmp(obj.parameter_names, subs)) )
+            out = obj.params.(subs); proceed = false;
+          end
+          if ( proceed )
+            error( ['No properties, methods or parameters matched' ...
+              , ' the name ''%s''.'], subs );
+          end
+        otherwise
+          error( 'Referencing with ''%s'' is unsupported.', type );
+      end      
+      if isempty(s)
+        varargout{1} = out;
+        return;
+      end
+      %   continue referencing if this is a nested reference.
+      [varargout{1:nargout()}] = subsref( out, s );
+    end
+    
+    function obj = subsasgn(obj, s, values)
+      
+      switch ( s(1).type )
+        case '.'
+          top = subsref( obj, s(1) );
+          prop = s(1).subs;
+          s(1) = [];
+          if ( ~isempty(s) )
+            values = subsasgn( top, s, values );
+          end
+          %   validate the incoming property, and assign if valid.
+          obj = set_property( obj, prop, values );
+        otherwise
+          error( 'Assignment with ''%s'' is unsupported.', s(1).type );
+      end
+    end
+    
+    function obj = set_property(obj, prop, values)
+      
+      %   SET_PROPERTY -- Ensure property validity.
+      %
+      %     IN:
+      %       - `prop` ('params', fieldname of `params`) -- `params` or
+      %         value of `params` to set.
+      %       - `values` (/any/) -- If assigning `params`, `values` must be
+      %         a struct with the same fieldnames as `defaults`.
+      
+      if ( isequal(prop, 'params') )
+        msg = ['When overwriting the `params` struct, the incoming params' ...
+          , ' must be a struct with the same fields as the object''s' ...
+          , ' default parameters.'];
+        assert( isstruct(values), msg );
+        assert( isequal(sort(fieldnames(values)), sort(obj.parameter_names)) ...
+          , msg );
+        obj.params = values;
+      end
+      if ( any(strcmp(obj.parameter_names, prop)) )
+        obj.params.(prop) = values;
+      end
     end
     
     %{
