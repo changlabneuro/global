@@ -26,6 +26,7 @@ classdef ContainerPlotter < handle
       , 'save_formats', {{ 'epsc', 'png'}} ...
       , 'add_ribbon', false ...
       , 'add_fit_line', true ...
+      , 'match_fit_line_color', true ...
       , 'main_line_width', 3 ...
       , 'ribbon_line_width', .5 ...
       , 'marker_size', 20 ...
@@ -38,6 +39,7 @@ classdef ContainerPlotter < handle
           , 'green',  [34 139 34] ...
           , 'blue',   [30 144 255] ... 
           , 'purple', [186 85 211] ...
+          , 'black',  [1 1 1] ...
         ) ...
       , 'colors', [] ...
       , 'set_colors', 'auto' ...
@@ -155,8 +157,8 @@ classdef ContainerPlotter < handle
         obj.params.colors = intersect( obj.params.colors, new_colors );
       end
       if ( isequal(prop, 'set_colors') )
-        assert( any(strcmp({'auto', 'manual'}, values)), ['Parameter' ...
-          , ' ''color_set'' must be either ''auto'' or ''manual.'''] );
+        assert( isequal(values, 'auto') || isequal(values, 'manual') ...
+          , 'Parameter ''color_set'' must be either ''auto'' or ''manual.''' );
       end
       if ( isequal(prop, 'colors') )
         current = fieldnames( obj.params.color_defs );
@@ -478,15 +480,18 @@ classdef ContainerPlotter < handle
         hold off;
         %   reorder the data according to the panel combs, category combs,
         %   and desired orderings.
-        reordered = Structure.create( {'one', 'two'}, Container() );
-        for k = 1:numel(cat_inds)
-          extr_cat = conts_panel.keep( cat_inds{k} );
-          reordered = reordered.fwise( extr_cat, @append );
+        if ( ~isempty(obj.params.order_by) )
+          reordered = Structure.create( {'one', 'two'}, Container() );
+          for k = 1:numel(cat_inds)
+            extr_cat = conts_panel.keep( cat_inds{k} );
+            reordered = reordered.fwise( extr_cat, @append );
+          end
+        else reordered = conts_panel;
         end
         %   if the labels in the Containers are SparseLabels, convert them
         %   to Labels.
         reordered = reordered.full();
-        if ( add_legend )
+        if ( ~isempty(categories) )
           fields = get_fields( reordered{1}.labels, categories );
           grouping_labs = cell( size(fields, 1), 1 );
           for k = 1:size(grouping_labs, 1)
@@ -496,20 +501,48 @@ classdef ContainerPlotter < handle
         end
         h{i} = gscatter( reordered.one.data, reordered.two.data, grouping_labs ...
           , [], [], obj.params.marker_size);
-        set( h{i}, 'color', 'black' );
+        if ( isequal(obj.params.set_colors, 'manual') )
+          k = 1;
+          while ( k <= numel(cat_inds) && k <= numel(obj.params.colors) )
+            current_desired_color = obj.params.color_defs.(obj.params.colors{k});
+            set( h{i}(k), 'color', current_desired_color );
+            k = k + 1;
+          end
+        end
         if ( ~add_legend ), legend( 'off' ); end;
         if ( obj.params.add_fit_line )
-          fitted = polyfit( reordered.one.data, reordered.two.data, 1 );
-          hold on;
-          plot( reordered.one.data(:), polyval(fitted, reordered.one.data(:)) ...
-            , 'linewidth', obj.params.main_line_width );
-          [~, p] = corr( reordered.one.data, reordered.two.data );
-          if ( p < .05 )
-            sig_x = mean( reordered.one.data );
-            sig_y = mean( reordered.two.data );
-            plot( sig_x, sig_y, 'k*', 'markersize', obj.params.marker_size );
+          if ( isempty(categories) )
+            fitted = { polyfit( reordered.one.data, reordered.two.data, 1 ) };
+            actual_x = { reordered.one.data };
+            actual_y = { reordered.two.data };
+          else
+            fitted = cell( 1, size(cat_combs, 1) );
+            actual_x = cell( size(fitted) );
+            for k = 1:size( cat_combs, 1 )
+              extr = reordered.only( cat_combs(k, :) );
+              fitted{k} = polyfit( extr.one.data, extr.two.data, 1 );
+              actual_x{k} = extr.one.data;
+              actual_y{k} = extr.two.data;
+            end
           end
-          hold off;
+          leg = legend();
+          for k = 1:numel( fitted )
+            hold on;
+            fit_line = plot( actual_x{k}, polyval(fitted{k}, actual_x{k}) ...
+              , 'linewidth', obj.params.main_line_width );
+            if ( obj.params.match_fit_line_color )
+              current_color = get( h{i}(k), 'color' );
+              set( fit_line, 'color', current_color );
+            else set( fit_line, 'color', 'k' );
+            end
+            [~, p] = corr( actual_x{k}, actual_y{k} );
+            if ( p < .05 && add_legend )
+              leg_items = get( leg, 'String' );
+              leg_items{k} = sprintf( '%s (*)', leg_items{k} );
+              set( leg, 'String', leg_items );
+            end
+            hold off;
+          end
         end
         current_axis = gca;
         title( title_labels );
