@@ -9,7 +9,7 @@ classdef ContainerPlotter < handle
       , 'x_label', [] ...
       , 'y_label', [] ...
       , 'x_tick_rotation', 60 ...
-      , 'error_function', @ContainerPlotter.sem ...
+      , 'error_function', @ContainerPlotter.sem_1d ...
       , 'summary_function', @mean ...
       , 'x_tick_label', [] ...
       , 'y_tick_label', [] ...
@@ -30,6 +30,17 @@ classdef ContainerPlotter < handle
       , 'ribbon_line_width', .5 ...
       , 'marker_size', 20 ...
       , 'full_screen', false ...
+      , 'color_map', 'hsv' ...
+      , 'color_defs', struct( ...
+            'red',    [220 20 60] ...
+          , 'orange', [255 165 0] ...
+          , 'yellow', [255 255 0] ...
+          , 'green',  [34 139 34] ...
+          , 'blue',   [30 144 255] ... 
+          , 'purple', [186 85 211] ...
+        ) ...
+      , 'colors', [] ...
+      , 'set_colors', 'auto' ...
     );
     params;
     parameter_names = {};
@@ -37,6 +48,8 @@ classdef ContainerPlotter < handle
   
   methods
     function obj = ContainerPlotter()
+      obj.defaults.colors = fieldnames( obj.defaults.color_defs );
+      obj.defaults.color_defs = obj.rgb_to_proportion( obj.defaults.color_defs );
       obj.params = obj.defaults;
       obj.parameter_names = fieldnames( obj.defaults );
     end
@@ -127,6 +140,30 @@ classdef ContainerPlotter < handle
         assert( isequal(sort(fieldnames(values)), sort(obj.parameter_names)) ...
           , msg );
         obj.params = values;
+      end
+      %   ensure `color_defs` is a struct whose fields are rgb triplets.
+      if ( isequal(prop, 'color_defs') )
+        assert( isstruct(values), ['Expected ''color_defs'' to be a struct; was a' ...
+          , ' ''%s''.'], class(values) );
+        assert( ~isempty(fieldnames(values)), 'The ''color_defs'' cannot be empty.' );
+        structfun( @(x) assert(numel(x) == 3, ['Each color in ''color_defs''' ...
+          , ' must be an rgb triplet.']), values );
+        structfun( @(x) assert(all(x >= 0 & x <= 255), 'Invalid rgb triplet.') ...
+          , values );
+        %   remove `colors` for which there is no defined color_defs
+        new_colors = fieldnames( values );
+        obj.params.colors = intersect( obj.params.colors, new_colors );
+      end
+      if ( isequal(prop, 'set_colors') )
+        assert( any(strcmp({'auto', 'manual'}, values)), ['Parameter' ...
+          , ' ''color_set'' must be either ''auto'' or ''manual.'''] );
+      end
+      if ( isequal(prop, 'colors') )
+        current = fieldnames( obj.params.color_defs );
+        values = Labels.ensure_cell( values );
+        ContainerPlotter.assert__iscellstr( values, 'colors' );
+        assert( all(cellfun(@(x) any(strcmp(current, x)), values)) ...
+          , 'At least one of the specified colors lacks a colormap value.' );
       end
       if ( any(strcmp(obj.parameter_names, prop)) )
         obj.params.(prop) = values;
@@ -321,6 +358,7 @@ classdef ContainerPlotter < handle
         else title_labels = obj.params.title;
         end
         h{i} = subplot( obj.params.shape(1), obj.params.shape(2), i );
+        colormap( obj.params.color_map );
         hold off;
         legend_items = {};
         line_stp = 1;
@@ -335,6 +373,12 @@ classdef ContainerPlotter < handle
           main_line_width = obj.params.main_line_width;
           one_line(line_stp) = plot( x, means, 'linewidth', main_line_width );
           hold on;
+          if ( isequal(obj.params.set_colors, 'manual') )
+            if ( k <= numel(obj.params.colors) )
+              current_color = obj.params.color_defs.( obj.params.colors{k} );
+              set( one_line(line_stp), 'color', current_color );
+            end
+          end
           if ( obj.params.add_ribbon )
             color = get( one_line(line_stp), 'color' );
             if ( shape(per_lab, 1) == 1 )
@@ -452,11 +496,13 @@ classdef ContainerPlotter < handle
         end
         h{i} = gscatter( reordered.one.data, reordered.two.data, grouping_labs ...
           , [], [], obj.params.marker_size);
+        set( h{i}, 'color', 'black' );
         if ( ~add_legend ), legend( 'off' ); end;
         if ( obj.params.add_fit_line )
           fitted = polyfit( reordered.one.data, reordered.two.data, 1 );
           hold on;
-          plot( reordered.one.data(:), polyval(fitted, reordered.one.data(:)) );
+          plot( reordered.one.data(:), polyval(fitted, reordered.one.data(:)) ...
+            , 'linewidth', obj.params.main_line_width );
           [~, p] = corr( reordered.one.data, reordered.two.data );
           if ( p < .05 )
             sig_x = mean( reordered.one.data );
@@ -531,8 +577,17 @@ classdef ContainerPlotter < handle
     function disp(obj)
       
       %   DISP -- Display the current plotting parameters.
+      
       fprintf( '\n ContainerPlotter with parameters:\n\n' );
       disp( obj.params );
+    end
+    
+    function color_defs = rgb_to_proportion(obj, color_defs)
+      
+      %   RGB_TO_PROPORTION -- Convert rgb() triplets to a proportion
+      %     between [0, 1]
+      
+      color_defs = structfun( @(x) x/255, color_defs, 'un', false );
     end
     
     function apply_if_not_empty(obj, ax)
@@ -789,6 +844,31 @@ classdef ContainerPlotter < handle
       reformatted = [reformatted; actual(full_ind)];
     end
     
+    function y = sem_1d(x)
+      
+      %   SEM_1D -- Standard error across the first dimension.
+      %
+      %     IN:
+      %       - `x` (double) -- Data.
+      %     OUT:
+      %       - `y` (double) -- Vector of the same size as `x`.
+      
+      N = size( x, 1 );
+      y = ContainerPlotter.std_1d( x ) / sqrt( N );
+    end
+    
+    function y = std_1d(x)
+      
+      %   STD_1D -- Standard deviation across the first dimension.
+      %
+      %     IN:
+      %       - `x` (double) -- Data.
+      %     OUT:
+      %       - `y` (double) -- Vector of the same size as `x`.
+      
+      y = std( x, [], 1 );
+    end
+    
     function y = sem(x, dim)
       
       %   SEM -- Standard error of the mean.
@@ -801,7 +881,7 @@ classdef ContainerPlotter < handle
       %       - `y` (double) -- Std error.
     
       if ( nargin < 2 )
-          n = numel( x );
+          n = size( x, 1 );
           y = std( x ) / sqrt( n );
       else
           n = size( x, dim );

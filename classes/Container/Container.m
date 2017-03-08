@@ -401,6 +401,16 @@ classdef Container
       obj.labels = collapse_non_uniform( obj.labels );
     end
     
+    function obj = collapse_if_non_uniform(obj, varargin)
+      
+      %   COLLAPSE_IF_NON_UNIFORM -- Collapse a given number of categories,
+      %     but only if they are non-uniform.
+      %
+      %     See `help SparseLabels/collapse_non_uniform` for more info.
+      
+      obj.labels = collapse_if_non_uniform( obj.labels, varargin{:} );
+    end
+    
     function obj = collapse_uniform(obj)
       
       %   COLLAPSE_UNIFORM -- Collapse categories for which there is
@@ -521,10 +531,6 @@ classdef Container
               if ( isequal(subs{1}, ':') )
                 error( 'Assignment with '':'' is not supported.' );
               end
-              if ( obj.LABELS_ARE_SPARSE )
-                assert( numel(subs) == 1, ['You cannot specify indices' ...
-                  , ' for assigning labels if the labels are SparseLabels.'] );
-              end
               if ( numel(subs) == 1 )
                 index = true( shape(obj, 1), 1 ); 
               elseif ( numel(subs) == 2 )
@@ -534,11 +540,7 @@ classdef Container
                   , ' setting a field -- the first is the fieldname,' ...
                   , ' and the second is, optionally, the index.'] );
               end
-              if ( obj.LABELS_ARE_SPARSE )
-                obj.labels = set_field( obj.labels, subs{1}, values );
-              else
-                obj.labels = set_field( obj.labels, subs{1}, values, index );
-              end
+              obj.labels = set_field( obj.labels, subs{1}, values, index );
             case { 'double', 'logical' }
               %   if the format is Container(1:10) = `container_2` or 
               %   Container(ind) = [], i.e., if we're performing element 
@@ -896,6 +898,14 @@ classdef Container
       %
       %     In all other respects, `opc()` is equivalent to `op`. See `help
       %     Container/op` for more information on formatting inputs.
+      %
+      %     IN:
+      %       - `B` (Container) -- Second object passed to the function.
+      %       - `fields` (cell array of strings, char) -- Field(s) to
+      %         collapse before operations are performed.
+      %       - `func` (function_handle) -- Function to call.
+      %       - `varargin` (/any/) -- Any additional inputs to pass to each
+      %         call of `func`.
       
       collapsed = collapse( obj, fields );
       B = collapse( B, fields );

@@ -121,30 +121,49 @@ classdef SparseLabels
       uniform = unique_cats( uniform_ind );
     end
     
-    function obj = set_field(obj, cat, set_as)
+    function non_uniform = get_non_uniform_categories(obj)
+      
+      %   GET_NON_UNIFORM_CATEGORIES -- Return an array of category names
+      %     for which there is more than one label present in the category.
+      %
+      %     OUT:
+      %       - `non_uniform` (cell array of strings) -- Category names.
+      
+      uniform = get_uniform_categories( obj );
+      non_uniform = setdiff( unique(obj.categories), uniform );
+    end
+    
+    function obj = set_field(obj, cat, set_as, varargin)
       
       %   SET_FIELD -- Alias for `set_category` to match the syntax of a
       %     Labels object.
       %
       %     See `help SparseLabels/set_category` for more info.
       
-      obj = set_category( obj, cat, set_as );
+      obj = set_category( obj, cat, set_as, varargin{:} );
     end
     
-    function obj = set_category(obj, cat, set_as)
+    function obj = set_category(obj, cat, set_as, index)
       
       %   SET_CATEGORY -- Assign all labels in a given category to a
       %     specified string.
       %
       %     Note the restrictions of set_category in comparison to
       %     set_field for a Labels object: It is currently only possible to
-      %     set the entire contents of a given category to a single string.
+      %     set the entire contents of a given category to a single string,
+      %     or the contents of a given category at a given index.
       %
       %     IN:
       %       - `cat` (char) -- Name of the category to set. An error is
       %         thrown if it is not found in the object.
       %       - `set_as` (char) -- Label to assign to the values in `cat`.
+      %       - `index` (logical) |OPTIONAL| -- Which labels to overwrite.
+      %         If unspecified, all labels will be 
       
+      if ( nargin < 4 )
+        index = rep_logic( obj, true ); 
+      else assert__is_properly_dimensioned_logical( obj, index );
+      end
       char_msg = 'Expected %s to be a char; was a ''%s''';
       assert( isa(cat, 'char'), char_msg, 'category name', class(cat) );
       assert( isa(set_as, 'char'), char_msg, 'the labels-to-be-set' ... 
@@ -152,7 +171,32 @@ classdef SparseLabels
       assert( contains_categories(obj, cat), ['The specified category ''%s''' ...
         , ' does not exist'], cat );
       labels_to_replace = labels_in_category( obj, cat );
-      obj = replace( obj, labels_to_replace, set_as );
+      %   if no index is specified, or the index is entirely true, we can
+      %   just replace() all labels
+      if ( all(index) )
+        obj = replace( obj, labels_to_replace, set_as );
+        return;
+      end
+      inds = cellfun( @(x) get_index(obj, x), labels_to_replace, 'un', false )';
+      inds = [ inds{:} ];
+      lab_inds = cellfun( @(x) find(strcmp(obj.labels, x)), labels_to_replace );
+      for i = 1:size( inds, 2 )
+        inds(:, i) = inds(:, i) & ~index;
+      end
+      obj.indices(:, lab_inds) = inds;
+      if ( contains(obj, set_as) )
+        current_ind = strcmp( obj.labels, set_as );
+        obj.indices(:, current_ind) = index;
+      else
+        obj.labels{end+1} = set_as;
+        obj.categories{end+1} = cat;
+        obj.indices(:, end+1) = index;
+      end
+      empties = ~any( obj.indices, 1 );
+      if ( ~any(empties) ), return; end;
+      obj.labels( empties ) = [];
+      obj.categories( empties ) = [];
+      obj.indices( :, empties ) = [];
     end
     
     function labs = get_fields(obj, cat)
@@ -374,8 +418,7 @@ classdef SparseLabels
       %
       %     See `help SparseLabels/get_uniform_categories` for more info.
       
-      uniform = get_uniform_categories( obj );
-      non_uniform = setdiff( unique(obj.categories), uniform );
+      non_uniform = get_non_uniform_categories( obj );
       obj = collapse( obj, non_uniform );
     end
     
@@ -388,6 +431,28 @@ classdef SparseLabels
       
       uniform = get_uniform_categories( obj );
       obj = collapse( obj, uniform );
+    end
+    
+    function obj = collapse_if_non_uniform(obj, categories)
+      
+      %   COLLAPSE_IF_NON_UNIFORM -- Collapse a give number of categories,
+      %     but only if they are non-uniform.
+      %
+      %     See `help SparseLabels/collapse_non_uniform` for more info.
+      %
+      %     IN:
+      %       - `categories` (cell array of strings, char) |OPTIONAL| --
+      %         Categories to collapse, if they are non-uniform. If
+      %         omitted, the output is equivalent to calling
+      %         `collapse_non_uniform()`.
+      
+      if ( nargin < 2 )
+        categories = unique( obj.categories ); 
+      else assert__categories_exist( obj, categories );
+      end
+      non_uniform = get_non_uniform_categories( obj );
+      non_uniform = intersect( non_uniform, categories );
+      obj = collapse( obj, non_uniform );
     end
     
     function obj = add_field(obj, name, labs)
@@ -459,8 +524,8 @@ classdef SparseLabels
           , ' message:'] );
         error( err.message );
       end
-      obj.labels = [obj.labels labs.labels];
-      obj.categories = [obj.categories labs.categories];
+      obj.labels = [obj.labels(:); labs.labels];
+      obj.categories = [obj.categories(:); labs.categories];
       obj.indices = [obj.indices labs.indices];
     end
     
@@ -998,6 +1063,22 @@ classdef SparseLabels
       
       assert( isscalar(N), 'Specify number of repeats as a single value.' );
       obj.indices = repmat( obj.indices, N, 1 );
+    end
+    
+    function s = summarize(obj)
+      
+      %   SUMMARIZE -- Obtain a struct with the labels in the object
+      %     segmented into their categories.
+      %
+      %     OUT:
+      %       - `s` (struct) -- Struct whose fieldnames are categories;
+      %         each field contains the unique labels in that category.
+      
+      cats = unique( obj.categories );
+      s = struct();
+      for i = 1:numel(cats)
+        s.(cats{i}) = labels_in_category( obj, cats{i} );
+      end
     end
     
     %{
