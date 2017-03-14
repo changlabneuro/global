@@ -440,7 +440,6 @@ classdef ContainerPlotter < handle
       if ( isempty(within) )
         %   the only 'segments' are the full vectors of data in the object.
         inds = { true(shape(cont1, 1), 1) };
-        within = field_names( cont1 );
       else
         %   get segments corresponding to combinations of unique labels 
         %   in the categories specified by `within`.
