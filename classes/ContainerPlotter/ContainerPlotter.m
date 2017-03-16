@@ -26,6 +26,7 @@ classdef ContainerPlotter < handle
       , 'save_formats', {{ 'epsc', 'png'}} ...
       , 'add_ribbon', false ...
       , 'add_fit_line', true ...
+      , 'compare_series', false ...
       , 'match_fit_line_color', true ...
       , 'main_line_width', 3 ...
       , 'ribbon_line_width', .5 ...
@@ -365,13 +366,19 @@ classdef ContainerPlotter < handle
         legend_items = {};
         line_stp = 1;
         one_line = [];
+        store_lines = cell( 1, size(label_combs, 1) );
         for k = 1:size(label_combs, 1)
           per_lab = only( one_panel, label_combs(k, :) );
+          store_lines{k} = per_lab;
           if ( isempty(per_lab) ), continue; end
           if ( add_legend )
             legend_items = [ legend_items; strjoin(label_combs(k, :), ' | ') ];
           end
           means = obj.params.summary_function( per_lab.data, 1 );
+          if ( k == 1 )
+            store_max = max( means ); 
+          else store_max = max( [store_max, max(means)] );
+          end
           main_line_width = obj.params.main_line_width;
           one_line(line_stp) = plot( x, means, 'linewidth', main_line_width );
           hold on;
@@ -394,6 +401,24 @@ classdef ContainerPlotter < handle
             set(r(2), 'color', color );
           end
           line_stp = line_stp + 1;
+        end
+        if ( size(label_combs, 1) == 2 && obj.params.compare_series )
+          sig_vec = zeros( 1, size(store_lines{1}.data, 2) );
+          for k = 1:size( store_lines{1}.data, 2 )
+            extr1 = store_lines{1}.data(:, k);
+            extr2 = store_lines{2}.data(:, k);
+            [~, sig_vec(k)] = ttest2( extr1(:), extr2(:) );
+          end
+          sig_vec = sig_vec <= .05;
+          if ( any(sig_vec) )
+            sig_xs = obj.params.x( sig_vec );
+            current_y_lim = get( gca, 'yLim' );
+            set_y = current_y_lim(2) - (current_y_lim(2)-store_max)/2;
+            sig_ys = repmat( set_y, size(sig_xs) );
+            hold on;
+            plot( sig_xs, sig_ys, '*', 'markersize', obj.params.marker_size );
+            hold off;
+          end
         end
         current_axis = gca;
         title( title_labels );
