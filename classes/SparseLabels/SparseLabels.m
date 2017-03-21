@@ -1035,6 +1035,51 @@ classdef SparseLabels
       obj = Labels( s );
     end
     
+    function [celled, cats] = full_categories(obj, cats)
+      
+      %   FULL_CATEGORIES -- Obtain a cell array of strings whose rows are
+      %     labels and columns are categories.
+      %
+      %     For a given `label` in a given category, 
+      %     `strcmp( celled, label )` will be equivalent to the index
+      %     associated with that label as stored in `obj.indices`.
+      %
+      %     IN:
+      %       - `cats` (cell array of strings, char) |OPTIONAL| --
+      %         Categories from which to draw labels. If unspecified, all
+      %         categories in the object are used.
+      %     OUT:
+      %       - `celled` (cell array of strings) -- MxN cell array of M
+      %         rows of labels in N categories.
+      %       - `cats` (cell array of strings) -- Category names
+      %         identifying the columns in `celled`.
+      
+      if ( nargin < 2 )
+        cats = unique( obj.categories );
+      else
+        cats = SparseLabels.ensure_cell( cats );
+        assert__categories_exist( obj, cats );
+      end
+      inds = cellfun( @(x) find(strcmp(obj.categories, x)), cats, 'un', false );
+      celled = cell( shape(obj, 1), numel(cats) );
+      for i = 1:numel(inds)
+        current = inds{i};
+        for j = 1:numel(current)
+          label_ind = obj.indices( :, current(j) );
+          celled( label_ind, i ) = obj.labels( current(j) );
+        end
+      end
+    end
+    
+    function [celled, cats] = full_fields(obj, varargin)
+      
+      %   FULL_FIELDS -- Alias for `full_categories`.
+      %
+      %     See `help SparseLabels/full_categories` for more info.
+      
+      [celled, cats] = full_categories( obj, varargin{:} );
+    end
+    
     function log = rep_logic(obj, tf)
       
       %   REP_LOGIC -- Obtain a sparse logical column vector with the same 

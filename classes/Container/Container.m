@@ -374,6 +374,16 @@ classdef Container
       end      
     end
     
+    function [fields, field_names] = full_fields(obj, varargin)
+      
+      %   FULL_CATEGORIES -- Obtain a cell array of strings whose rows are
+      %     labels and columns are categories.
+      %
+      %     See `help SparseLabels/full_categories` for more info.
+      
+      [fields, field_names] = full_fields( obj.labels, varargin{:} );
+    end
+    
     function obj = collapse(obj, fields)
       
       %   COLLAPSE -- Replace labels in a field or fields with a
@@ -967,6 +977,15 @@ classdef Container
       %     requirements for operations to occur.
       
       obj = op( obj, B, @minus );
+    end
+    
+    function obj = rdivide(obj, B)
+      
+      %   RDIVIDE -- divide the data in the object by the data in `B`. 
+      %     See `help Container/op` for more information on requirements 
+      %     for operations to occur.
+      
+      obj = op( obj, B, @rdivide );
     end
     
     function obj = make_column(obj)

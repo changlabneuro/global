@@ -1215,6 +1215,17 @@ classdef Labels
       end
     end
     
+    function [celled, fs] = full_fields(obj, fs)
+      
+      %   FULL_FIELDS -- Alias for `get_fields` to match the syntax of a
+      %     SparseLabels object.
+      %
+      %     See `help SparseLabels/full_categories` for more info.
+      
+      if ( nargin < 2 ), fs = obj.fields; end;
+      celled = get_fields( obj, fs );
+    end
+    
     %{
         LABELS-SPECIFIC ASSERTIONS
     %}
