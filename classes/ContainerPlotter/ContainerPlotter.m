@@ -670,6 +670,9 @@ classdef ContainerPlotter < handle
       if ( ~isempty(params.x_tick_rotation) )
         ax.XTickLabelRotation = params.x_tick_rotation;
       end
+      if ( ~isempty(params.x_tick_label) )
+        set( ax, 'xticklabel', params.x_tick_label );
+      end
     end
     
     function obj = default(obj)
