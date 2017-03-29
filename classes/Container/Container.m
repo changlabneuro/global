@@ -1000,6 +1000,37 @@ classdef Container
       obj.labels = repeat( obj.labels, n_repeats );
     end
     
+    function new_obj = do_across(obj, fields, func, varargin)
+      
+      %   DO_ACROSS -- Apply a function to the data associated with each
+      %     unique combination of labels in the fields of the object,
+      %     *except* those specified by `fields.`
+      %
+      %     The specified function must be configured to accept a Container
+      %     object as its first input; additional inputs (applied with each
+      %     call to the function) can be passed with varargin. Crucially,
+      %     the function must return a Container object; an error is thrown
+      %     otherwise.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields to
+      %         collapse-across.
+      %       - `func` (function_handle) -- Handle to the function
+      %         configured as specified above.
+      %       - `varargin` (/any/) -- Additional inputs to pass to each
+      %       	function call.
+      %     OUT:
+      %       - `new_obj` (Container) -- Cumulative result of all
+      %         function-calls.
+      
+      obj = collapse_if_non_uniform( obj, fields );
+      within = setdiff( field_names(obj), fields );
+      if ( isempty(within) )
+        error( 'It is an error to specify all fields of the object.' );
+      end
+      new_obj = do_per( obj, within, func, varargin{:} );
+    end
+    
     function new_obj = do_per(obj, fields, func, varargin)
       
       %   DO_PER -- Apply a function to the data associated with each
@@ -1110,6 +1141,16 @@ classdef Container
       obj = row_op( obj, @std, [], 1 );
     end
     
+    function obj = sem(obj)
+      
+      %   SEM -- Return an object whose data are the standard-error of
+      %     the data in the inputted object, across the 1-st dimension.
+      %
+      %     See `help Container/row_op` for more information.
+      
+      obj = row_op( obj, @Container.sem_1d );
+    end
+    
     %{
         DATA MANIPULATION
     %}
@@ -1133,6 +1174,8 @@ classdef Container
       %         corresponds to the number of unique label-sets in the
       %         object.
       
+      assert( ~obj.LABELS_ARE_SPARSE, ['Cannot compress a Container with' ...
+        , ' SparseLabels.'] );
       if ( nargin < 2 ), rows = shape(obj, 1); end;
       if ( nargin < 3 )
         comp = Container();
@@ -1272,6 +1315,26 @@ classdef Container
         UTIL
     %}
     
+    function s = struct(obj)
+      
+      %   STRUCT -- Convert the object to a struct with data and labels
+      %     fields.
+      %
+      %     The labels object will be converted to a struct whose
+      %     fields are fields/categories in the labels object, and whose
+      %     values are a cell array of strings identifying rows of data.
+      %
+      %     OUT:
+      %       - `s` (struct)
+      
+      if ( obj.LABELS_ARE_SPARSE )
+        obj = full( obj );
+      end
+      s = struct();
+      s.data = obj.data;
+      s.labels = label_struct( obj.labels );
+    end
+    
     function disp(obj)
       
       %   DISP -- Print the size of the data in the object, the class of
@@ -1385,6 +1448,34 @@ classdef Container
       end
       labels = label_struct( obj.labels );
       obj = DataObject( obj.data, labels );
+    end
+    
+    function tbl = to_table(obj, rows_are, cols_are)
+      
+      %   TO_TABLE -- Convert the current Container object into a table
+      %   	with row and column labels specified by the given fields.
+      %
+      %     IN:
+      %       - `rows_are` (cell array of strings, char)
+      %       - `cols_are` (cell array of strings, char)
+      %     OUT:
+      %       - `tbl` (table) -- table whose items are cell arrays.
+      
+      row_labs = flat_uniques( obj.labels, rows_are );
+      col_labs = flat_uniques( obj.labels, cols_are );      
+      n_rows = numel( row_labs );
+      n_cols = numel( col_labs );
+      cols = cell( 1, n_cols );
+      cols = cellfun( @(x) cell(n_rows, 1), cols, 'un', false );      
+      for i = 1:n_rows
+        for j = 1:n_cols
+          extr = only( obj, {row_labs{i}, col_labs{j}} );
+          if ( isempty(extr) ), continue; end;
+          cols{j}{i} = extr.data;
+        end
+      end      
+      tbl = table( cols{:}, 'VariableNames', col_labs );
+      tbl.Properties.RowNames = row_labs;
     end
     
     %{
@@ -1637,6 +1728,20 @@ classdef Container
       for i = 1:numel(A)
         A{i} = func( A{i}, B{i}, varargin{:} );
       end
+    end
+    
+    function y = sem_1d(data)
+      
+      %   SEM_1D -- Standard error across the first dimension of data.
+      %
+      %     IN:
+      %       - `data` (double)
+      %     OUT:
+      %       - `y` (double) -- Vector of size 1xM, where M is the number
+      %       of columns in `data`.
+      
+      N = size( data, 1 );
+      y = std( data, [], 1 ) / sqrt( N );
     end
     
     function obj = prealc(varargin)

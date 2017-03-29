@@ -26,8 +26,12 @@ classdef ContainerPlotter < handle
       , 'save_formats', {{ 'epsc', 'png'}} ...
       , 'add_ribbon', false ...
       , 'add_fit_line', true ...
+      , 'add_points', false ...
+      , 'point_label_categories', {{}} ...
+      , 'current_points', {{}} ...
       , 'compare_series', false ...
       , 'match_fit_line_color', true ...
+      , 'plot_function_type', 'plot' ...
       , 'main_line_width', 3 ...
       , 'ribbon_line_width', .5 ...
       , 'marker_size', 20 ...
@@ -168,6 +172,11 @@ classdef ContainerPlotter < handle
         assert( all(cellfun(@(x) any(strcmp(current, x)), values)) ...
           , 'At least one of the specified colors lacks a colormap value.' );
       end
+      if ( isequal(prop, 'plot_function_type') )
+        ContainerPlotter.assert__isa( values, 'char', prop );
+        assert( any(strcmp({'plot', 'error_bar'}, values)) ...
+          , 'Plot functions can be ''plot'' or ''error_bar''.' );
+      end
       if ( any(strcmp(obj.parameter_names, prop)) )
         obj.params.(prop) = values;
       end
@@ -176,6 +185,201 @@ classdef ContainerPlotter < handle
     %{
         PLOTS
     %}
+    
+    function h = group_plot(obj, cont, category, group_by, within, func, include_errors, plot_opts, varargin)
+      
+      %   GROUP_PLOT -- Plot 1-d data along an x-axis specified by a given
+      %     category.
+      %
+      %     This is an internal function called by several plotting
+      %     functions, and is not meant to be called directly.
+      %
+      %     IN:
+      %       - `cont` (Container) -- Object whose data are to be plotted.
+      %         Data in the object must be an Mx1 column vector.
+      %       - `category` (char) -- Specifies the category of labels that
+      %         will form the x-axis.
+      %       - `group_by` (cell array of strings, char, []) -- Specify
+      %         categories by which to group sets of data. If [], no
+      %         grouping is applied.
+      %       - `within` (cell array of strings, char, []) -- Each
+      %       	unique combination of labels in these categories will
+      %       	receive its own subplot. If [], the resulting plot will
+      %       	have only a single panel.
+      %       - `func` (function_handle) -- low-level plotting function to
+      %         be called.
+      %       - `include_errors` (logical) |SCALAR| -- Specify whether to
+      %         include error-bars.
+      %       - `plot_opts` (cell array) -- Additional inputs to be passed
+      %         to the plotting function `func`.
+      %       - `varargin` (cell array) -- Additional inputs to allow
+      %         overwriting of plotting parameters in `obj.params`.
+      %     OUT:
+      %       - `h` (cell array of graphics handles)
+      %
+      %     Ex 1. //
+      %
+      %     %   Create a plot where, for each image category, the effects
+      %     %   of each dose are plotted on separate subplots for each
+      %     %   monkey.
+      %
+      %     plotter = ContainerPlotter();
+      %     plotter.bar( looking_behavior, 'images', 'doses', 'monkeys' );
+      %
+      %     Ex 2. //
+      %
+      %     %   Create a plot where, for each image category, the effects
+      %     %   of each dose of each drug are plotted on separate subplots
+      %     %   for each monkey.
+      %
+      %     plotter = ContainerPlotter();
+      %     plotter.bar( looking_behavior, 'images', {'doses','drugs'}, ...
+      %     'monkeys' )
+      
+      obj.params = obj.parse_params_struct( obj.params, varargin{:} );
+      obj.assert__is_container( cont );
+      assert( ~isempty(cont), 'The Container object is empty.' );
+      obj.assert__n_dimensional_data( cont, 2 );
+      obj.assert__data_are_of_size( cont, [], 1 );
+      obj.assert__isa( category, 'char', 'category name' );
+      obj.assert__isa( func, 'function_handle', 'plotting function' );
+      if ( isempty(within) )
+        inds = { true(shape(cont, 1), 1) };
+        within = field_names( cont );
+      else
+        [inds, panel_combs] = get_indices( cont, within );
+        if ( ~isempty(obj.params.order_panels_by) )
+          panel_ind = ...
+            obj.preferred_order_index( panel_combs, obj.params.order_panels_by );
+          inds = inds( panel_ind, : );
+        end
+      end
+      obj.assign_shape( numel(inds) );
+      labs = unique( get_fields(cont.labels, category) );
+      if ( ~isempty(obj.params.order_by) )
+        main_order_ind = obj.preferred_order_index( labs, obj.params.order_by );
+        labs = labs( main_order_ind, : );
+      end
+      h = cell( 1, numel(inds) );
+      for i = 1:numel(inds)
+        one_panel = keep( cont, inds{i} );
+        title_labels = strjoin( flat_uniques(one_panel.labels, within), ' | ' );
+        if ( ~isempty(group_by) )
+          add_legend = obj.params.add_legend;
+          [group_inds, group_combs] = get_indices( one_panel, group_by );
+          if ( ~isempty(obj.params.order_groups_by) )
+            group_label_ind = obj.preferred_order_index( group_combs ...
+              , obj.params.order_groups_by );
+            group_inds = group_inds( group_label_ind, : );
+            group_combs = group_combs( group_label_ind, : );
+          end
+          means = nan( numel(labs), numel(group_inds) );
+          errors = nan( size(means) );
+          legend_items = cell( 1, numel(group_inds) );
+          store_values = repmat( {NaN}, size(means) );
+          store_objs = cell( size(means) );
+          for k = 1:numel(group_inds)
+            one_grouping = keep( one_panel, group_inds{k} );
+            for j = 1:numel(labs)
+              per_lab = only( one_grouping, labs{j} );
+              if ( isempty(per_lab) ), continue; end;
+              means(j, k) = obj.params.summary_function( per_lab.data );
+              errors(j, k) = obj.params.error_function( per_lab.data );
+              store_values{j, k} = per_lab.data;
+              store_objs{j, k} = per_lab;
+            end
+            legend_items{k} = strjoin( group_combs(k, :), ' | ' );
+          end
+        else
+          means = nan( 1, numel(labs) );
+          errors = nan( size(means) );
+          store_values = repmat( {NaN}, size(means) );
+          store_objs = cell( size(means) );
+          xs = 1:numel( labs );
+          add_legend = false;
+          for k = 1:numel(labs)
+            per_lab = only( one_panel, labs{k} );
+            if ( isempty(per_lab) ), continue; end;
+            means(k) = obj.params.summary_function( per_lab.data );
+            errors(k) = obj.params.error_function( per_lab.data );
+            store_values{k} = per_lab.data;
+            store_objs{k} = per_lab;
+          end
+        end
+        subplot( obj.params.shape(1), obj.params.shape(2), i );
+        if ( include_errors )
+          func_type = func2str( func );
+          switch ( func_type )
+            case 'errorbar'
+              h{i} = func( means, errors, plot_opts{:} );
+            case 'barwitherr'
+              h{i} = func( errors, means, plot_opts{:} );
+            otherwise
+              error( 'Unrecognized plotting function ''%s''', func_type );
+          end
+        else
+          h{i} = func( means, plot_opts{:} );
+        end
+        if ( obj.params.add_points )
+          dcm = datacursormode( gcf );
+          datacursormode( 'on' );
+          set( dcm, 'updatefcn', @event_response );
+          hold on;
+          if ( size(store_values, 1) == 1 )
+            xs = 1:size( store_values, 2 );
+            xs = repmat( xs, size(store_values, 1), 1 );
+          else
+            xs = 1:size( store_values, 1 );
+            xs = repmat( xs(:), 1, size(store_values, 2) );
+          end
+          for k = 1:numel(xs)
+            current = store_values(k);
+            current = current{1};
+            current_obj = store_objs(k);
+            current_obj = current_obj{1};
+            for j = 1:numel(current)
+              plot( xs(k), current(j), '*', 'markersize', obj.params.marker_size );
+              s = struct();
+              s.object = current_obj(j);
+              s.data = [xs(k), current(j)];
+              obj.params.current_points{end+1} = s;
+            end
+          end
+          hold off;
+        end
+        set( gca, 'xtick', 1:numel(labs) );
+        set( gca, 'xticklabel', labs );
+        current_axis = gca;
+        title( title_labels );
+        if ( add_legend )
+          legend( legend_items );
+        end
+        obj.apply_if_not_empty( current_axis );
+      end  
+      if ( obj.params.full_screen )
+        set( gcf, 'units', 'normalized', 'outerposition', [0 0 1 1] );
+      end
+      %   data cursor handling
+      function txt = event_response(response_obj, event_obj)
+        txt = '';
+        try
+          matching_obj = obj.get_matching_obj( event_obj.Position );
+          cats = obj.params.point_label_categories;
+          if ( isempty(cats) ), return; end
+          for jj = 1:numel(cats)
+            txt = sprintf( '%s\n%s:\n', txt, cats{jj} );
+            labels = unique( matching_obj(cats{jj}) );
+            for kk = 1:numel(labels)
+              txt = sprintf( '%s\n - %s', txt, labels{kk} );
+            end
+          end
+        catch err
+          fprintf( ['\n The following error occurred when attempting to' ...
+            , ' display the selected datapoint:\n'] );
+          fprintf( err.message );
+        end
+      end
+    end
     
     function h = bar(obj, cont, category, group_by, within, varargin)
       
@@ -218,82 +422,68 @@ classdef ContainerPlotter < handle
       %     plotter.bar( looking_behavior, 'images', {'doses','drugs'}, ...
       %     'monkeys' )
       
-      obj.params = obj.parse_params_struct( obj.params, varargin{:} );
-      obj.assert__is_container( cont );
-      assert( ~isempty(cont), 'The Container object is empty.' );
-      obj.assert__n_dimensional_data( cont, 2 );
-      obj.assert__data_are_of_size( cont, [], 1 );
-      obj.assert__isa( category, 'char', 'category name' );
-      if ( isempty(within) )
-        inds = { true(shape(cont, 1), 1) };
-        within = field_names( cont );
+      if ( ~obj.params.stacked_bar )
+        plot_func = @barwitherr;
+        plot_opts = {};
+        include_errors = true;
       else
-        [inds, panel_combs] = get_indices( cont, within );
-        if ( ~isempty(obj.params.order_panels_by) )
-          panel_ind = ...
-            obj.preferred_order_index( panel_combs, obj.params.order_panels_by );
-          inds = inds( panel_ind, : );
-        end
+        plot_func = @bar;
+        plot_opts = { 'stacked' };
+        include_errors = false;
       end
-      obj.assign_shape( numel(inds) );
-      labs = unique( get_fields(cont.labels, category) );
-      if ( ~isempty(obj.params.order_by) )
-        main_order_ind = obj.preferred_order_index( labs, obj.params.order_by );
-        labs = labs( main_order_ind, : );
-      end
-      h = cell( 1, numel(inds) );
-      for i = 1:numel(inds)
-        one_panel = keep( cont, inds{i} );
-        title_labels = strjoin( flat_uniques(one_panel.labels, within), ' | ' );
-        if ( ~isempty(group_by) )
-          add_legend = obj.params.add_legend;
-          [group_inds, group_combs] = get_indices( one_panel, group_by );
-          if ( ~isempty(obj.params.order_groups_by) )
-            group_label_ind = obj.preferred_order_index( group_combs ...
-              , obj.params.order_groups_by );
-            group_inds = group_inds( group_label_ind, : );
-            group_combs = group_combs( group_label_ind, : );
-          end
-          means = nan( numel(labs), numel(group_inds) );
-          errors = nan( size(means) );
-          legend_items = cell( 1, numel(group_inds) );
-          for k = 1:numel(group_inds)
-            one_grouping = keep( one_panel, group_inds{k} );
-            for j = 1:numel(labs)
-              per_lab = only( one_grouping, labs{j} );
-              if ( isempty(per_lab) ), continue; end;
-              means(j, k) = obj.params.summary_function( per_lab.data );
-              errors(j, k) = obj.params.error_function( per_lab.data );
-            end
-            legend_items{k} = strjoin( group_combs(k, :), ' | ' );
-          end
-        else
-          means = nan( 1, numel(labs) );
-          errors = nan( size(means) );
-          add_legend = false;
-          for k = 1:numel(labs)
-            per_lab = only( one_panel, labs{k} );
-            if ( isempty(per_lab) ), continue; end;
-            means(k) = obj.params.summary_function( per_lab.data );
-            errors(k) = obj.params.error_function( per_lab.data );
-          end
-        end
-        subplot( obj.params.shape(1), obj.params.shape(2), i );
-        if ( ~obj.params.stacked_bar )
-          h{i} = barwitherr( errors, means );
-        else h{i} = bar( means, 'stacked' );
-        end
-        set( gca, 'xtick', 1:numel(labs) );
-        set( gca, 'xticklabel', labs );
-        current_axis = gca;
-        title( title_labels );
-        if ( add_legend )
-          legend( legend_items );
-        end
-        obj.apply_if_not_empty( current_axis );
-      end  
-      if ( obj.params.full_screen )
-        set( gcf, 'units', 'normalized', 'outerposition', [0 0 1 1] );
+      
+      h = group_plot( obj, cont, category, group_by, within, plot_func ...
+        , include_errors, plot_opts, varargin{:} );      
+    end
+    
+    function h = plot_by(obj, cont, category, group_by, within, varargin)
+      
+      %   PLOT_BY -- Create an error-barred plot of the data in a Container
+      %     object in which the x-axis is a particular category.
+      %
+      %     IN:
+      %       - `cont` (Container) -- Object whose data are to be plotted.
+      %         Data in the object must be an Mx1 column vector.
+      %       - `category` (char) -- Specifies the category of labels that
+      %         will form the x-axis.
+      %       - `group_by` (cell array of strings, char, []) -- Specify
+      %         categories by which to group sets of data. If [], no
+      %         grouping is applied.
+      %       - `within` (cell array of strings, char, []) -- Each
+      %       	unique combination of labels in these categories will
+      %       	receive its own subplot. If [], the resulting plot will
+      %       	have only a single panel.
+      %     OUT:
+      %       - `h` (cell array of graphics handles)
+      %
+      %     Ex 1. //
+      %
+      %     %   Create a plot where, for each image category, the effects
+      %     %   of each dose are plotted on separate subplots for each
+      %     %   monkey.
+      %
+      %     plotter = ContainerPlotter();
+      %     plotter.plot_by( looking_behavior, 'images', 'doses', 'monkeys' );
+      %
+      %     Ex 2. //
+      %
+      %     %   Create a plot where, for each image category, the effects
+      %     %   of each dose of each drug are plotted on separate subplots
+      %     %   for each monkey.
+      %
+      %     plotter = ContainerPlotter();
+      %     plotter.plot_by( looking_behavior, 'images', {'doses','drugs'}, ...
+      %     'monkeys' )
+      
+      plot_func = @errorbar;
+      include_errors = true;
+      plot_opts = {};
+      
+      try
+        h = group_plot( obj, cont, category, group_by, within, plot_func ...
+        , include_errors, plot_opts, varargin{:} );     
+      catch err
+        throw( err );
       end
     end
     
@@ -379,8 +569,20 @@ classdef ContainerPlotter < handle
             store_max = max( means ); 
           else store_max = max( [store_max, max(means)] );
           end
+          if ( shape(per_lab, 1) == 1 )
+            errors = 0;
+          else errors = obj.params.error_function( per_lab.data );
+          end
           main_line_width = obj.params.main_line_width;
-          one_line(line_stp) = plot( x, means, 'linewidth', main_line_width );
+          switch ( obj.params.plot_function_type )
+            case 'plot'
+              one_line(line_stp) = plot( x, means, 'linewidth', main_line_width );
+              can_add_ribbon = true;
+            case 'error_bar'
+              one_line(line_stp) = errorbar( x, means, errors );
+              set( one_line(line_stp), 'linewidth', main_line_width );
+              can_add_ribbon = false;
+          end
           hold on;
           if ( isequal(obj.params.set_colors, 'manual') )
             if ( k <= numel(obj.params.colors) )
@@ -388,12 +590,8 @@ classdef ContainerPlotter < handle
               set( one_line(line_stp), 'color', current_color );
             end
           end
-          if ( obj.params.add_ribbon )
+          if ( obj.params.add_ribbon && can_add_ribbon )
             color = get( one_line(line_stp), 'color' );
-            if ( shape(per_lab, 1) == 1 )
-              errors = 0;
-            else errors = obj.params.error_function( per_lab.data );
-            end
             r_line_width = obj.params.ribbon_line_width;
             r(1) = plot( x, means + errors, 'linewidth', r_line_width );
             r(2) = plot( x, means - errors, 'linewidth', r_line_width );
@@ -696,7 +894,34 @@ classdef ContainerPlotter < handle
         obj.params.shape = [1, n_required];
       else obj.assert__adequate_shape( obj.params.shape, n_required );
       end
-    end    
+    end
+    
+    function matching_obj = get_matching_obj(obj, coordinates)
+      
+      %   GET_MATCHING_OBJ -- Get the Container object associated with the
+      %     point specified by `coordinates`.
+      %
+      %     An error is thrown if there are no `current_points` in the
+      %     obj.params struct. An error is thrown if no points match the
+      %     specified coordinates.
+      %
+      %     IN:
+      %       - `coordinates` (double) -- Two-element vector specifying an
+      %         (x, y) coordinate.
+      %     OUT:
+      %       - `matching_obj` (Container) -- Container object associated
+      %         with the inputted coordinates.
+      
+      assert( ~isempty(obj.params.current_points) ...
+        , 'There are no current points in the object.' );
+      points = obj.params.current_points;
+      matches_x = cellfun( @(x) x.data(1) == coordinates(1), points );
+      matches_y = cellfun( @(x) x.data(2) == coordinates(2), points );
+      assert( sum(matches_x & matches_y) == 1 ...
+        , 'Too many or too few matching points were found.' );
+      matching_point = points( matches_x & matches_y );
+      matching_obj = matching_point{1}.object;
+    end
   end
   
   methods (Static = true)

@@ -986,6 +986,33 @@ classdef SparseLabels
         UTIL
     %}
     
+    function str = repr(obj)
+      
+      %   REPR -- obtain a string representation of  the categories and 
+      %     labels in the object, and the frequency of each label.
+      
+      [unqs, cats] = uniques( obj );
+      str = '';
+      for i = 1:numel(cats)
+        current = unqs{i};
+        str = sprintf( '%s\n * %s', str, cats{i} );
+        if ( obj.VERBOSE )
+          nprint = numel( current );
+        else nprint = min( [obj.MAX_DISPLAY_ITEMS, numel(current)] );
+        end
+        for j = 1:nprint
+          ind = get_index( obj, current{j} );
+          N = full( sum(ind) );
+          str = sprintf( '%s\n\t - %s (%d)', str, current{j}, N );
+        end
+        remaining = numel(current) - j;
+        if ( remaining > 0 )
+          str = sprintf( '%s\n\t - ... and %d others', str, remaining );
+        end
+      end
+      str = sprintf( '%s\n\n', str );
+    end
+    
     function disp(obj)
       
       %   DISP -- print the categories and labels in the object, and 
