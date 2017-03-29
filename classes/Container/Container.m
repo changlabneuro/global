@@ -1461,21 +1461,37 @@ classdef Container
       %     OUT:
       %       - `tbl` (table) -- table whose items are cell arrays.
       
-      row_labs = flat_uniques( obj.labels, rows_are );
-      col_labs = flat_uniques( obj.labels, cols_are );      
-      n_rows = numel( row_labs );
-      n_cols = numel( col_labs );
+      [~, row_labs] = get_indices( obj, rows_are );
+      [~, col_labs] = get_indices( obj, cols_are );
+      n_rows = size( row_labs, 1 );
+      n_cols = size( col_labs, 1 );
       cols = cell( 1, n_cols );
       cols = cellfun( @(x) cell(n_rows, 1), cols, 'un', false );      
       for i = 1:n_rows
         for j = 1:n_cols
-          extr = only( obj, {row_labs{i}, col_labs{j}} );
+          extr = only( obj, [row_labs(i, :), col_labs(j, :)] );
           if ( isempty(extr) ), continue; end;
           cols{j}{i} = extr.data;
         end
-      end      
-      tbl = table( cols{:}, 'VariableNames', col_labs );
-      tbl.Properties.RowNames = row_labs;
+      end
+      tbl = table( cols{:}, 'VariableNames', str_joiner(col_labs, '_') );
+      tbl.Properties.RowNames = str_joiner( row_labs );
+      function str = str_joiner( arr, delimiter )
+        if ( nargin < 2 ), delimiter = ' | '; end;
+        str = cell( size(arr, 1), 1 );
+        for ii = 1:size( arr, 1 )
+          str{ii} = strjoin( arr(ii, :), delimiter );
+        end
+      end
+    end
+    
+    function tbl = table(obj, varargin)
+      
+      %   TABLE -- Alias for `to_table`.
+      %
+      %     See `help Container/to_table` for more info.
+      
+      tbl = to_table( obj, varargin{:} );
     end
     
     %{
