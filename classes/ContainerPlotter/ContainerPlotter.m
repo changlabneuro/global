@@ -27,6 +27,7 @@ classdef ContainerPlotter < handle
       , 'add_ribbon', false ...
       , 'add_fit_line', true ...
       , 'add_points', false ...
+      , 'vertical_lines_at', [] ...
       , 'point_label_categories', {{}} ...
       , 'current_points', {{}} ...
       , 'compare_series', false ...
@@ -487,17 +488,22 @@ classdef ContainerPlotter < handle
       end
     end
     
-    function h = plot(obj, cont, categories, within, varargin)
+    function h = plot(obj, cont, lines_are, panels_are, varargin)
       
       %   PLOT -- Plot two-dimensional data in a Container object.
+      %
+      %     If data in the object are a column vector, mean values will be
+      %     plotted as single points (*). Otherwise, mean series will be
+      %     plotted against an x-series. If unspecified, the x-series will
+      %     be 1:N, where N is the number of columns in the data matrix.
       %
       %     IN:
       %       - `cont` (Container) -- Object whose data are to be plotted.
       %         Data in the object must be an MxN matrix, where N > 1.
-      %       - `categories` (cell array of strings, char, []) -- Specify
+      %       - `lines_are` (cell array of strings, char, []) -- Specify
       %         the categories of labels that will form separate lines on
       %         each subplot. If [], each subplot will have only one line.
-      %       - `within` (cell array of strings, char, []) -- Each
+      %       - `panels_are` (cell array of strings, char, []) -- Each
       %       	unique combination of labels in these categories will
       %       	receive its own subplot. If [], the resulting plot will
       %       	have only a single panel.
@@ -517,10 +523,10 @@ classdef ContainerPlotter < handle
         x = obj.params.x;
       else x = 1:shape(cont, 2);
       end
-      if ( isempty(within) )
+      if ( isempty(panels_are) )
         inds = { true(shape(cont, 1), 1) };
       else
-        [inds, panel_combs] = get_indices( cont, within );
+        [inds, panel_combs] = get_indices( cont, panels_are );
         if ( ~isempty(obj.params.order_panels_by) )
           panel_ind = ...
             obj.preferred_order_index( panel_combs, obj.params.order_panels_by );
@@ -528,8 +534,8 @@ classdef ContainerPlotter < handle
         end
       end
       obj.assign_shape( numel(inds) );
-      if ( ~isempty(categories) )
-        [~, label_combs] = get_indices( cont, categories );
+      if ( ~isempty(lines_are) )
+        [~, label_combs] = get_indices( cont, lines_are );
         if ( ~isempty(obj.params.order_by) )
           main_order_ind = ...
             obj.preferred_order_index( label_combs, obj.params.order_by );
@@ -537,7 +543,7 @@ classdef ContainerPlotter < handle
         end
         add_legend = obj.params.add_legend;
       else
-        to_collapse = setdiff( field_names(cont), within );
+        to_collapse = setdiff( field_names(cont), panels_are );
         cont = collapse( cont, to_collapse );
         label_combs = unique( get_fields(cont.labels, to_collapse{1}) );
         add_legend = false;
@@ -545,9 +551,9 @@ classdef ContainerPlotter < handle
       h = cell( 1, numel(inds) );
       for i = 1:numel(inds)
         one_panel = keep( cont, inds{i} );
-        if ( ~isempty(within) )
+        if ( ~isempty(panels_are) )
           title_labels = ...
-            strjoin( flat_uniques(one_panel.labels, within), ' | ' );
+            strjoin( flat_uniques(one_panel.labels, panels_are), ' | ' );
         else title_labels = obj.params.title;
         end
         h{i} = subplot( obj.params.shape(1), obj.params.shape(2), i );
@@ -576,8 +582,14 @@ classdef ContainerPlotter < handle
           main_line_width = obj.params.main_line_width;
           switch ( obj.params.plot_function_type )
             case 'plot'
-              one_line(line_stp) = plot( x, means, 'linewidth', main_line_width );
-              can_add_ribbon = true;
+              %   determine whether to plot lines or single points (*)
+              if ( numel(means) > 1 )
+                one_line(line_stp) = plot( x, means, 'linewidth', main_line_width );
+                can_add_ribbon = true;
+              else
+                one_line(line_stp) = plot( x, means, '*' );
+                can_add_ribbon = false;
+              end
             case 'error_bar'
               one_line(line_stp) = errorbar( x, means, errors );
               set( one_line(line_stp), 'linewidth', main_line_width );
@@ -600,6 +612,8 @@ classdef ContainerPlotter < handle
           end
           line_stp = line_stp + 1;
         end
+        %   the data in two lines can be tested for significance with a
+        %   two-sample ttest; significant points will be marked with '*'
         if ( size(label_combs, 1) == 2 && obj.params.compare_series )
           sig_vec = zeros( 1, size(store_lines{1}.data, 2) );
           for k = 1:size( store_lines{1}.data, 2 )
@@ -624,6 +638,18 @@ classdef ContainerPlotter < handle
           legend( one_line, legend_items );
         end
         obj.apply_if_not_empty( current_axis );
+        %   optionally add dashed vertical lines at the specified
+        %   x-coordinates.
+        if ( ~isempty(obj.params.vertical_lines_at) )
+          v_lines_x = obj.params.vertical_lines_at(:)';
+          ys = get( current_axis, 'ylim' );
+          hold on;
+          for k = 1:numel(v_lines_x)
+            v_line_x = v_lines_x(k);
+            plot( current_axis, [v_line_x, v_line_x], ys, 'k' );
+          end
+          hold off;
+        end
       end
       if ( obj.params.full_screen )
         set( gcf, 'units', 'normalized', 'outerposition', [0 0 1 1] );
