@@ -912,13 +912,29 @@ classdef ContainerPlotter < handle
       %   ASSIGN_SHAPE -- Validate the given `shape` field of the params
       %     struct in the object.
       %
+      %     If obj.params.shape is empty, an appropriate shape will be
+      %     assigned. Otherwise, the current shape is checked for validity;
+      %     if invalid, it will be updated to a valid shape.
+      %
       %     IN:
       %       - `n_required` (double) |SCALAR| -- Number specifying the
       %         minimum number of subplots required.
       
       if ( isempty(obj.params.shape) )
-        obj.params.shape = [1, n_required];
-      else obj.assert__adequate_shape( obj.params.shape, n_required );
+        if ( n_required <= 3 )
+          obj.params.shape = [ 1, n_required ];
+        else
+          n_rows = round( sqrt(n_required) );
+          n_cols = ceil( n_required/n_rows );
+          obj.params.shape = [ n_rows, n_cols ];
+        end
+      else
+        try
+          obj.assert__adequate_shape( obj.params.shape, n_required );
+        catch
+          obj.params.shape = [];
+          obj.assign_shape( n_required );
+        end
       end
     end
     
