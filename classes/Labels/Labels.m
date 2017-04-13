@@ -606,6 +606,22 @@ classdef Labels
       obj = collapse_fields( obj, non_uniform );
     end
     
+    function obj = collapse_except(obj, fields)
+      
+      %   COLLAPSE_EXCEPT -- Collapse all fields except the given
+      %     fields.
+      %
+      %     IN:
+      %       - `cats` (Cell array of strings, char) -- field or
+      %       fields to avoid collapsing.
+      
+      assert__contains_fields( obj, fields );
+      fields = Labels.ensure_cell( fields );
+      to_collapse = setdiff( obj.fields, fields );
+      if ( isempty(to_collapse) ), return; end;
+      obj = collapse( obj, to_collapse );
+    end
+    
     %{
         INDEXING
     %}    

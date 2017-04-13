@@ -411,6 +411,21 @@ classdef SparseLabels
       end      
     end
     
+    function obj = collapse_except(obj, cats)
+      
+      %   COLLAPSE_EXCEPT -- Collapse all categories except the given
+      %     categories.
+      %
+      %     IN:
+      %       - `cats` (Cell array of strings, char) -- category or
+      %       categories to avoid collapsing.
+      
+      assert__categories_exist( obj, cats );
+      cats = SparseLabels.ensure_cell( cats );
+      to_collapse = setdiff( obj.categories, cats );
+      obj = collapse( obj, to_collapse );
+    end
+    
     function obj = collapse_non_uniform(obj)
       
       %   COLLAPSE_NON_UNIFORM -- Collapse categories for which there is

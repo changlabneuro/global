@@ -401,6 +401,22 @@ classdef Container
       obj.labels = collapse( obj.labels, fields );
     end
     
+    function obj = collapse_except(obj, fields)
+      
+      %   COLLAPSE_EXCEPT -- Collapse all fields except those specified.
+      %
+      %     See `help Labels/collapse_fields` for more info.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields to
+      %         collapse.
+      %     OUT:
+      %       - `obj` (Container) -- Container object with its labels
+      %         mutated.
+      
+      obj.labels = collapse_except( obj.labels, fields );
+    end
+    
     function obj = collapse_non_uniform(obj)
       
       %   COLLAPSE_NON_UNIFORM -- Collapse categories for which there is
@@ -1384,6 +1400,7 @@ classdef Container
       %         labels are to be drawn.
             
       obj.data = ones( shape(obj, 1), 1 );
+      obj.dtype = class( obj.data );
       obj = do_per( obj, fields, @sum );
     end
     
@@ -1490,16 +1507,33 @@ classdef Container
       %
       %     IN:
       %       - `rows_are` (cell array of strings, char)
-      %       - `cols_are` (cell array of strings, char)
+      %       - `cols_are` (cell array of strings, char) |OPTIONAL| -- If
+      %         unspecified, the table will have one column with a dummy
+      %         variable header.
       %     OUT:
       %       - `tbl` (table) -- table whose items are cell arrays.
       
+      if ( nargin < 3 )
+        %   If no column fields are specified, create a new dummy field
+        %   with one unique label. Ensure the dummy field and label do 
+        %   not already exist in the object.
+        stp = 1;
+        do_continue = true;
+        while ( do_continue )
+          dummy_field = sprintf( 'Var%d', stp );
+          do_continue = contains_fields(obj.labels, dummy_field) || ...
+            contains(obj.labels, dummy_field);
+          stp = stp + 1;
+        end
+        obj = add_field( obj, dummy_field, dummy_field );
+        cols_are = dummy_field;
+      end
       [~, row_labs] = get_indices( obj, rows_are );
       [~, col_labs] = get_indices( obj, cols_are );
       n_rows = size( row_labs, 1 );
       n_cols = size( col_labs, 1 );
       cols = cell( 1, n_cols );
-      cols = cellfun( @(x) cell(n_rows, 1), cols, 'un', false );      
+      cols = cellfun( @(x) cell(n_rows, 1), cols, 'un', false );
       for i = 1:n_rows
         for j = 1:n_cols
           extr = only( obj, [row_labs(i, :), col_labs(j, :)] );
