@@ -1374,6 +1374,19 @@ classdef Container
       disp( obj.labels.labels );
     end
     
+    function obj = counts(obj, fields)
+      
+      %   COUNTS -- Obtain the number of rows associated with each label in
+      %     the given fields.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields from which
+      %         labels are to be drawn.
+            
+      obj.data = ones( shape(obj, 1), 1 );
+      obj = do_per( obj, fields, @sum );
+    end
+    
     function all_matches = maybe_you_meant(obj, str)
       
       %   MAYBE_YOU_MEANT -- Return a cell array of potentially valid
