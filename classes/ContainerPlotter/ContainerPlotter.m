@@ -6,6 +6,7 @@ classdef ContainerPlotter < handle
         'x', [] ...
       , 'x_lim', [] ...
       , 'y_lim', [] ...
+      , 'match_y_lim', true ...
       , 'x_label', [] ...
       , 'y_label', [] ...
       , 'x_tick_rotation', 60 ...
@@ -262,6 +263,9 @@ classdef ContainerPlotter < handle
         labs = labs( main_order_ind, : );
       end
       h = cell( 1, numel(inds) );
+      subp = gobjects( 1, numel(inds) );
+      maxs = [];
+      mins = [];
       for i = 1:numel(inds)
         one_panel = keep( cont, inds{i} );
         title_labels = strjoin( flat_uniques(one_panel.labels, within), ' | ' );
@@ -307,7 +311,7 @@ classdef ContainerPlotter < handle
             store_objs{k} = per_lab;
           end
         end
-        subplot( obj.params.shape(1), obj.params.shape(2), i );
+        subp(i) = subplot( obj.params.shape(1), obj.params.shape(2), i );
         if ( include_errors )
           func_type = func2str( func );
           switch ( func_type )
@@ -321,6 +325,11 @@ classdef ContainerPlotter < handle
         else
           h{i} = func( means, plot_opts{:} );
         end
+        %   store newest maxs + mins
+        summed = means + errors;
+        subbed = means - errors;
+        maxs = max( [maxs, max(summed(:))] );
+        mins = min( [mins, min(subbed(:))] );
         if ( obj.params.add_points )
           dcm = datacursormode( gcf );
           datacursormode( 'on' );
@@ -359,6 +368,11 @@ classdef ContainerPlotter < handle
       end  
       if ( obj.params.full_screen )
         set( gcf, 'units', 'normalized', 'outerposition', [0 0 1 1] );
+      end
+      %   update limits automatically, if unspecified
+      if ( obj.params.match_y_lim && isempty(obj.params.y_lim) )
+        linkaxes( subp, 'y' );
+        ylim( subp(1), [floor(mins), ceil(maxs)] );
       end
       %   data cursor handling
       function txt = event_response(response_obj, event_obj)
@@ -549,6 +563,8 @@ classdef ContainerPlotter < handle
         add_legend = false;
       end
       h = cell( 1, numel(inds) );
+      maxs = [];
+      mins = [];
       for i = 1:numel(inds)
         one_panel = keep( cont, inds{i} );
         if ( ~isempty(panels_are) )
@@ -580,6 +596,15 @@ classdef ContainerPlotter < handle
           else errors = obj.params.error_function( per_lab.data );
           end
           main_line_width = obj.params.main_line_width;
+          if ( obj.params.add_ribbon )
+            summed = means + errors + main_line_width;
+            subbed = means - errors - main_line_width;
+          else
+            summed = means + main_line_width;
+            subbed = means - main_line_width;
+          end
+          maxs = max( [maxs; summed(:)] );
+          mins = min( [mins; subbed(:)] );
           switch ( obj.params.plot_function_type )
             case 'plot'
               %   determine whether to plot lines or single points (*)
@@ -638,18 +663,24 @@ classdef ContainerPlotter < handle
           legend( one_line, legend_items );
         end
         obj.apply_if_not_empty( current_axis );
-        %   optionally add dashed vertical lines at the specified
-        %   x-coordinates.
-        if ( ~isempty(obj.params.vertical_lines_at) )
-          v_lines_x = obj.params.vertical_lines_at(:)';
-          ys = get( current_axis, 'ylim' );
+      end
+      %   match y lims
+      if ( obj.params.match_y_lim && isempty(obj.params.y_lim) )
+        cellfun( @(x) ylim(x, [floor(mins), ceil(maxs)]), h );
+      end
+      %   optionally add dashed vertical lines at the specified
+      %   x-coordinates.
+      if ( ~isempty(obj.params.vertical_lines_at) )
+        v_lines_x = obj.params.vertical_lines_at(:)';
+        for i = 1:numel(h)
+          ys = get( h{i}, 'ylim' );
           hold on;
           for k = 1:numel(v_lines_x)
             v_line_x = v_lines_x(k);
-            plot( current_axis, [v_line_x, v_line_x], ys, 'k' );
+            plot( h{i}, [v_line_x, v_line_x], ys, 'k' );
           end
-          hold off;
         end
+        hold off;
       end
       if ( obj.params.full_screen )
         set( gcf, 'units', 'normalized', 'outerposition', [0 0 1 1] );

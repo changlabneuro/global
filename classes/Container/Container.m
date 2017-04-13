@@ -1131,6 +1131,26 @@ classdef Container
       obj = row_op( obj, @sum, 1 );
     end
     
+    function obj = min(obj)
+      
+      %   MIN -- Return an object whose data are the minimum across the
+      %     first dimension.
+      %
+      %     See `help Container/row_op` for more information.
+      
+      obj = row_op( obj, @min, [], 1 );
+    end
+    
+    function obj = max(obj)
+      
+      %   MAX -- Return an object whose data are the maximum across the
+      %     first dimension.
+      %
+      %     See `help Container/row_op` for more information.
+      
+      obj = row_op( obj, @max, [], 1 );
+    end
+    
     function obj = std(obj)
       
       %   STD -- Return an object whose data are the standard-deviation of
