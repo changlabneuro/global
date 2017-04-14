@@ -1127,64 +1127,153 @@ classdef Container
       obj.data = data;
     end
     
-    function obj = mean(obj)
+    function obj = n_dimension_op(obj, func, varargin)
       
-      %   MEAN -- Return an object whose data have been averaged across the
-      %     first dimension.
+      %   N_DIMENSION_OP -- Execute a function that mutates the data in the
+      %     object along a dimension greater than 1.
       %
-      %     See `help Container/row_op` for more information.
+      %     The output of the given function must contain the same number
+      %     of rows as the original object; the object's dtype must be
+      %     'double'.
+      %
+      %     This function is not meant to be called directly; instead, it
+      %     is the generalized form of functions like mean, std, etc. when
+      %     acting along a non-row dimension.
+      %
+      %     IN:
+      %       - `func` (function_handle) -- Function to execute.
+      %       - `varargin` (/any/) -- Any additional inputs to pass to the
+      %         function (usually, dimension specifiers).
+      %     OUT:
+      %       - `obj` (Container) -- Object whose data are an NxMx ...
+      %         matrix, where N is equal to the number of rows in the
+      %         inputted object, but where M, ... are not necessarily
+      %         equal to the corresponding values 
       
-      obj = row_op( obj, @mean, 1 );
+      assert( isa(func, 'function_handle'), ['Expected a function_handle' ...
+        , ' as input; was a ''%s'''], class(func) );
+      assert__dtype_is( obj, 'double' );
+      original_rows = size( obj.data, 1 );
+      data = func( obj.data, varargin{:} );
+      assert( size(data, 1) == original_rows, ['When executing a function on' ...
+        , ' the data in the object along a dimension greater than 1,' ...
+        , ' the number of rows in the function''s output must match' ...
+        , ' the number of rows in the inputted object.'] );
+      obj.data = data;
     end
     
-    function obj = sum(obj)
+    function obj = mean(obj, dim)
       
-      %   SUM -- Return an object whose data have been summed across the
-      %     first dimension.
+      %   MEAN -- Return an object whose data have been averaged across a
+      %     given dimension.
       %
-      %     See `help Container/row_op` for more information.
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See `help Container/row_op`, `help Container/n_dimension_op` 
+      %     for more information.
       
-      obj = row_op( obj, @sum, 1 );
+      if ( nargin < 2 ), dim = 1; end;
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @mean, 1 );
+      else obj = n_dimension_op( obj, @mean, dim );
+      end
     end
     
-    function obj = min(obj)
+    function obj = sum(obj, dim)
       
-      %   MIN -- Return an object whose data are the minimum across the
-      %     first dimension.
+      %   SUM -- Return an object whose data have been summed across a
+      %     given dimension.
       %
-      %     See `help Container/row_op` for more information.
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See `help Container/row_op`, `help Container/n_dimension_op` 
+      %     for more information.
       
-      obj = row_op( obj, @min, [], 1 );
+      if ( nargin < 2 ), dim = 1; end;
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @sum, 1 );
+      else obj = n_dimension_op( obj, @sum, dim );
+      end
     end
     
-    function obj = max(obj)
+    function obj = min(obj, dim)
       
-      %   MAX -- Return an object whose data are the maximum across the
-      %     first dimension.
+      %   MIN -- Return an object whose data are the minimum across a given
+      %     dimension.
       %
-      %     See `help Container/row_op` for more information.
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See `help Container/row_op`, `help Container/n_dimension_op` 
+      %     for more information.
       
-      obj = row_op( obj, @max, [], 1 );
+      if ( nargin < 2 ), dim = 1; end;
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @min, [], 1 );
+      else obj = n_dimension_op( obj, @min, [], dim );
+      end
     end
     
-    function obj = std(obj)
+    function obj = max(obj, dim)
+      
+      %   MAX -- Return an object whose data are the maximum across a given
+      %     dimension.
+      %
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See `help Container/row_op`, `help Container/n_dimension_op` 
+      %     for more information.
+      
+      if ( nargin < 2 ), dim = 1; end;
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @max, [], 1 );
+      else obj = n_dimension_op( obj, @max, [], dim );
+      end
+    end
+    
+    function obj = std(obj, dim)
       
       %   STD -- Return an object whose data are the standard-deviation of
-      %     the data in the inputted object, across the 1-st dimension.
+      %     the data in the inputted object, across a given dimension.
       %
-      %     See `help Container/row_op` for more information.
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See `help Container/row_op`, `help Container/n_dimension_op` 
+      %     for more information.
       
-      obj = row_op( obj, @std, [], 1 );
+      if ( nargin < 2 ), dim = 1; end;
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @std, [], 1 );
+      else obj = n_dimension_op( obj, @std, [], dim );
+      end
     end
     
-    function obj = sem(obj)
+    function obj = sem(obj, dim)
       
       %   SEM -- Return an object whose data are the standard-error of
-      %     the data in the inputted object, across the 1-st dimension.
+      %     the data in the inputted object, across a given dimension.
       %
-      %     See `help Container/row_op` for more information.
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See `help Container/row_op`, `help Container/n_dimension_op` 
+      %     for more information.
       
-      obj = row_op( obj, @Container.sem_1d );
+      if ( nargin < 2 ), dim = 1; end;
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @Container.sem_nd, 1 );
+      else obj = n_dimension_op( obj, @Container.sem_nd, dim );
+      end
     end
     
     %{
@@ -1832,6 +1921,21 @@ classdef Container
       
       N = size( data, 1 );
       y = std( data, [], 1 ) / sqrt( N );
+    end
+    
+    function y = sem_nd(data, dim)
+      
+      %   SEM_ND -- Standard error along a given dimension of data.
+      %
+      %     IN:
+      %       - `data` (double)
+      %       - `dim` (double) -- Dimension specifier.
+      %     OUT:
+      %       - `y` (double) -- Vector of size 1xM, where M is the number
+      %       of columns in `data`.
+      
+      N = size( data, dim );
+      y = std( data, [], dim ) / sqrt( N );
     end
     
     function obj = prealc(varargin)
