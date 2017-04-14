@@ -1036,7 +1036,8 @@ classdef SparseLabels
       [unqs, cats] = uniques( obj );
       for i = 1:numel(cats)
         current = unqs{i};
-        fprintf( '\n * %s', cats{i} );
+%         fprintf( '\n * %s', cats{i} );
+        fprintf( '\n * <strong>%s</strong>', cats{i} );
         if ( obj.VERBOSE )
           nprint = numel( current );
         else nprint = min( [obj.MAX_DISPLAY_ITEMS, numel(current)] );

@@ -542,7 +542,7 @@ classdef Container
           prop = s(1).subs;
           s(1) = [];
           if ( ~isempty(s) )
-            values = subsasgn( top, s, values );
+            values = builtin( 'subsasgn', top, s, values );
           end
           %   validate the incoming property, and assign if valid.
           obj = set_property( obj, prop, values );

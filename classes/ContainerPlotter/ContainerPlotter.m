@@ -189,7 +189,7 @@ classdef ContainerPlotter < handle
         PLOTS
     %}
     
-    function h = group_plot(obj, cont, category, group_by, within, func, include_errors, plot_opts, varargin)
+    function subp = group_plot(obj, cont, category, group_by, within, func, include_errors, plot_opts, varargin)
       
       %   GROUP_PLOT -- Plot 1-d data along an x-axis specified by a given
       %     category.
@@ -563,7 +563,8 @@ classdef ContainerPlotter < handle
         label_combs = unique( get_fields(cont.labels, to_collapse{1}) );
         add_legend = false;
       end
-      h = cell( 1, numel(inds) );
+%       h = cell( 1, numel(inds) );
+      h = gobjects( 1, numel(inds) );
       maxs = [];
       mins = [];
       for i = 1:numel(inds)
@@ -573,7 +574,7 @@ classdef ContainerPlotter < handle
             strjoin( flat_uniques(one_panel.labels, panels_are), ' | ' );
         else title_labels = obj.params.title;
         end
-        h{i} = subplot( obj.params.shape(1), obj.params.shape(2), i );
+        h(i) = subplot( obj.params.shape(1), obj.params.shape(2), i );
         colormap( obj.params.color_map );
         hold off;
         legend_items = {};
@@ -649,7 +650,7 @@ classdef ContainerPlotter < handle
           end
           sig_vec = sig_vec <= .05;
           if ( any(sig_vec) )
-            sig_xs = obj.params.x( sig_vec );
+            sig_xs = x( sig_vec );
             current_y_lim = get( gca, 'yLim' );
             set_y = current_y_lim(2) - (current_y_lim(2)-store_max)/2;
             sig_ys = repmat( set_y, size(sig_xs) );
@@ -667,18 +668,18 @@ classdef ContainerPlotter < handle
       end
       %   match y lims
       if ( obj.params.match_y_lim && isempty(obj.params.y_lim) )
-        cellfun( @(x) ylim(x, [floor(mins), ceil(maxs)]), h );
+        arrayfun( @(x) ylim(x, [floor(mins), ceil(maxs)]), h );
       end
       %   optionally add dashed vertical lines at the specified
       %   x-coordinates.
       if ( ~isempty(obj.params.vertical_lines_at) )
         v_lines_x = obj.params.vertical_lines_at(:)';
         for i = 1:numel(h)
-          ys = get( h{i}, 'ylim' );
+          ys = get( h(i), 'ylim' );
           hold on;
           for k = 1:numel(v_lines_x)
             v_line_x = v_lines_x(k);
-            plot( h{i}, [v_line_x, v_line_x], ys, 'k' );
+            plot( h(i), [v_line_x, v_line_x], ys, 'k' );
           end
         end
         hold off;
@@ -734,7 +735,7 @@ classdef ContainerPlotter < handle
       obj.assign_shape( numel(inds) );
       %   Structure lets us apply Container methods to both the x and y
       %   Containers simultaneously.
-      conts = Structure( struct('one', cont1, 'two', cont2) );
+      conts = Structure( 'one', cont1, 'two', cont2 );
       h = cell( 1, numel(inds) );
       for i = 1:numel(inds)
         %   conts_panel contains values in cont1 and cont2 for the current
