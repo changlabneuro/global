@@ -1098,7 +1098,7 @@ classdef Container
       %     be collapsed.
       %
       %     This function is not meant to be called directly; instead, it
-      %     is the generalized form of function such as mean, sum, std,
+      %     is the generalized form of functions such as mean, sum, std,
       %     etc.
       %
       %     It is an error to call a function via row_op whose result is a
@@ -1351,7 +1351,7 @@ classdef Container
         UTIL
     %}
     
-    function s = struct(obj)
+    function s = struct(varargin)
       
       %   STRUCT -- Convert the object to a struct with data and labels
       %     fields.
@@ -1363,6 +1363,13 @@ classdef Container
       %     OUT:
       %       - `s` (struct)
       
+      if ( ~isa(varargin{1}, 'Container') )
+        s = builtin( 'struct', varargin{:} );
+        return;
+      else
+        narginchk( 1, 1 );
+        obj = varargin{1};
+      end
       if ( obj.LABELS_ARE_SPARSE )
         obj = full( obj );
       end

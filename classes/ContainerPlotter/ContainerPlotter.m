@@ -563,10 +563,10 @@ classdef ContainerPlotter < handle
         label_combs = unique( get_fields(cont.labels, to_collapse{1}) );
         add_legend = false;
       end
-%       h = cell( 1, numel(inds) );
       h = gobjects( 1, numel(inds) );
       maxs = [];
       mins = [];
+      sig_series = cell( 1, numel(inds) );
       for i = 1:numel(inds)
         one_panel = keep( cont, inds{i} );
         if ( ~isempty(panels_are) )
@@ -598,30 +598,33 @@ classdef ContainerPlotter < handle
           else errors = obj.params.error_function( per_lab.data );
           end
           main_line_width = obj.params.main_line_width;
-          if ( obj.params.add_ribbon )
-            summed = means + errors + main_line_width;
-            subbed = means - errors - main_line_width;
-          else
-            summed = means + main_line_width;
-            subbed = means - main_line_width;
-          end
-          maxs = max( [maxs; summed(:)] );
-          mins = min( [mins; subbed(:)] );
           switch ( obj.params.plot_function_type )
             case 'plot'
               %   determine whether to plot lines or single points (*)
               if ( numel(means) > 1 )
                 one_line(line_stp) = plot( x, means, 'linewidth', main_line_width );
                 can_add_ribbon = true;
+                adjust_y_lim_for_error = obj.params.add_ribbon;
               else
                 one_line(line_stp) = plot( x, means, '*' );
                 can_add_ribbon = false;
+                adjust_y_lim_for_error = false;
               end
             case 'error_bar'
               one_line(line_stp) = errorbar( x, means, errors );
               set( one_line(line_stp), 'linewidth', main_line_width );
               can_add_ribbon = false;
+              adjust_y_lim_for_error = true;
           end
+          if ( adjust_y_lim_for_error )
+            summed = means + errors;
+            subbed = means - errors;
+          else
+            summed = means;
+            subbed = means;
+          end
+          maxs = max( [maxs; summed(:)] );
+          mins = min( [mins; subbed(:)] );
           hold on;
           if ( isequal(obj.params.set_colors, 'manual') )
             if ( k <= numel(obj.params.colors) )
@@ -642,21 +645,21 @@ classdef ContainerPlotter < handle
         %   the data in two lines can be tested for significance with a
         %   two-sample ttest; significant points will be marked with '*'
         if ( size(label_combs, 1) == 2 && obj.params.compare_series )
-          sig_vec = zeros( 1, size(store_lines{1}.data, 2) );
-          for k = 1:size( store_lines{1}.data, 2 )
-            extr1 = store_lines{1}.data(:, k);
-            extr2 = store_lines{2}.data(:, k);
-            [~, sig_vec(k)] = ttest2( extr1(:), extr2(:) );
-          end
-          sig_vec = sig_vec <= .05;
-          if ( any(sig_vec) )
-            sig_xs = x( sig_vec );
-            current_y_lim = get( gca, 'yLim' );
-            set_y = current_y_lim(2) - (current_y_lim(2)-store_max)/2;
-            sig_ys = repmat( set_y, size(sig_xs) );
-            hold on;
-            plot( sig_xs, sig_ys, '*', 'markersize', obj.params.marker_size );
-            hold off;
+          try 
+            sig_vec = zeros( 1, size(store_lines{1}.data, 2) );
+            for k = 1:size( store_lines{1}.data, 2 )
+              extr1 = store_lines{1}.data(:, k);
+              extr2 = store_lines{2}.data(:, k);
+              [~, sig_vec(k)] = ttest2( extr1(:), extr2(:) );
+            end
+            sig_vec = sig_vec <= .05;
+            if ( any(sig_vec) )
+              sig_series{i} = x( sig_vec );
+            end
+          catch series_error
+            fprintf( ['\n WARNING: The following error occurred when' ...
+              , ' attempting to compare series:\n'] );
+            fprintf( series_error.message );
           end
         end
         current_axis = gca;
@@ -669,6 +672,19 @@ classdef ContainerPlotter < handle
       %   match y lims
       if ( obj.params.match_y_lim && isempty(obj.params.y_lim) )
         arrayfun( @(x) ylim(x, [floor(mins), ceil(maxs)]), h );
+      end
+      %   add significant stars if comparing series
+      if ( ~all(cellfun(@isempty, sig_series)) )
+        for i = 1:numel(sig_series)
+          sig_xs = sig_series{i};
+          if ( isempty(sig_xs) ), continue; end;
+          current_y_lim = get( h(i), 'yLim' );
+          set_y = current_y_lim(2);
+          sig_ys = repmat( set_y, size(sig_xs) );
+          hold on;
+          plot( h(i), sig_xs, sig_ys, '*', 'markersize', obj.params.marker_size );
+        end
+        hold off;
       end
       %   optionally add dashed vertical lines at the specified
       %   x-coordinates.
