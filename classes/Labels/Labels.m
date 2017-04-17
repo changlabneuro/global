@@ -552,6 +552,9 @@ classdef Labels
       %         `index` input is not supported here).
       
       Assertions.assert__isa( field, 'char' );
+      if ( nargin < 3 )
+        set_as = sprintf( '%s%s', obj.COLLAPSED_EXPRESSION, field );
+      end
       assert( ~isempty(obj), ['Cannot add fields to an empty object.' ...
         , ' See `help Labels/preallocate()` for information on how to assign' ...
         , ' values to an empty object.'] );

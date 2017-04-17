@@ -343,21 +343,20 @@ classdef Container
       obj.labels = rm_fields( obj.labels, fields );
     end
     
-    function obj = add_field(obj, field, set_as)
+    function obj = add_field(obj, varargin)
       
       %   ADD_FIELD -- Add a new field of labels to the labels object.
       %
       %     See `help Labels/add_field` for more info.
       %
       %     IN:
-      %       - `field` (char) -- Name of the new field.
-      %       - `set_as` (cell array of strings, char) -- Labels to set to
-      %         the new field.
+      %       - `varargin` (cell array of strings, char) -- Name of the new
+      %         field, and optionally the labels to set to the new field.
       %     OUT:
       %       - `obj` (Container) -- Container object with its labels
       %         mutated.
       
-      obj.labels = add_field( obj.labels, field, set_as );
+      obj.labels = add_field( obj.labels, varargin{:} );
     end
     
     function fields = field_names(obj)

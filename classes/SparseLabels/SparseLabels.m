@@ -472,13 +472,13 @@ classdef SparseLabels
       obj = collapse( obj, non_uniform );
     end
     
-    function obj = add_field(obj, name, labs)
+    function obj = add_field(obj, varargin)
       
       %   ADD_FIELD -- Alias for `add_category`.
       %
       %     See `help SparseLabels/add_category` for more info.
       
-      obj = add_category( obj, name, labs );
+      obj = add_category( obj, varargin{:} );
     end
     
     function obj = add_category(obj, name, labs)
@@ -494,10 +494,11 @@ classdef SparseLabels
       %     IN:
       %       - `name` (char) -- Name of the category to add. Cannot be a
       %         current value of `obj.categories`.
-      %       - `labs` (cell array of strings) -- New labels to add. Must
-      %         have the same number of elements as there are rows in the
-      %         object. Cannot have any elements that are current labels in
-      %         `obj.labels`.
+      %       - `labs` (cell array of strings) |OPTIONAL| -- New labels to
+      %         add. Must have the same number of elements as there are
+      %         rows in the object. Cannot have any elements that are
+      %         current `obj.labels`. If unset, all labels in the field
+      %         will be 'collapsed'.
       %     OUT:
       %       - `obj` (SparseLabels) -- Object with the category added.
       
@@ -505,6 +506,10 @@ classdef SparseLabels
         , class(name) );
       assert( ~contains_categories(obj, name), ['The category ''%s'' already' ...
         , ' exists in the object'], name );
+      %   if no labels are given ...
+      if ( nargin < 3 )
+        labs = sprintf( '%s%s', obj.COLLAPSED_EXPRESSION, name );
+      end
       labs = SparseLabels.ensure_cell( labs );
       assert( iscellstr(labs), 'Labels must be a cell array of strings' );
       if ( numel(labs) ~= 1 )
