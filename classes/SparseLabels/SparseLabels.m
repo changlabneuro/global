@@ -186,7 +186,9 @@ classdef SparseLabels
       obj.indices(:, lab_inds) = inds;
       if ( contains(obj, set_as) )
         current_ind = strcmp( obj.labels, set_as );
-        obj.indices(:, current_ind) = index;
+        current = obj.indices(:, current_ind);
+        obj.indices(:, current_ind) = current | index;
+%         obj.indices(:, current_ind) = index;
       else
         obj.labels{end+1} = set_as;
         obj.categories{end+1} = cat;
@@ -1034,10 +1036,13 @@ classdef SparseLabels
       %     indicate the frequency of each label.
       
       [unqs, cats] = uniques( obj );
+      desktop_exists = usejava( 'desktop' );
       for i = 1:numel(cats)
         current = unqs{i};
-%         fprintf( '\n * %s', cats{i} );
-        fprintf( '\n * <strong>%s</strong>', cats{i} );
+        if ( desktop_exists )
+          fprintf( '\n * <strong>%s</strong>', cats{i} );
+        else fprintf( '\n * %s', cats{i} );
+        end
         if ( obj.VERBOSE )
           nprint = numel( current );
         else nprint = min( [obj.MAX_DISPLAY_ITEMS, numel(current)] );
