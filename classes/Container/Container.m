@@ -1436,6 +1436,65 @@ classdef Container
     end
     
     %{
+        DESCRIPTIVES
+    %}
+    
+    function obj = counts(obj, fields)
+      
+      %   COUNTS -- Obtain the number of rows associated with each label in
+      %     the given fields.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields from which
+      %         labels are to be drawn.
+      %     OUT:
+      %       - `obj` (Container) -- Object whose data are an Mx1 column
+      %         vector of integers, with each M(i) corresponding to a
+      %         unique set of labels in `fields`.
+            
+      obj.data = ones( shape(obj, 1), 1 );
+      obj.dtype = class( obj.data );
+      obj = do_per( obj, fields, @sum );
+    end
+    
+    function obj = proportions(obj, fields)
+      
+      %   PROPORTIONS -- Obtain the proportion of rows associated with each
+      %     label in the given fields.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields from which
+      %         labels are to be drawn.
+      %
+      %     OUT:
+      %       - `obj` (Container) -- Object whose data are an Mx1 column
+      %         vector of double, with each M(i) corresponding to a
+      %         unique set of labels in `fields`.
+      
+      N = shape( obj, 1 );
+      obj = counts( obj, fields );
+      obj.data = obj.data / N;
+    end
+    
+    function obj = percentages(obj, fields)
+      
+      %   PERCENTAGES -- Obtain the percentage of rows associated with each
+      %     label in the given fields.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields from which
+      %         labels are to be drawn.
+      %
+      %     OUT:
+      %       - `obj` (Container) -- Object whose data are an Mx1 column
+      %         vector of double, with each M(i) corresponding to a
+      %         unique set of labels in `fields`.
+      
+      obj = proportions( obj, fields );
+      obj.data = obj.data * 100;
+    end
+    
+    %{
         UTIL
     %}
     
@@ -1483,20 +1542,6 @@ classdef Container
     
     function print_labels(obj)
       disp( obj.labels.labels );
-    end
-    
-    function obj = counts(obj, fields)
-      
-      %   COUNTS -- Obtain the number of rows associated with each label in
-      %     the given fields.
-      %
-      %     IN:
-      %       - `fields` (cell array of strings, char) -- Fields from which
-      %         labels are to be drawn.
-            
-      obj.data = ones( shape(obj, 1), 1 );
-      obj.dtype = class( obj.data );
-      obj = do_per( obj, fields, @sum );
     end
     
     function all_matches = maybe_you_meant(obj, str)
