@@ -74,6 +74,24 @@ classdef SparseLabels
       n = numel( obj.labels );
     end
     
+    function n = ncategories(obj)
+      
+      %   NCATEGORIES -- Obtain the number of unique categories in the
+      %     object.
+      %
+      %     OUT:
+      %       - `n` (double) |SCALAR|
+      
+      n = numel( unique(obj.categories) );
+    end
+    
+    function n = nfields(obj)
+      
+      %   NFIELDS -- Alias for `ncategories()`.
+      
+      n = ncategories( obj );
+    end
+    
     function tf = isempty(obj)
       
       %   ISEMPTY -- True if `obj.labels` is an empty cell array.

@@ -91,7 +91,7 @@ classdef Container
     
     function s = shape(obj, dim)
       
-      %   SHAPE -- get the size of the data in the object.
+      %   SHAPE -- Return the size of the data in the object.
       %
       %     IN:
       %       - `dim` (double) |OPTIONAL| -- dimension(s) of the data to 
@@ -106,12 +106,23 @@ classdef Container
     
     function n = nels(obj)
       
-      %   NELS -- get the total number of data elements in the object.
+      %   NELS -- Return the total number of data elements in the object.
       %
       %     OUT:
-      %       - `n` -- number of elements `Container.data`
+      %       - `n` (double) |SCALAR|
       
       n = numel( obj.data );
+    end
+    
+    function n = nfields(obj)
+      
+      %   NFIELDS -- Return the number of label fields in the labels
+      %     object.
+      %
+      %     OUT:
+      %       - `n` (double) |SCALAR|
+      
+      n = nfields( obj.labels );
     end
         
     function tf = isempty(obj)
@@ -912,6 +923,24 @@ classdef Container
       end
     end
     
+    function obj = vertcat(obj, varargin)
+      
+      %   VERTCAT -- Alias for `extend()`.
+      %
+      %     See `help Container/extend` for more info.
+      
+      obj = extend( obj, varargin{:} );
+    end
+    
+    function varargout = horzcat(varargin)
+      
+      %   HORZCAT -- Throw a more descriptive error when attempting
+      %     horizontal concatenation.
+      
+      error( ['Horizontal / column-wise concatenation is not supported.' ...
+        , ' Use vertical concatenation or the append() method.'] );
+    end
+    
     %{
         OPERATIONS
     %}
@@ -1085,6 +1114,15 @@ classdef Container
           , class(result) );
         new_obj = append( new_obj, result );
       end
+    end
+    
+    function obj = do(obj, varargin)
+      
+      %   DO -- Alias for `do_per`.
+      %
+      %     See `help Container/do_per` for more info.
+      
+      obj = do_per( obj, varargin{:} );
     end
     
     function obj = row_op(obj, func, varargin)
@@ -1640,36 +1678,170 @@ classdef Container
       obj = DataObject( obj.data, labels );
     end
     
-    function tbl = to_table(obj, rows_are, cols_are)
+    function tbl = to_table(obj, varargin)
       
-      %   TO_TABLE -- Convert the current Container object into a table
-      %   	with row and column labels specified by the given fields.
+      %   TO_TABLE -- Convert the current Container object into a table.
+      %
+      %     You can specify which fields should form the rows and / or
+      %     columns of the table, or attempt to have them selected
+      %     automatically.
+      %
+      %     If no row or column fields are specified, rows and columns will
+      %     be assigned automatically from the subset of fields in the
+      %     object that are non-uniform. If there are no non-uniform
+      %     fields, rows will be the first field (alphabetically) in the
+      %     object, and the column will be a dummy field. If there is 
+      %     only one field in the object, the row will be that field,
+      %     and the column a dummy field.
+      %
+      %     However, if the optional flag '-distribute' or '-dist' is
+      %     passed, rows and columns will be determined from the subset of
+      %     fields in the first input.
+      %
+      %     If row OR column fields are specified, but not both, the
+      %     unspecified dimension will be a non-uniform field that is not
+      %     contained in the specified dimension. If all non-uniform fields
+      %     are present in the specified dimension, or if there is only one
+      %     field in the object, the unspecified dimension will be a dummy
+      %     field.
+      %
+      %     Note that calling to_table() without specifiers can 
+      %     result in out-of-memory errors if the number of non-uniform
+      %     fields is very high.
+      %
+      %     Also note that Matlab requires column headers to be valid
+      %     variable names. Thus, if manually or automatically
+      %     specified column fields contain labels that are not valid
+      %     Matlab variable names, an error will be thrown.
+      %
+      %     EX. //
+      %
+      %     tbl = table( obj ) creates a table with rows and columns
+      %     drawn from the non-uniform fields of obj.
+      %
+      %     tbl = table( obj, 'doses', 'images' ) creates a table with rows
+      %     as 'doses' and columns as 'images'.
+      %
+      %     tbl = table( obj, 'doses' ) creates a table with rows as
+      %     'doses', and columns as either a) the non-uniform fields of
+      %     obj OR b) a new, dummy field, if 'doses' is the only uniform
+      %     field (or only field) in obj.
+      %
+      %     tbl = table( obj, [], 'doses' ) creates a table as above,
+      %     except with *columns* as 'doses', and rows as either a) or b).
+      %
+      %     tbl = table( obj, {'doses', 'images', 'subjects'} )
+      %     creates a table whose rows and columns are automatically
+      %     selected from 'doses', 'images', and 'subjects'. The field with
+      %     the fewest number of unique labels forms the columns, and rows
+      %     are the remaining fields. If only one field is given, a dummy
+      %     field is added. If no fields are given, table() is called with
+      %     the original object as input, and no additional inputs, as
+      %     above.
       %
       %     IN:
-      %       - `rows_are` (cell array of strings, char)
-      %       - `cols_are` (cell array of strings, char) |OPTIONAL| -- If
-      %         unspecified, the table will have one column with a dummy
-      %         variable header.
+      %       - `varargin` (cell array of strings, char, []) -- Optionally
+      %         specify row-fields, column-fields, or a '-distribute' flag.
+      %         See above for examples.
       %     OUT:
       %       - `tbl` (table) -- table whose items are cell arrays.
       
-      if ( nargin < 3 )
-        %   If no column fields are specified, create a new dummy field
-        %   with one unique label. Ensure the dummy field and label do 
-        %   not already exist in the object.
-        stp = 1;
-        do_continue = true;
-        while ( do_continue )
-          dummy_field = sprintf( 'Var%d', stp );
-          do_continue = contains_fields(obj.labels, dummy_field) || ...
-            contains(obj.labels, dummy_field);
-          stp = stp + 1;
+      assert( ~isempty(obj), 'The object is empty.' );
+      flag_exists = strcmp(varargin, '-distribute') | strcmp(varargin, '-dist');
+      if ( any(flag_exists) )
+        assert( nargin == 3, ['If passing the ''-distribute'' flag,' ...
+          , ' there must be one (and only one) array of fields.'] );
+        to_rm = setdiff( field_names(obj), varargin{1} );
+        obj2 = obj;
+        if ( ~isempty(to_rm) )
+          obj2 = rm_fields( obj2, to_rm );
+          if ( nfields(obj2) == 0 ), obj2 = obj; end
         end
-        obj = add_field( obj, dummy_field, dummy_field );
-        cols_are = dummy_field;
+        tbl = to_table( obj2 );
+        return;
       end
-      [~, row_labs] = get_indices( obj, rows_are );
-      [~, col_labs] = get_indices( obj, cols_are );
+      if ( nargin < 2 )
+        cols_are = [];
+        rows_are = [];
+      elseif ( nargin < 3 )
+        rows_are = Labels.ensure_cell( varargin{1} );
+        if ( numel(rows_are) > 1 )
+          tbl = to_table( obj, rows_are, '-dist' );
+          return;
+        end
+        cols_are = [];
+      else
+        narginchk( 3, 3 );
+        rows_are = varargin{1};
+        cols_are = varargin{2};
+      end
+      
+      cols_empty = isempty( cols_are );
+      rows_empty = isempty( rows_are );
+      both_empty = cols_empty & rows_empty;
+      one_empty = xor( cols_empty, rows_empty );
+            
+      if ( one_empty || both_empty )
+        auto_set = get_non_uniform_categories( obj.labels );
+        all_fields = field_names( obj );
+        if ( isempty(auto_set) ), auto_set = all_fields(1); end;
+      end
+      if ( one_empty )
+        %   If rows are specified OR columns are specified, but not both,
+        %   the non-specified dimension is the fields of `auto_set` that
+        %   are not present in the specified dimension. If all values of
+        %   `auto_set` are contained in the specified dimension, the
+        %   unspecified dimension will be a dummy field.
+        need_dummy_field = false;
+        if ( cols_empty )
+          manual_set = rows_are;
+        else manual_set = cols_are;
+        end
+        if ( numel(all_fields) > 1 )
+          auto_set = setdiff( auto_set, manual_set );
+          if ( isempty(auto_set) ), need_dummy_field = true; end
+        else need_dummy_field = true;
+        end
+        if ( need_dummy_field )
+          auto_set = get_dummy_field( obj );
+          obj = add_field( obj, auto_set, auto_set );
+        end
+        if ( cols_empty )
+          cols_are = auto_set;
+        else rows_are = auto_set;
+        end
+      end
+      if ( both_empty )
+        %   If no row or column fields are specified, rows are initially
+        %   `auto_set`. If there is only one field in the object, a new
+        %   dummy field is created to serve as the column. Otherwise, the
+        %   field with the fewest unique labels is selected to be 
+        %   `cols_are`, and the remaining fields are `rows_are`.
+        rows_are = Labels.ensure_cell( auto_set );
+        if ( numel(rows_are) > 1 )
+          to_col = smallest_field_index( obj, rows_are );
+          cols_are = rows_are( to_col );
+          rows_are( to_col ) = [];
+        else
+          cols_are = get_dummy_field( obj );
+          obj = add_field( obj, cols_are, cols_are );
+        end
+      end
+      try 
+        [~, row_labs] = get_indices( obj, rows_are );
+        [~, col_labs] = get_indices( obj, cols_are );
+      catch err
+        if ( ~isempty(strfind(err.identifier, 'SizeLimitExceeded')) )
+          msg = ['There are too many unique labels to sort through' ...
+            , ' automatically. Add specifiers to manually set row and' ...
+            , ' column identities.'];
+        else
+          msg = sprintf( ['\nThe following error occurred when' ...
+            , ' attempting to generate a table:\n\n%s'] ...
+            , err.message );
+        end
+        error( msg );
+      end
       n_rows = size( row_labs, 1 );
       n_cols = size( col_labs, 1 );
       cols = cell( 1, n_cols );
@@ -1681,14 +1853,50 @@ classdef Container
           cols{j}{i} = extr.data;
         end
       end
-      tbl = table( cols{:}, 'VariableNames', str_joiner(col_labs, '_') );
+      try
+        tbl = table( cols{:}, 'VariableNames', str_joiner(col_labs, '_') );
+      catch err
+        if ( ~isempty(strfind(err.identifier, 'InvalidVariableName')) )
+          msg = [ 'Each column label in a table must be a valid Matlab' ...
+            , ' variable name. Some labels in the fields specified for' ...
+            , ' columns (either automatically or manually) are not valid' ...
+            , ' variable names. Place these fields in rows, or omit them.' ];
+        else
+          msg = sprintf( ['\nThe following error occurred when' ...
+            , ' attempting to generate a table:\n\n%s'] ...
+            , err.message );
+        end
+        error( msg );
+      end
       tbl.Properties.RowNames = str_joiner( row_labs );
       function str = str_joiner( arr, delimiter )
+        %   STR_JOINER -- Join a cell array of cell arrays of strings such
+        %     that each row of `str` is a char
+        if ( size(arr, 2) == 1 ), str = arr; return; end;
         if ( nargin < 2 ), delimiter = ' | '; end;
         str = cell( size(arr, 1), 1 );
         for ii = 1:size( arr, 1 )
           str{ii} = strjoin( arr(ii, :), delimiter );
         end
+      end
+      function dummy_field = get_dummy_field( obj )
+        %   DUMMY_FIELD -- Get a dummy field name that is not already
+        %     contained in the object.
+        stp = 1;
+        do_continue = true;
+        while ( do_continue )
+          dummy_field = sprintf( 'Var%d', stp );
+          do_continue = contains_fields(obj.labels, dummy_field) || ...
+            contains(obj.labels, dummy_field);
+          stp = stp + 1;
+        end
+      end
+      function fewest = smallest_field_index( obj, rows_are )
+        %   SMALLEST_FIELD_INDEX -- Get an index of the fieldname in
+        %     `rows_are` with the fewest number of unique labels.
+        ns = cellfun( @(x) numel(unique(get_fields(obj.labels, x))) ...
+          , rows_are );
+        [~, fewest] = min( ns );
       end
     end
     
@@ -1699,6 +1907,34 @@ classdef Container
       %     See `help Container/to_table` for more info.
       
       tbl = to_table( obj, varargin{:} );
+    end
+    
+    function [structs, c] = to_subsets(obj, fields)
+      
+      %   TO_SUBSETS -- Convert an object to an array of struct, whose
+      %     values are identified by the unique labels in `fields`.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char) -- Fields from which
+      %         to draw labels. Can be thought of as the specificity of
+      %         each subset.
+      %     OUT:
+      %       - `structs` (cell array of struct)
+      %       - `c` (cell array of strings) -- MxN cell array of strings
+      %       	where each `c(i, :)` corresponds to each `structs`(i), and
+      %       	each `c(:, j)` corresponds to each `fields`(j).
+      
+      [objs, ~, c] = enumerate( obj, fields );
+      structs = cellfun( @(x) struct(x), objs, 'un', false );
+    end
+    
+    function [structs, c] = subsets(obj, fields)
+      
+      %   SUBSETS -- Alias for `to_subsets()`.
+      %
+      %     See `help Container/to_subsets` for more info.
+      
+      [structs, c] = to_subsets( obj, fields );
     end
     
     %{
