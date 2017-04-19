@@ -373,7 +373,7 @@ classdef ContainerPlotter < handle
       %   update limits automatically, if unspecified
       if ( obj.params.match_y_lim && isempty(obj.params.y_lim) )
         linkaxes( subp, 'y' );
-        ylim( subp(1), [floor(mins), ceil(maxs)] );
+        ylim( subp(1), [mins, maxs] );
       end
       %   data cursor handling
       function txt = event_response(response_obj, event_obj)
@@ -669,7 +669,7 @@ classdef ContainerPlotter < handle
       end
       %   match y lims
       if ( obj.params.match_y_lim && isempty(obj.params.y_lim) )
-        arrayfun( @(x) ylim(x, [floor(mins), ceil(maxs)]), h );
+        arrayfun( @(x) ylim(x, [mins, maxs]), h );
       end
       %   add significant stars if comparing series
       if ( ~all(cellfun(@isempty, sig_series)) )
