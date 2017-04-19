@@ -1765,7 +1765,7 @@ classdef Container
         rows_are = [];
       elseif ( nargin < 3 )
         rows_are = Labels.ensure_cell( varargin{1} );
-        if ( numel(rows_are) > 1 )
+        if ( numel(rows_are) > 0 )
           tbl = to_table( obj, rows_are, '-dist' );
           return;
         end
