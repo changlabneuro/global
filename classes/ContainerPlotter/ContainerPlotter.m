@@ -581,7 +581,6 @@ classdef ContainerPlotter < handle
         line_stp = 1;
         one_line = [];
         store_lines = cell( 1, size(label_combs, 1) );
-        store_max = [];
         for k = 1:size(label_combs, 1)
           per_lab = only( one_panel, label_combs(k, :) );
           store_lines{k} = per_lab;
@@ -590,7 +589,6 @@ classdef ContainerPlotter < handle
             legend_items = [ legend_items; strjoin(label_combs(k, :), ' | ') ];
           end
           means = obj.params.summary_function( per_lab.data, 1 );
-          store_max = max( [store_max, max(means)] );
           if ( shape(per_lab, 1) == 1 )
             errors = 0;
           else errors = obj.params.error_function( per_lab.data );
@@ -669,7 +667,11 @@ classdef ContainerPlotter < handle
       end
       %   match y lims
       if ( obj.params.match_y_lim && isempty(obj.params.y_lim) )
-        arrayfun( @(x) ylim(x, [mins, maxs]), h );
+        %   don't match if plotting a single point, in which case the
+        %   absolute minimum is equal to the absolute maximum
+        if ( mins ~= maxs )
+          arrayfun( @(x) ylim(x, [mins, maxs]), h );
+        end
       end
       %   add significant stars if comparing series
       if ( ~all(cellfun(@isempty, sig_series)) )
