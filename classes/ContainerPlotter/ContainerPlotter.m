@@ -705,7 +705,7 @@ classdef ContainerPlotter < handle
       end
     end
     
-    function scatter(obj, cont1, cont2, categories, within, varargin)
+    function subps = scatter(obj, cont1, cont2, categories, within, varargin)
       
       %   SCATTER -- Scatter the data in one Container against the data in
       %     another.
@@ -753,6 +753,7 @@ classdef ContainerPlotter < handle
       %   Containers simultaneously.
       conts = Structure( 'one', cont1, 'two', cont2 );
       h = cell( 1, numel(inds) );
+      subps = gobjects( 1, numel(inds) );
       for i = 1:numel(inds)
         %   conts_panel contains values in cont1 and cont2 for the current
         %   subplot.
@@ -773,7 +774,7 @@ classdef ContainerPlotter < handle
           cat_inds = { true(shape(conts_panel{1}, 1), 1) };
           add_legend = false;
         end
-        subplot( obj.params.shape(1), obj.params.shape(2), i );
+        subps(i) = subplot( obj.params.shape(1), obj.params.shape(2), i );
         hold off;
         %   reorder the data according to the panel combs, category combs,
         %   and desired orderings.
@@ -844,6 +845,16 @@ classdef ContainerPlotter < handle
         current_axis = gca;
         title( title_labels );
         obj.apply_if_not_empty( current_axis );
+      end
+      if ( isempty(obj.params.y_lim) )
+        maxs = max( cont2.data(:) );
+        mins = min( cont2.data(:) );
+        arrayfun( @(x) ylim(x, [mins, maxs]), subps );
+      end
+      if ( isempty(obj.params.x_lim) )
+        maxs = max( cont1.data(:) );
+        mins = min( cont1.data(:) );
+        arrayfun( @(x) xlim(x, [mins, maxs]), subps );
       end
     end
     
