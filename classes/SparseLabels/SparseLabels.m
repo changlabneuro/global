@@ -182,6 +182,8 @@ classdef SparseLabels
         index = rep_logic( obj, true ); 
       else assert__is_properly_dimensioned_logical( obj, index );
       end
+      %   return early if there are no true elements in the index.
+      if ( ~any(index) ), return; end;
       char_msg = 'Expected %s to be a char; was a ''%s''';
       assert( isa(cat, 'char'), char_msg, 'category name', class(cat) );
       assert( isa(set_as, 'char'), char_msg, 'the labels-to-be-set' ... 
