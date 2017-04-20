@@ -1578,8 +1578,13 @@ classdef Container
       disp( obj.labels );
     end
     
-    function print_labels(obj)
-      disp( obj.labels.labels );
+    function obj = columnize(obj)
+      
+      %   COLUMNIZE -- Ensure labels and categories are stored row-wise
+      %     in SparseLabels
+      
+      if ( ~obj.LABELS_ARE_SPARSE ), return; end;
+      obj.labels = columnize( obj.labels );      
     end
     
     function all_matches = maybe_you_meant(obj, str)

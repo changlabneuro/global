@@ -1083,6 +1083,15 @@ classdef SparseLabels
       fprintf( '\n\n' );
     end
     
+    function obj = columnize(obj)
+      
+      %   COLUMNIZE -- Ensure the labels and categories in the object are
+      %     stored row-wise.
+      
+      obj.labels = obj.labels(:);
+      obj.categories = obj.categories(:);
+    end
+    
     function obj = full(obj)
       
       %   FULL -- Convert the SparseLabels object to a full Labels object.
