@@ -829,7 +829,7 @@ classdef Container
           error( 'Referencing with ''%s'' is not supported', type );
       end
       
-      if isempty(s)
+      if ( isempty(s) )
         varargout{1} = out;
         return;
       end
@@ -1118,11 +1118,76 @@ classdef Container
     
     function obj = do(obj, varargin)
       
-      %   DO -- Alias for `do_per`.
+      %   DO -- Alias for `do_recursive`.
       %
       %     See `help Container/do_per` for more info.
       
-      obj = do_per( obj, varargin{:} );
+      obj = do_recursive( obj, varargin{:} );
+    end
+    
+    function out = do_recursive(obj, varargin)
+      
+      %   DO_RECURSIVE -- Apply a function to the data associated with each
+      %     unique combination of labels in the specified fields.
+      %
+      %     This function produces output equivalent to that of `do_per`,
+      %     but is potentially must faster.
+      %
+      %     See `help Container/do_per` for more info and restrictions on
+      %     the types of functions that can be passed / called.
+      %
+      %     EX. //
+      %
+      %     out = do_recursive( obj, {'doses', 'images'}, @mean );
+      %     calculates a mean for each unique (dose x image) pair of labels
+      %     in 'doses' and 'images'.
+      %
+      %     out = do_recursive( obj, 'doses', @percentages, 'images' );
+      %     calculates the percentage of trials associated with each image
+      %     label in 'images', separately for each dose in 'doses'.
+      %
+      %     IN:
+      %       - `varargin` -- The initial invocation of `do_recursive`
+      %         requires at least two arguments in addition to the object.
+      %         The first input is the field(s) over which to iterate,
+      %         specified as a cell array of strings or char, and the
+      %         second is the function to execute, specified as a
+      %         'function_handle'. Any additional arguments will be passed
+      %         to each invocation of the function. The function must be
+      %         configured to accept a Container object as its first input,
+      %         and must return a Container object; otherwise, an error is
+      %         thrown.
+      %     OUT:
+      %       - `out` (Container) -- Container object
+      
+      if ( isa(varargin{1}, 'cell') || isa(varargin{1}, 'char') )
+        narginchk( 3, Inf );
+        %   first iteration.
+        within = SparseLabels.ensure_cell( varargin{1} );
+        func = varargin{2};
+        out = Container();
+        varargin(1:2) = [];
+        Assertions.assert__isa( func, 'function_handle' );
+      else
+        out = varargin{1};
+        within = varargin{2};
+        func = varargin{3};
+        varargin(1:3) = [];
+      end   
+      if ( isempty(within) )
+        %   we're at the most specific level, so call the function.
+        next = func( obj, varargin{:} );
+        assert( isa(next, 'Container'), ['The returned value of a function' ...
+          , ' called with do_recursive() must be a Container; was a ''%s'''] ...
+          , class(next) );
+        out = append( out, next );
+        return;
+      end      
+      objs = enumerate( obj, within(1) );
+      within(1) = [];
+      for i = 1:numel(objs)
+        out = do_recursive( objs{i}, out, within, func, varargin{:} );
+      end
     end
     
     function obj = row_op(obj, func, varargin)
