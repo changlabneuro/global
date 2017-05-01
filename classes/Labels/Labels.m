@@ -849,7 +849,7 @@ classdef Labels
       for i = 1:numel(selectors)
         ind = strcmp( labs, selectors{i} );
         if ( ~any(ind(:)) ), found_fields{i} = -1; all_false = true; continue; end;
-        cols(i) = find( sum(ind) >= 1 );
+        cols(i) = find( sum(ind, 1) >= 1 );
         found_fields{i} = fields{ cols(i) };
         indices(:, i) = sum( ind, 2 );
       end

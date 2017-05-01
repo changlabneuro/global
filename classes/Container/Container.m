@@ -23,13 +23,45 @@ classdef Container
   end
   
   methods
-    function obj = Container(data, labels)
+    function obj = Container(varargin)
+      
+      %   CONTAINER -- Instantiate a Container object.
+      %
+      %     cont = Container( data, labels_object ) creates a Container
+      %     object from `data` and a Labels object `labels_object`.
+      %
+      %     cont = Container( data, labels_struct ) creates a Container
+      %     object from `data` and a struct `labels_struct`, which must
+      %     be valid input to a Labels object. Each field of
+      %     `labels_struct` must be an Mx1 cell array of strings where M is
+      %     equal to the number of rows in `data`.
+      %
+      %     cont = Container( data, 'field1', {'label1'; 'label2'}, ... )
+      %     creates a Container object from `data` and a variable number of
+      %     (field, {labels}) pairs, which are parsed to create a struct as
+      %     above.
+      %
+      %     Ex. //
+      %
+      %     data = rand( 20, 1 );
+      %     outs = repmat( {'self'; 'both'; 'other'; 'none'}, 5, 1 );
+      %     rwds = repmat( {'low'; 'medium'; 'high'; 'highest'}, 5, 1 );
+      %     outs = outs( randperm(numel(outs)) );
+      %     rwds = rwds( randperm(numel(rwds)) );
+      %     cont = Container( data, 'outcomes', outs, 'rewards', rwds );
+      
       if ( nargin == 0 ), return; end;
-      [data, labels] = Container.validate__initial_input( data, labels );
-      obj.data = data;
-      obj.labels = labels;
-      obj.dtype = class( data );
-      obj = update_label_sparsity( obj );
+      if ( nargin == 2 )
+        data = varargin{1};
+        labels = varargin{2};
+        [data, labels] = Container.validate__initial_input( data, labels );
+        obj.data = data;
+        obj.labels = labels;
+        obj.dtype = class( data );
+        obj = update_label_sparsity( obj );
+      else
+        obj = Container.create( varargin{:} );
+      end
     end
     
     %{
@@ -382,6 +414,13 @@ classdef Container
         fields = unique( obj.labels.categories );
       else fields = obj.labels.fields;
       end      
+    end
+    
+    function cats = categories(obj)
+      
+      %   CATEGORIES -- Alias for `field_names`.
+      
+      cats = field_names( obj );
     end
     
     function [fields, field_names] = full_fields(obj, varargin)
@@ -1673,22 +1712,20 @@ classdef Container
       %         potential matches are computed. If no matches are found,
       %         `all_matches` is an empty cell array.
       
-      obj_kinds = { 'Container', class(obj.labels) };
+      objs = { obj, obj.labels };
+      obj_kinds = cellfun( @(x) class(x), objs, 'un', false );
       ref_kinds = { 'methods', 'properties' };
       
       all_matches = {};
       
       for i = 1:numel(obj_kinds)
         obj_kind = obj_kinds{i};
+        current_obj = objs{i};
         for j = 1:numel(ref_kinds)
           ref_kind = ref_kinds{j};
           if ( isequal(ref_kind, 'properties') )
             func = @properties; reformatted_format = '%s.%s';
           else func = @methods; reformatted_format = '%s/%s()';
-          end
-          if ( isequal(obj_kind, 'Container') )
-            current_obj = obj;
-          else current_obj = obj.labels;
           end
           matches = Container.matches_substring( str, func(current_obj), 2, 4 );
           if ( isempty(matches) ), continue; end;
@@ -2318,6 +2355,35 @@ classdef Container
         obj = Container( obj.data, obj.labels ); return;
       end
       error( 'Cannot create a Container from type ''%s''', class(obj) );
+    end
+    
+    function obj = create(varargin)
+      
+      narginchk( 3, Inf );
+      
+      data = varargin{1};
+      labs = varargin(2:end);
+      assert( mod(numel(labs)/2, 1) == 0 ...
+        , '(field, {labels}) pairs are incomplete.' );
+      fs = labs(1:2:end);
+      cellfun( @(x) Assertions.assert__isa(x, 'char'), fs );
+      labels = labs(2:2:end);
+      labels = cellfun( @(x) Labels.ensure_cell(x), labels, 'un', false );
+      cellfun( @(x) Assertions.assert__is_cellstr(x), labels );
+      labels = cellfun( @(x) x(:), labels, 'un', false );
+      labels = cellfun( @(x) {x}, labels, 'un', false );
+      struct_input = cell( size(labs) );
+      struct_input(1:2:end) = fs;
+      struct_input(2:2:end) = labels;
+      try
+        s = struct( struct_input{:} );
+        obj = Container( data, s );
+        obj = sparse( obj );
+      catch err
+        fprintf( ['\n The following error occurred when attempting to' ...
+          , ' instantiate a Container'] );
+        error( err.message );
+      end
     end
     
     function matches = matches_substring(str, comparitors, min_length, max_length)
