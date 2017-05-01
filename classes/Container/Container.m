@@ -28,7 +28,8 @@ classdef Container
       %   CONTAINER -- Instantiate a Container object.
       %
       %     cont = Container( data, labels_object ) creates a Container
-      %     object from `data` and a Labels object `labels_object`.
+      %     object from `data` and a Labels or SparseLabels object 
+      %     `labels_object`.
       %
       %     cont = Container( data, labels_struct ) creates a Container
       %     object from `data` and a struct `labels_struct`, which must
@@ -2359,6 +2360,26 @@ classdef Container
     
     function obj = create(varargin)
       
+      %   CREATE -- Create a Container object from data and a variable
+      %     number of ('field', {'labels}) pairs.
+      %
+      %     IN:
+      %       - `varargin` (/any/)
+      %     OUT:
+      %       - `obj` (Container)
+      %
+      %     Ex. //
+      %
+      %     obj = Container.create( 10, 'cities', 'NY' );
+      %     creates a 1x1 Container whose `data` are 10 and whose labels
+      %     have a single field, 'cities', and a single label 'NY'.
+      %
+      %     obj = Container.create( [10; 11], 'cities', {'NY'; 'LA'} );
+      %     creates a 2x1 Container whose `data` are [10; 11] and whose
+      %     labels have a single field, 'cities'. The label 'NY' is
+      %     associated with the first datapoint (10), while the label 'LA'
+      %     identifies the second datapoint (11).
+      
       narginchk( 3, Inf );
       
       data = varargin{1};
@@ -2378,7 +2399,6 @@ classdef Container
       try
         s = struct( struct_input{:} );
         obj = Container( data, s );
-        obj = sparse( obj );
       catch err
         fprintf( ['\n The following error occurred when attempting to' ...
           , ' instantiate a Container'] );
