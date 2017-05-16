@@ -254,6 +254,23 @@ classdef Container
       obj = keep( obj, ind );
     end
     
+    function [obj, ind] = only_substr(obj, substrs)
+      
+      %   ONLY_SUBSTR -- retain elements in `obj.data` that match the 
+      %     index associated with labels identified by `substrs`.
+      %
+      %     IN:
+      %       - `substrs` (cell array of strings, char) -- Substrings to
+      %         identify labels to keep.
+      %     OUT:
+      %       - `obj` (Container)
+      %       - `ind` (logical) -- The index used to select rows of the 
+      %         object.
+      
+      ind = where_substr( obj.labels, substrs );
+      obj = keep( obj, ind );
+    end
+    
     function [ind, fields] = where(obj, selectors, varargin)
       
       %   WHERE -- generate an index of the labels in `selectors`.
@@ -273,6 +290,21 @@ classdef Container
       %         element in `selectors`.
       
       [ind, fields] = where( obj.labels, selectors, varargin{:} );
+    end
+    
+    function [ind, fields] = where_substr(obj, substrs)
+      
+      %   WHERE_SUBSTR -- Return an index of rows identified by substrs.
+      %
+      %     IN:
+      %       - `substrs` (cell array of strings, char) -- Substrings to
+      %         search for.
+      %     OUT:
+      %       - `ind` (logical) -- index of the elements in `selectors`.
+      %       - `fields` (cell array) -- fields associated with each 
+      %         element in `substrs`.
+      
+      [ind, fields] = where_substr( obj.labels, substrs );
     end
     
     %{

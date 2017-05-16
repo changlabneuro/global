@@ -700,7 +700,24 @@ classdef Labels
       
       ind = where( obj, selectors );
       obj = keep( obj, ind );
-    end    
+    end
+    
+    function [obj, ind] = only_substr(obj, substrs)
+      
+      %   ONLY_SUBSTR -- retain the labels that match the substrs in
+      %     `substrs`.
+      %
+      %     IN:
+      %       - `substrs` (cell array of strings, char)
+      %     OUT:
+      %       - `obj` (Labels) -- object with only the labels
+      %         containing `substrs`.
+      %       - `ind` (logial) |SPARSE| -- the index used to select labels
+      %         in the outputted object.
+      
+      ind = where_substr( obj, substrs );
+      obj = keep( obj, ind );
+    end
     
     %{
         ELEMENT LOCATION
@@ -846,6 +863,8 @@ classdef Labels
       all_false = false;
       cols = nan( size(found_fields) );
       
+      if ( isempty(selectors) ), return; end;
+      
       for i = 1:numel(selectors)
         ind = strcmp( labs, selectors{i} );
         if ( ~any(ind(:)) ), found_fields{i} = -1; all_false = true; continue; end;
@@ -885,6 +904,29 @@ classdef Labels
         full_index = full_index & all( indices(:, others), 2 );
       end      
       
+    end
+    
+    function [full_index, found_fields] = where_substr(obj, substrs)
+      
+      %   WHERE_SUBSTR -- obtain a row index associated with labels that
+      %     contain the substr or substr(s)
+      %
+      %     IN:
+      %       - `substrs` (cell array of strings, char) -- Desired
+      %         substrings.
+      %     OUT:
+      %       - `full_index` (logical) |COLUMN| -- Index of which rows
+      %         correspond to the `substrs`.
+      %       - `found_fields` (cell array) -- The field associated with
+      %         the found `substrs`(i)
+      
+      substrs = SparseLabels.ensure_cell( substrs );
+      assert( iscellstr(substrs), ['Substrs must be a cell array of strings,' ...
+        , ' or a char'] );
+      labs = flat_uniques( obj );
+      to_keep = cellfun( @(x) all(cellfun(@(y) ~isempty(strfind(x, y)), substrs)) ...
+        , labs );
+      [full_index, found_fields] = where( obj, labs(to_keep) );      
     end
     
     %{

@@ -625,6 +625,23 @@ classdef SparseLabels
       obj = keep( obj, ind );
     end
     
+    function [obj, ind] = only_substr(obj, substrs)
+      
+      %   ONLY_SUBSTR -- retain the labels that match the substrs in
+      %     `substrs`.
+      %
+      %     IN:
+      %       - `substrs` (cell array of strings, char)
+      %     OUT:
+      %       - `obj` (SparseLabels) -- object with only the labels
+      %         containing `substrs`.
+      %       - `ind` (logial) |SPARSE| -- the index used to select labels
+      %         in the outputted object.
+      
+      ind = where_substr( obj, substrs );
+      obj = keep( obj, ind );
+    end
+    
     function obj = keep(obj, ind)
       
       %   KEEP -- given a logical column vector, return a `SparseLabels` 
@@ -704,6 +721,7 @@ classdef SparseLabels
       full_index = rep_logic( obj, false );
       all_false = false;
       cats = cell( size(selectors) );
+      if ( isempty(selectors) ), return; end;
       inds = false( shape(obj,1), numel(selectors) );
       for i = 1:numel(selectors)
         label_ind = strcmp( obj.labels, selectors{i} );
@@ -724,6 +742,29 @@ classdef SparseLabels
         if ( ~any(full_index) ), full_index = sparse(full_index); return; end;
       end
       full_index = sparse( full_index );
+    end
+    
+    function [ind, cats] = where_substr(obj, substrs)
+      
+      %   WHERE_SUBSTR -- obtain a row index associated with labels that
+      %     contain the substr or substr(s)
+      %
+      %     IN:
+      %       - `substrs` (cell array of strings, char) -- Desired
+      %         substrings.
+      %     OUT:
+      %       - `full_index` (logical) |COLUMN| -- Index of which rows
+      %         correspond to the `substrs`.
+      %       - `cats` (cell array) -- The category associated with
+      %         the found `substrs`(i)
+      
+      substrs = SparseLabels.ensure_cell( substrs );
+      assert( iscellstr(substrs), ['Substrs must be a cell array of strings,' ...
+        , ' or a char'] );
+      labs = obj.labels;
+      to_keep = cellfun( @(x) all(cellfun(@(y) ~isempty(strfind(x, y)), substrs)) ...
+        , labs );
+      [ind, cats] = where( obj, labs(to_keep) );
     end
     
     %{
@@ -1065,8 +1106,8 @@ classdef SparseLabels
       for i = 1:numel(cats)
         current = unqs{i};
         if ( desktop_exists )
-          fprintf( '\n * <strong>%s</strong>', cats{i} );
-        else fprintf( '\n * %s', cats{i} );
+          fprintf( '\n - <strong>%s</strong>', cats{i} );
+        else fprintf( '\n - %s', cats{i} );
         end
         if ( obj.VERBOSE )
           nprint = numel( current );
