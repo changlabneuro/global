@@ -2049,6 +2049,24 @@ classdef Container
       tbl = to_table( obj, varargin{:} );
     end
     
+    function out = array(obj)
+      
+      %   ARRAY -- Convert the object to a cell array whose data are the
+      %     first column, and labels the remaining columns.
+      %
+      %     OUT:
+      %       - `out` (cell array)
+      
+      if ( obj.LABELS_ARE_SPARSE ), obj = full( obj ); end;
+      dat = cell( shape(obj, 1), 1 );
+      for i = 1:numel(dat)
+        dat{i} = obj.data(i, :);
+      end
+      header = [ {'data'}, obj.labels.fields ];
+      out = [ dat, obj.labels.labels ];
+      out = [ header; out ];
+    end
+    
     function [structs, c] = to_subsets(obj, fields)
       
       %   TO_SUBSETS -- Convert an object to an array of struct, whose
