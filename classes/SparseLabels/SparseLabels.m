@@ -688,6 +688,18 @@ classdef SparseLabels
       end
     end
     
+    function obj = remove_empty_indices(obj)
+      
+      %   REMOVE_EMPTY_INDICES -- Remove indices, labels, and categories
+      %   	for which there are no true elements of indices.
+      
+      empties = ~any( obj.indices, 1 );
+      if ( ~any(empties) ), return; end;
+      obj.labels(empties) = [];
+      obj.categories(empties) = [];
+      obj.indices(:, empties) = [];
+    end
+    
     function [full_index, cats] = where(obj, selectors)
       
       %   WHERE -- obtain a row index associated with desired labels in 
