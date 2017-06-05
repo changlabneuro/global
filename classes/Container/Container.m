@@ -435,6 +435,24 @@ classdef Container
       obj.labels = add_field( obj.labels, varargin{:} );
     end
     
+    function obj = require_fields(obj, fs)
+      
+      %   REQUIRE_FIELDS -- Add fields if they do not already exist.
+      %
+      %     IN:
+      %       - `fs` (cell array of strings, char) -- Fields to require.
+      
+      fs = SparseLabels.ensure_cell( fs );
+      Assertions.assert__is_cellstr( fs );
+      if ( isempty(fs) ), return; end;
+      are_present = contains_fields( obj.labels, fs );
+      if ( all(are_present) ), return; end;
+      new_fs = fs( ~are_present );
+      for i = 1:numel(new_fs)
+        obj = obj.add_field( new_fs{i} );
+      end
+    end
+    
     function fields = field_names(obj)
       
       %   FIELD_NAMES -- Get the field / category names of the labels in
@@ -1353,6 +1371,25 @@ classdef Container
         obj = row_op( obj, @mean, 1 );
       else obj = n_dimension_op( obj, @mean, dim );
       end
+    end
+    
+    function obj = nanmean(obj, dim)
+      
+      %   MEAN -- Return an object whose data have been averaged across a
+      %     given dimension, excluding NaN values.
+      %
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See `help Container/row_op`, `help Container/n_dimension_op` 
+      %     for more information.
+      
+      if ( nargin < 2 ), dim = 1; end;
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @nanmean, 1 );
+      else obj = n_dimension_op( obj, @nanmean, dim );
+      end      
     end
     
     function obj = sum(obj, dim)
