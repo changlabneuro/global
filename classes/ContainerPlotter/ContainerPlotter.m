@@ -265,8 +265,6 @@ classdef ContainerPlotter < handle
       end
       h = cell( 1, numel(inds) );
       subp = gobjects( 1, numel(inds) );
-      maxs = [];
-      mins = [];
       for i = 1:numel(inds)
         one_panel = keep( cont, inds{i} );
         title_labels = strjoin( flat_uniques(one_panel.labels, within), ' | ' );
@@ -329,8 +327,8 @@ classdef ContainerPlotter < handle
         %   store newest maxs + mins
         summed = means + errors;
         subbed = means - errors;
-        maxs = max( [maxs, max(summed(:))] );
-        mins = min( [mins, min(subbed(:))] );
+%         maxs = max( [maxs, max(summed(:))] );
+%         mins = min( [mins, min(subbed(:))] );
         if ( obj.params.add_points )
           dcm = datacursormode( gcf );
           datacursormode( 'on' );
@@ -372,6 +370,9 @@ classdef ContainerPlotter < handle
       end
       %   update limits automatically, if unspecified
       if ( obj.params.match_y_lim && isempty(obj.params.y_lim) )
+        lims = arrayfun( @(x) get(x, 'ylim'), subp, 'un', false );
+        mins = min( cellfun(@(x) x(1), lims) );
+        maxs = max( cellfun(@(x) x(2), lims) );
         linkaxes( subp, 'y' );
         ylim( subp(1), [mins, maxs] );
       end
