@@ -1285,6 +1285,10 @@ classdef SparseLabels
       cellfun( @(x) assert(any(strcmp(cats, x)), opts.msg, x), B );
     end
     
+    function assert__contains_fields(obj, varargin)
+      assert__categories_exist( obj, varargin{:} );
+    end
+    
     function assert__categories_match(obj, B, opts)
       if ( nargin < 3 )
         opts.msg = 'The categories do not match between objects';

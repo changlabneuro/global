@@ -228,7 +228,9 @@ classdef Container
     
     function [obj, ind] = rm(obj, selectors)
       
-      %   RM -- shorthand alias for remove(). See `help Container/remove`.
+      %   RM -- shorthand alias for remove().
+      %
+      %     See also Container/remove
       
       [obj, ind] = remove( obj, selectors );
     end
@@ -236,10 +238,9 @@ classdef Container
     function [obj, ind] = only(obj, selectors)
       
       %   ONLY -- retain elements in `obj.data` that match the index of the
-      %     `selectors`. 
+      %     `selectors`.
       %
-      %     See `help Labels/only` and `help Labels/where` for more 
-      %     information about how the indices are computed.
+      %     See also Labels/only, Labels/where
       %
       %     IN:
       %       - `selectors` (cell array of strings, char) -- labels to
@@ -259,6 +260,8 @@ classdef Container
       %   ONLY_SUBSTR -- retain elements in `obj.data` that match the 
       %     index associated with labels identified by `substrs`.
       %
+      %     See also Container/only
+      %
       %     IN:
       %       - `substrs` (cell array of strings, char) -- Substrings to
       %         identify labels to keep.
@@ -275,8 +278,7 @@ classdef Container
       
       %   WHERE -- generate an index of the labels in `selectors`.
       %
-      %     See help Labels/where` for more information on how labels are
-      %     located.
+      %     See also Labels/where
       %
       %     IN:
       %       - `selectors` (cell array of strings, char) -- labels to 
@@ -295,6 +297,8 @@ classdef Container
     function [ind, fields] = where_substr(obj, substrs)
       
       %   WHERE_SUBSTR -- Return an index of rows identified by substrs.
+      %
+      %     See also Container/where
       %
       %     IN:
       %       - `substrs` (cell array of strings, char) -- Substrings to
@@ -322,7 +326,8 @@ classdef Container
       %         objs{i} is a Container containing the unique combination of
       %         labels present in combs(i, :)
       %       - `indices` (cell array of logicals) -- indices associated 
-      %         with the labels identified by each row of `c`
+      %         with the labels identified by each row of `c`, with respect
+      %         to the original object `obj`.
       %       - `combs` (cell array of strings) -- the unique combinations 
       %         of labels in `fields`; each row of combs is identified by
       %         the corresponding row of `indices`.
@@ -338,7 +343,7 @@ classdef Container
       
       %   COMBS -- Get all unique combinations of the labels in `fields`.
       %
-      %     See `help Labels/combs` for more information.
+      %     See also Labels/combs
       %
       %     IN:
       %       - `fields` (cell array of strings, char) -- fields in the 
@@ -355,7 +360,7 @@ classdef Container
       %   GET_INDICES -- Get indices associated with the unique
       %     combinations of unique labels in `fields`.
       %
-      %     See help `Labels/get_indices` for more information.
+      %     See also Labels/get_indices
       %
       %     IN:
       %       - `fields` (cell array of strings, char) -- fields in the
@@ -379,7 +384,7 @@ classdef Container
       
       %   UNIQUES -- Get unique labels in each field of `obj.labels`
       %
-      %     See `help Labels/uniques` for more information.
+      %     See also Labels/uniques
       %
       %     OUT:
       %       - `unqs` (cell array of cell array(s) of strings)
@@ -391,7 +396,7 @@ classdef Container
       
       %   REPLACE -- Replace labels in `search_for` with those in `with`.
       %
-      %     See `help Labels/replace` for more information.
+      %     See also Labels/replace
       %
       %     IN:
       %       - `search_for` (cell array of strings, char) -- Labels to
@@ -408,7 +413,7 @@ classdef Container
       
       %   RM_FIELDS -- Remove specified fields from the labels object.
       %
-      %     See `help Labels/rm_fields` for more info.
+      %     See also Labels/rm_fields
       %
       %     IN:
       %       - `fields` (cell array of strings, char) -- Fields to remove.
@@ -423,7 +428,7 @@ classdef Container
       
       %   ADD_FIELD -- Add a new field of labels to the labels object.
       %
-      %     See `help Labels/add_field` for more info.
+      %     See also Labels/add_field
       %
       %     IN:
       %       - `varargin` (cell array of strings, char) -- Name of the new
@@ -479,7 +484,7 @@ classdef Container
       %   FULL_CATEGORIES -- Obtain a cell array of strings whose rows are
       %     labels and columns are categories.
       %
-      %     See `help SparseLabels/full_categories` for more info.
+      %     See also SparseLabels/full_categories
       
       [fields, field_names] = full_fields( obj.labels, varargin{:} );
     end
@@ -489,7 +494,7 @@ classdef Container
       %   COLLAPSE -- Replace labels in a field or fields with a
       %     repeated, field-namespaced expression: 'all__`field`'.
       %
-      %     See `help Labels/collapse_fields` for more info.
+      %     See also Labels/collapse_fields
       %
       %     IN:
       %       - `fields` (cell array of strings, char) -- Fields to
@@ -505,7 +510,7 @@ classdef Container
       
       %   COLLAPSE_EXCEPT -- Collapse all fields except those specified.
       %
-      %     See `help Labels/collapse_fields` for more info.
+      %     See also Labels/collapse_fields
       %
       %     IN:
       %       - `fields` (cell array of strings, char) -- Fields to
@@ -522,7 +527,7 @@ classdef Container
       %   COLLAPSE_NON_UNIFORM -- Collapse categories for which there is
       %     more than one label present in the category.
       %
-      %     See `help SparseLabels/get_uniform_categories` for more info.
+      %     See also SparseLabels/get_uniform_categories
       
       obj.labels = collapse_non_uniform( obj.labels );
     end
@@ -532,7 +537,7 @@ classdef Container
       %   COLLAPSE_IF_NON_UNIFORM -- Collapse a given number of categories,
       %     but only if they are non-uniform.
       %
-      %     See `help SparseLabels/collapse_non_uniform` for more info.
+      %     See also SparseLabels/collapse_non_uniform
       
       obj.labels = collapse_if_non_uniform( obj.labels, varargin{:} );
     end
@@ -542,7 +547,7 @@ classdef Container
       %   COLLAPSE_UNIFORM -- Collapse categories for which there is
       %     only one label present in the category.
       %
-      %     See `help SparseLabels/get_uniform_categories` for more info.
+      %     See also SparseLabels/get_uniform_categories
       
       obj.labels = collapse_uniform( obj.labels );
     end
@@ -1206,11 +1211,20 @@ classdef Container
       end
     end
     
+    function obj = for_each(obj, varargin)
+      
+      %   FOR_EACH -- Alias for `do_recursive`.
+      %
+      %     See also Container/do_recursive
+      
+      obj = do_recursive( obj, varargin{:} );
+    end
+    
     function obj = do(obj, varargin)
       
       %   DO -- Alias for `do_recursive`.
       %
-      %     See `help Container/do_per` for more info.
+      %     See also Container/do_recursive
       
       obj = do_recursive( obj, varargin{:} );
     end
@@ -1225,6 +1239,8 @@ classdef Container
       %
       %     See `help Container/do_per` for more info and restrictions on
       %     the types of functions that can be passed / called.
+      %
+      %     See also Container/do_per
       %
       %     EX. //
       %
@@ -1363,8 +1379,7 @@ classdef Container
       %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
       %         to 1.
       %
-      %     See `help Container/row_op`, `help Container/n_dimension_op` 
-      %     for more information.
+      %     See also Container/row_op, Container/n_dimension_op
       
       if ( nargin < 2 ), dim = 1; end;
       if ( isequal(dim, 1) )
@@ -1382,8 +1397,7 @@ classdef Container
       %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
       %         to 1.
       %
-      %     See `help Container/row_op`, `help Container/n_dimension_op` 
-      %     for more information.
+      %     See also Container/row_op, Container/n_dimension_op
       
       if ( nargin < 2 ), dim = 1; end;
       if ( isequal(dim, 1) )
@@ -1401,8 +1415,7 @@ classdef Container
       %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
       %         to 1.
       %
-      %     See `help Container/row_op`, `help Container/n_dimension_op` 
-      %     for more information.
+      %     See also Container/row_op, Container/n_dimension_op
       
       if ( nargin < 2 ), dim = 1; end;
       if ( isequal(dim, 1) )
@@ -1420,8 +1433,7 @@ classdef Container
       %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
       %         to 1.
       %
-      %     See `help Container/row_op`, `help Container/n_dimension_op` 
-      %     for more information.
+      %     See also Container/row_op, Container/n_dimension_op
       
       if ( nargin < 2 ), dim = 1; end;
       if ( isequal(dim, 1) )
@@ -1439,8 +1451,7 @@ classdef Container
       %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
       %         to 1.
       %
-      %     See `help Container/row_op`, `help Container/n_dimension_op` 
-      %     for more information.
+      %     See also Container/row_op, Container/n_dimension_op
       
       if ( nargin < 2 ), dim = 1; end;
       if ( isequal(dim, 1) )
@@ -1458,8 +1469,7 @@ classdef Container
       %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
       %         to 1.
       %
-      %     See `help Container/row_op`, `help Container/n_dimension_op` 
-      %     for more information.
+      %     See also Container/row_op, Container/n_dimension_op
       
       if ( nargin < 2 ), dim = 1; end;
       if ( isequal(dim, 1) )
@@ -1477,8 +1487,7 @@ classdef Container
       %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
       %         to 1.
       %
-      %     See `help Container/row_op`, `help Container/n_dimension_op` 
-      %     for more information.
+      %     See also Container/row_op, Container/n_dimension_op
       
       if ( nargin < 2 ), dim = 1; end;
       if ( isequal(dim, 1) )
@@ -1653,8 +1662,8 @@ classdef Container
     
     function obj = counts(obj, fields)
       
-      %   COUNTS -- Obtain the number of rows associated with each label in
-      %     the given fields.
+      %   COUNTS -- Obtain the number of rows associated with each
+      %     combination of labels in the given fields.
       %
       %     IN:
       %       - `fields` (cell array of strings, char) -- Fields from which
@@ -1666,17 +1675,71 @@ classdef Container
             
       obj.data = ones( shape(obj, 1), 1 );
       obj.dtype = class( obj.data );
-      obj = do_per( obj, fields, @sum );
+      obj = do_recursive( obj, fields, @sum );
     end
     
-    function obj = proportions(obj, fields)
+    function new_obj = counts_of(obj, fields, labs)
       
-      %   PROPORTIONS -- Obtain the proportion of rows associated with each
-      %     label in the given fields.
+      %   COUNTS_OF -- Obtain the number of rows associated with the given
+      %     labels in the given fields.
+      %
+      %     Unlike `counts()`, `counts_of()` ensures that each set of
+      %     labels associated with each row of `labs` is represented in the
+      %     output. I.e., if a row of `labs` does not exist, the
+      %     `counts_of` associated with that row will be 0.
+      %
+      %     The given `fields` must be present in the object.
       %
       %     IN:
-      %       - `fields` (cell array of strings, char) -- Fields from which
-      %         labels are to be drawn.
+      %       - `fields` (cell array of strings, char) -- Fields
+      %         identifying columns of `labs`.
+      %       - `labs` (cell array of strings) -- MxN matrix of label
+      %         combinations (as obtained by `combs()`). N must equal the
+      %         number of `fields`.
+      %     OUT:
+      %       - `new_obj` (Container) -- Container object whose data are an
+      %         Mx1 column vector identifying the number of elements
+      %         associated with each row of `labs`.
+      
+      fields = Labels.ensure_cell( fields );
+      Assertions.assert__is_cellstr( labs );
+      Assertions.assert__is_cellstr( fields );
+      assert__contains_fields( obj.labels, fields );
+      assert( numel(fields) == size(labs, 2), ['Mismatch between fields' ...
+        , ' and label combinations.'] );
+      new_obj = Container();
+      obj.data = ones( shape(obj, 1), 1 );
+      collapsed = collapse_non_uniform( obj );
+      for i = 1:size(labs, 1)
+        ind = where( obj, labs(i, :) );
+        collapsed = keep_one( collapsed, 1 );
+        for j = 1:numel(fields)
+          collapsed.labels = set_field( collapsed.labels, fields{j} ...
+            , labs{i, j} );
+        end
+        collapsed.data = full( sum(ind) );
+        new_obj = append( new_obj, collapsed );
+      end
+    end
+    
+    function obj = proportions(obj, varargin)
+      
+      %   PROPORTIONS -- Obtain the proportion of rows associated with a
+      %     set of labels.
+      %
+      %     proportions( obj, {'field1', 'field2'} ); returns a proportion
+      %     for each unique combination of labels in fields 'field1' and
+      %     'field2'.
+      %
+      %     proportions( obj, fields, C ); returns a
+      %     proportion for each row of labels in `C`. The number of
+      %     `fields` must match the number of columns in `C`.
+      %
+      %     See `help Container/counts`, `help Container/counts_of` for
+      %     more info.
+      %
+      %     IN:
+      %       - `varargin` (cell array)
       %
       %     OUT:
       %       - `obj` (Container) -- Object whose data are an Mx1 column
@@ -1684,25 +1747,30 @@ classdef Container
       %         unique set of labels in `fields`.
       
       N = shape( obj, 1 );
-      obj = counts( obj, fields );
+      if ( nargin == 2 )
+        obj = counts( obj, varargin{1} );
+      else
+        obj = counts_of( obj, varargin{:} );
+      end
       obj.data = obj.data / N;
     end
     
-    function obj = percentages(obj, fields)
+    function obj = percentages(obj, varargin)
       
-      %   PERCENTAGES -- Obtain the percentage of rows associated with each
-      %     label in the given fields.
+      %   PROPORTIONS -- Obtain the percentage of rows associated with a
+      %     set of labels.
+      %
+      %     See `help Container/proportions` for more info.
       %
       %     IN:
-      %       - `fields` (cell array of strings, char) -- Fields from which
-      %         labels are to be drawn.
+      %       - `varargin` (cell array)
       %
       %     OUT:
       %       - `obj` (Container) -- Object whose data are an Mx1 column
       %         vector of double, with each M(i) corresponding to a
       %         unique set of labels in `fields`.
       
-      obj = proportions( obj, fields );
+      obj = proportions( obj, varargin{:} );
       obj.data = obj.data * 100;
     end
     
