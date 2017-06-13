@@ -201,6 +201,7 @@ classdef Container
       %       - `obj` (Container) -- Object with one row's worth of data
       %         and labels.
       
+      if ( nargin < 2 ), N = 1; end;
       Assertions.assert__isa( N, 'double' );
       assert( isscalar(N), 'Specify a scalar numeric index' );
       ref_struct = struct( 'type', '()', 'subs', {{N}} );
@@ -955,7 +956,7 @@ classdef Container
       if ( ~isa(B, 'Container') ), return; end;
       if ( ~isequal(obj.dtype, B.dtype) ), return; end;
       if ( ne(obj.labels, B.labels) ), return; end;
-      tf = isequal( obj.data, B.data );
+      tf = isequaln( obj.data, B.data );
     end
     
     function tf = ne(obj, B)
