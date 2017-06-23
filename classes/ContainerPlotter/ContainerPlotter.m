@@ -671,6 +671,9 @@ classdef ContainerPlotter < handle
         %   don't match if plotting a single point, in which case the
         %   absolute minimum is equal to the absolute maximum
         if ( mins ~= maxs )
+          lims = arrayfun( @(x) get(x, 'ylim'), h, 'un', false );
+          mins = min( cellfun(@(x) x(1), lims) );
+          maxs = max( cellfun(@(x) x(2), lims) );
           arrayfun( @(x) ylim(x, [mins, maxs]), h );
         end
       end

@@ -1289,6 +1289,13 @@ classdef SparseLabels
       assert__categories_exist( obj, varargin{:} );
     end
     
+    function assert__contains_labels(obj, B)      
+      B = SparseLabels.ensure_cell( B );
+      Assertions.assert__is_cellstr( B );
+      cellfun( @(x) assert(contains(obj, x), ['There is no ''%s''' ...
+        , ' label in the object.'], x), B );
+    end
+    
     function assert__categories_match(obj, B, opts)
       if ( nargin < 3 )
         opts.msg = 'The categories do not match between objects';

@@ -356,6 +356,22 @@ classdef Container
       c = combs( obj.labels, fields );
     end
     
+    function c = pcombs(obj, fields)
+      
+      %   PCOMBS -- Return the unique combinations of labels that are
+      %     present in the object.
+      %
+      %     Of all possible combinations of labels in `fields`, only those
+      %     that have data associated with them will be returned.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char)
+      %     OUT:
+      %       - `c` (cell array of strings)
+      
+      [~, c] = get_indices( obj, fields );
+    end
+    
     function [indices, comb] = get_indices(obj, fields)
       
       %   GET_INDICES -- Get indices associated with the unique
@@ -1043,11 +1059,19 @@ classdef Container
     
     function obj = opc(obj, B, fields, func, varargin)
       
-      %   OPC -- Perform operations *after* collapsing the given fields of
+      %   OPC -- Perform operations after collapsing the given fields of
       %     both inputted objects.
       %
-      %     In all other respects, `opc()` is equivalent to `op`. See `help
-      %     Container/op` for more information on formatting inputs.
+      %     In all other respects, `opc()` is equivalent to `op()`.
+      %
+      %     EXAMPLE:
+      %
+      %     A = opc( A, B, {'dates', 'places'}, @minus ) collapses the
+      %     fields 'dates' and 'places' in both A and B, and then calls the
+      %     function @minus with A and B as inputs. I.e., in this case, A =
+      %     A - B.
+      %
+      %     See also Container/op
       %
       %     IN:
       %       - `B` (Container) -- Second object passed to the function.
@@ -1655,6 +1679,45 @@ classdef Container
       end
       obj.LABELS_ARE_SPARSE = true;
       obj.labels = sparse( obj.labels );
+    end
+    
+    %{
+        MATCHING
+    %}
+    
+    function obj = require(obj, labs)
+      
+      %   REQUIRE -- Require labels to be present in the object.
+      %
+      %     If the labels are not found, the object is made to be empty.
+      %
+      %     This function is primarily designed to be used with the
+      %     `for_each` function.
+      %
+      %     EXAMPLE:
+      %
+      %     obj = obj.for_each( 'days', @require, obj('outcomes') );
+      %     removes days in the object for which not all 'outcomes' are
+      %     present.
+      %
+      %     See also Container/combs Container/for_each
+      %
+      %     IN:
+      %       - `labs` (cell array of strings) -- Label combinations.
+      %         Expected to be an MxN array as obtained from `combs`.
+      %     OUT:
+      %       - `obj` (Container) -- Empty Container object if not all
+      %         `labs` are present in the object, else the original object.
+      
+      labs = Labels.ensure_cell( labs );
+      Assertions.assert__is_cellstr( labs );
+      for i = 1:size(labs, 1)
+        if ( ~any(where(obj, labs(i, :))) )
+          obj = keep_one( obj );
+          obj = keep( obj, false );
+          return;
+        end
+      end
     end
     
     %{
