@@ -449,6 +449,15 @@ classdef ContainerPlotter < handle
         include_errors = false;
       end
       
+      if ( nargin == 3 )
+        group_by = [];
+        within = [];
+      elseif ( nargin == 4 )
+        within = [];
+      else
+        narginchk( 5, Inf );
+      end
+      
       h = group_plot( obj, cont, category, group_by, within, plot_func ...
         , include_errors, plot_opts, varargin{:} );      
     end
@@ -496,6 +505,15 @@ classdef ContainerPlotter < handle
       include_errors = true;
       plot_opts = {};
       
+      if ( nargin == 3 )
+        group_by = [];
+        within = [];
+      elseif ( nargin == 4 )
+        within = [];
+      else
+        narginchk( 5, Inf );
+      end
+      
       try
         h = group_plot( obj, cont, category, group_by, within, plot_func ...
         , include_errors, plot_opts, varargin{:} );     
@@ -526,6 +544,9 @@ classdef ContainerPlotter < handle
       %     OUT:
       %       - `h` (cell array of graphics handles)
       
+      if ( nargin == 3 )
+        panels_are = [];
+      end
       obj.params = obj.parse_params_struct( obj.params, varargin{:} );
       obj.assert__is_container( cont );
       obj.assert__n_dimensional_data( cont, 2 );

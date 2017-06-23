@@ -856,8 +856,9 @@ classdef Container
             %   if the ref is to a method, but is called without (), an
             %   error is thrown. E.g., Container.eq -> error ...
             if ( numel(s) == 0 )
-              error( ['''%s'' is the name of a %s method, but was' ...
-                , ' referenced as if it were a property.'], subs, class(obj) );
+%               error( ['''%s'' is the name of a %s method, but was' ...
+%                 , ' referenced as if it were a property.'], subs, class(obj) );
+              s(1).subs = {};
             end
             inputs = [ {obj} {s(:).subs{:}} ];
             %   assign `out` to the output of func() and return
@@ -1970,6 +1971,139 @@ classdef Container
     end
     
     %{
+        PLOTTING
+    %}
+    
+    function [h, pl] = plot_(obj, func, varargin)
+      
+      %   PLOT_ -- Generalized call to ContainerPlotter plotting function.
+      %
+      %     IN:
+      %       - `func` (function_handle) -- ContainerPlotter plotting
+      %         function.
+      %       - `varargin` (cell array)
+      %     OUT:
+      %       - `h` (axis handle)
+      %       - `pl` (ContainerPlotter) -- Plotting object used to
+      %         construct `h`.
+      
+      assert__container_plotter_present( obj );
+      narginchk( 3, Inf );
+      if ( isa(varargin{1}, 'ContainerPlotter') )
+        pl = varargin{1};
+        varargin(1) = [];
+      else
+        pl = ContainerPlotter();
+      end
+      h = func( pl, obj, varargin{:} );
+    end
+    
+    function [h, pl] = bar(obj, varargin)
+      
+      %   BAR -- Construct a bar plot from the data in the object.
+      %
+      %     bar( obj, 'outcomes' ) creates a bar plot with bars for each
+      %     label in 'outcomes'.
+      %
+      %     bar( obj, 'outcomes', 'doses' ) creates a grouped bar plot
+      %     whose x-axis is 'outcomes', grouped-by 'doses'.
+      %
+      %     bar( obj, 'outcomes', 'doses', 'images' ) creates a separate
+      %     grouped bar plot for each 'images'.
+      %
+      %     bar( obj, pl, ... ) uses the ContainerPlotter object `pl` to
+      %     construct the bar plot, instead of a new (default)
+      %     ContainerPlotter object.
+      %
+      %     h = bar( obj, ... ) returns an array of axis handles for each
+      %     created subplot.
+      %
+      %     [h, pl] = bar( obj, ... ) also returns the ContainerPlotter
+      %     object used to construct `h`.
+      %
+      %     See also ContainerPlotter/bar
+      %
+      %     IN:
+      %       - `varargin` (cell array)
+      %     OUT:
+      %       - `h` (axis handles array) -- Array of axes handles for each
+      %         subplot
+      %       - `pl` (ContainerPlotter)
+      
+      [h, pl] = plot_( obj, @bar, varargin{:} );
+    end
+    
+    function [h, pl] = plot(obj, varargin)
+      
+      %   PLOT -- Plot data in the object as lines or single points.
+      %
+      %     plot( obj, 'outcomes' ) creates a plot whose data-series are
+      %     drawn from the unique labels in 'outcomes'. If data in the
+      %     object are a matrix or column-vector, each data-series will be
+      %     rendered as a line. If data are instead a row-vector or scalar,
+      %     each data-series will be a single point.
+      %
+      %     plot( obj, 'outcomes', 'doses' ) creates a separate line- or
+      %     point-plot for each 'doses'.
+      %
+      %     plot( obj, pl, ... ) uses the ContainerPlotter object `pl` to
+      %     construct the plot, instead of a new (default) ContainerPlotter
+      %     object.
+      %
+      %     h = plot( obj, ... ) returns an array of axis handles for each
+      %     created subplot.
+      %
+      %     [h, pl] = plot( obj, ... ) also returns the ContainerPlotter
+      %     object used to construct `h`.
+      %
+      %     See also ContainerPlotter/plot
+      %
+      %     IN:
+      %       - `varargin` (cell array)
+      %     OUT:
+      %       - `h` (axis handles array) -- Array of axes handles for each
+      %         subplot
+      %       - `pl` (ContainerPlotter)
+      
+      [h, pl] = plot_( obj, @plot, varargin{:} );
+    end
+    
+    function [h, pl] = plot_by(obj, varargin)
+      
+      %   PLOT_BY -- Plot data in the object with error bars.
+      %
+      %     plot_by( obj, 'outcomes' ) creates an error-bar line plot 
+      %     whose x-axis is formed by the unique labels in 'outcomes'.
+      %
+      %     plot_by( obj, 'outcomes', 'doses' ) creates lines for each
+      %     'doses'.
+      %
+      %     plot_by( obj, 'outcomes', 'doses', 'images' ) creates a
+      %     separate plot for each 'images'.
+      %
+      %     plot_by( obj, pl, ... ) uses the ContainerPlotter object `pl`
+      %     to construct the bar plot, instead of a new (default)
+      %     ContainerPlotter object.
+      %
+      %     h = plot_by( obj, ... ) returns an array of axis handles for
+      %     each created subplot.
+      %
+      %     [h, pl] = plot_by( obj, ... ) also returns the ContainerPlotter
+      %     object used to construct `h`.
+      %
+      %     See also ContainerPlotter/plot_by
+      %
+      %     IN:
+      %       - `varargin` (cell array)
+      %     OUT:
+      %       - `h` (axis handles array) -- Array of axes handles for each
+      %         subplot
+      %       - `pl` (ContainerPlotter)
+      
+      [h, pl] = plot_( obj, @plot_by, varargin{:} );
+    end
+    
+    %{
         CONVERSION
     %}
     
@@ -2472,6 +2606,12 @@ classdef Container
     function assert__dtype_is(obj, kind)
       assert( strcmp(obj.dtype, kind), ['Expected the object''s dtype to be ''%s''' ...
         , ' but was ''%s'''], kind, obj.dtype );
+    end
+    
+    function assert__container_plotter_present(obj)      
+      str = which( 'ContainerPlotter' );
+      assert( ~isempty(str), ['The required library ''ContainerPlotter.m''' ...
+        , ' could not be located.'] );
     end
     
   end
