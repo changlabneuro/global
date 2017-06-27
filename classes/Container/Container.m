@@ -1725,19 +1725,42 @@ classdef Container
         DESCRIPTIVES
     %}
     
-    function obj = counts(obj, fields)
+    function obj = counts(obj, varargin)
       
-      %   COUNTS -- Obtain the number of rows associated with each
-      %     combination of labels in the given fields.
+      %   COUNTS -- Obtain the number of observations in the given fields.
+      %
+      %     C = counts( obj, 'days' ) returns an object whose data are the
+      %     number of each label in the field 'days'.
+      %
+      %     C = counts( obj, 'days', days ) returns an object whose data
+      %     are the number of each element of `days`. `days` is an Mx1 cell
+      %     array of strings (such as that returned by `combs()` or
+      %     `pcombs()`). Use this syntax when you wish to count `days` that
+      %     might not be present in the object, in which case those `days`
+      %     will have a count of 0.
+      %
+      %     C = counts( obj, {'days', 'blocks'}, c ) returns an object
+      %     whose data are the number of rows associated with each 'days' x
+      %     'blocks' combination in `c`. `c`, in this case, is an Mx2 cell
+      %     array of strings.
+      %
+      %     See also Container/proportions, Container/for_each
       %
       %     IN:
-      %       - `fields` (cell array of strings, char) -- Fields from which
-      %         labels are to be drawn.
+      %       - `varargin` (cell array of strings, char) -- Fields from
+      %         which labels are to be drawn, and optionally the labels to
+      %         query.
       %     OUT:
       %       - `obj` (Container) -- Object whose data are an Mx1 column
       %         vector of integers, with each M(i) corresponding to a
       %         unique set of labels in `fields`.
-            
+      
+      if ( nargin == 3 )
+        obj = counts_of( obj, varargin{:} );
+        return;
+      end
+      narginchk( 2, 2 );
+      fields = varargin{1};
       obj.data = ones( shape(obj, 1), 1 );
       obj.dtype = class( obj.data );
       obj = do_recursive( obj, fields, @sum );
@@ -1748,12 +1771,14 @@ classdef Container
       %   COUNTS_OF -- Obtain the number of rows associated with the given
       %     labels in the given fields.
       %
-      %     Unlike `counts()`, `counts_of()` ensures that each set of
-      %     labels associated with each row of `labs` is represented in the
-      %     output. I.e., if a row of `labs` does not exist, the
-      %     `counts_of` associated with that row will be 0.
+      %     `counts_of()` ensures that each set of labels associated with 
+      %     each row of `labs` is represented in the output. I.e., if a 
+      %     row of `labs` does not exist, the `counts_of` associated with 
+      %     that row will be 0.
       %
       %     The given `fields` must be present in the object.
+      %
+      %     See also Container/counts
       %
       %     IN:
       %       - `fields` (cell array of strings, char) -- Fields
@@ -1802,8 +1827,7 @@ classdef Container
       %     proportion for each row of labels in `C`. The number of
       %     `fields` must match the number of columns in `C`.
       %
-      %     See `help Container/counts`, `help Container/counts_of` for
-      %     more info.
+      %     See also Container/counts
       %
       %     IN:
       %       - `varargin` (cell array)
@@ -1814,11 +1838,7 @@ classdef Container
       %         unique set of labels in `fields`.
       
       N = shape( obj, 1 );
-      if ( nargin == 2 )
-        obj = counts( obj, varargin{1} );
-      else
-        obj = counts_of( obj, varargin{:} );
-      end
+      obj = counts( obj, varargin{:} );
       obj.data = obj.data / N;
     end
     
@@ -1827,7 +1847,7 @@ classdef Container
       %   PROPORTIONS -- Obtain the percentage of rows associated with a
       %     set of labels.
       %
-      %     See `help Container/proportions` for more info.
+      %     See also Container/proportions
       %
       %     IN:
       %       - `varargin` (cell array)
