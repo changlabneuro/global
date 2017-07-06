@@ -441,6 +441,14 @@ classdef Container
       obj.labels = rm_fields( obj.labels, fields );
     end
     
+    function obj = rm_uniform_fields(obj)
+      
+      %   RM_UNIFORM_FIELDS -- Remove fields for which there is
+      %     only one unique label present.
+      
+      obj.labels = rm_uniform_fields( obj.labels );
+    end
+    
     function obj = add_field(obj, varargin)
       
       %   ADD_FIELD -- Add a new field of labels to the labels object.
@@ -1432,6 +1440,24 @@ classdef Container
       end      
     end
     
+    function obj = median(obj, dim)
+      
+      %   MEDIAN -- Return an object whose data are a median across a given
+      %     dimension.
+      %
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See also Container/row_op, Container/n_dimension_op
+      
+      if ( nargin < 2 ), dim = 1; end;
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @median, 1 );
+      else obj = n_dimension_op( obj, @median, dim );
+      end
+    end
+    
     function obj = sum(obj, dim)
       
       %   SUM -- Return an object whose data have been summed across a
@@ -1520,6 +1546,47 @@ classdef Container
         obj = row_op( obj, @Container.sem_nd, 1 );
       else obj = n_dimension_op( obj, @Container.sem_nd, dim );
       end
+    end
+    
+    function obj = describe(obj, dim, funcs)
+      
+      %   DESCRIBE -- Return descriptive stats within the given
+      %     specificity.
+      %
+      %     obj = describe( obj ) returns the mean, standard-deviation,
+      %     median, min, and max of the data in the object, across the 1st
+      %     dimension (rows). The resulting `obj` has a new field
+      %     'measures' identifying each descriptive statistic.
+      %     Consequently, the incoming object must not have a 'measures'
+      %     field.
+      %
+      %     obj = describe( ..., dim ) calculates the descriptive stats
+      %     across `dim`, instead of 1 (rows).
+      %
+      %     obj = describe( ..., funcs ) uses the functions in `funcs`,
+      %     instead of @mean, @std, @median, @min, and @max.
+      %
+      %     IN:
+      %       - `dim` (double) -- Dimension specifier. Defaults to 1.
+      %       - `funcs` (cell array of function_handle) -- Functions to use
+      %         to calculate the descriptives.
+      
+      if ( nargin < 3 )
+        funcs = { @mean, @median, @std, @min, @max };
+      end
+      if ( nargin < 2 )
+        dim = 1; 
+      end
+      fs = field_names( obj );    
+      assert( ~any(strcmp(fs, 'measures')), ['The object cannot have' ...
+        , ' a ''measures'' field.'] );
+      objs = cellfun( @(x) x(obj, dim), funcs, 'un', false );
+      objs = cellfun( @(x) add_field(x, 'measures'), objs, 'un', false );
+      for i = 1:numel(funcs)
+        func_name = func2str( funcs{i} );
+        objs{i}.labels = set_field( objs{i}.labels, 'measures', func_name );
+      end
+      obj = extend( objs{:} );
     end
     
     %{

@@ -139,6 +139,13 @@ classdef SparseLabels
       uniform = unique_cats( uniform_ind );
     end
     
+    function un = get_uniform_fields(obj)
+      
+      %   GET_UNIFORM_FIELDS -- Alias for `get_uniform_categories()`.
+      
+      un = get_uniform_categories( obj );
+    end
+    
     function non_uniform = get_non_uniform_categories(obj)
       
       %   GET_NON_UNIFORM_CATEGORIES -- Return an array of category names
@@ -149,6 +156,14 @@ classdef SparseLabels
       
       uniform = get_uniform_categories( obj );
       non_uniform = setdiff( unique(obj.categories), uniform );
+    end
+    
+    function non_un = get_non_uniform_fields(obj)
+      
+      %   GET_NON_UNIFORM_FIELDS -- Alias for
+      %     `get_non_uniform_categories()`.
+      
+      non_un = get_non_uniform_categories( obj );
     end
     
     function obj = set_field(obj, cat, set_as, varargin)
@@ -602,6 +617,24 @@ classdef SparseLabels
         obj.categories( ind ) = [];
         obj.indices( :, ind ) = [];
       end      
+    end
+    
+    function obj = rm_uniform_categories(obj)
+      
+      %   RM_UNIFORM_CATEGORIES -- Remove categories for which there is
+      %     only one unique label present.
+      
+      cats = get_uniform_categories( obj );
+      obj = rm_categories( obj, cats );
+    end
+    
+    function obj = rm_uniform_fields(obj)
+      
+      %   RM_UNIFORM_FIELDS -- Alias for `rm_uniform_categories()`.
+      %
+      %     See also SparseLabels/rm_uniform_categories
+      
+      obj = rm_uniform_categories( obj );
     end
     
     %{
