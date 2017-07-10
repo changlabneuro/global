@@ -2790,6 +2790,15 @@ classdef Container
       obj = preallocate( obj, varargin{:} );
     end
     
+    function obj = from(obj)
+      
+      %   FROM -- Alias for `create_from()`.
+      %
+      %     See also Container/create_from
+      
+      obj = Container.create_from( obj );
+    end
+    
     function obj = create_from(obj)
       
       %   CREATE_FROM -- create a Container from another class of object.
