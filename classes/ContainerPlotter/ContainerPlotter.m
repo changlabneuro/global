@@ -268,6 +268,7 @@ classdef ContainerPlotter < handle
       for i = 1:numel(inds)
         one_panel = keep( cont, inds{i} );
         title_labels = strjoin( flat_uniques(one_panel.labels, within), ' | ' );
+        title_labels = strrep( title_labels, '_', ' ' );
         if ( ~isempty(group_by) )
           add_legend = obj.params.add_legend;
           [group_inds, group_combs] = get_indices( one_panel, group_by );
@@ -357,10 +358,13 @@ classdef ContainerPlotter < handle
           hold off;
         end
         set( gca, 'xtick', 1:numel(labs) );
-        set( gca, 'xticklabel', labs );
+        ticklabs = cellfun( @(x) strrep(x, '_', ' '), labs, 'un', false );
+        set( gca, 'xticklabel', ticklabs );
         current_axis = gca;
         title( title_labels );
         if ( add_legend )
+          legend_items = cellfun( @(x) strrep(x, '_', ' '), legend_items ...
+            , 'un', false );
           legend( legend_items );
         end
         obj.apply_if_not_empty( current_axis );
@@ -683,6 +687,7 @@ classdef ContainerPlotter < handle
         current_axis = gca;
         title( title_labels );
         if ( add_legend )
+          legend_items = strrep( legend_items, '_', ' ' );
           legend( one_line, legend_items );
         end
         obj.apply_if_not_empty( current_axis );
@@ -786,6 +791,7 @@ classdef ContainerPlotter < handle
         if ( ~isempty(within) )
           title_labels = ...
             strjoin( flat_uniques(conts_panel{1}.labels, within), ' | ' );
+          title_labels = strrep( title_labels, '_', ' ' );
         else title_labels = obj.params.title;
         end
         if ( ~isempty(categories) )
