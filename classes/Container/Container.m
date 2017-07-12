@@ -312,6 +312,27 @@ classdef Container
       [ind, fields] = where_substr( obj.labels, substrs );
     end
     
+    function tf = contains(obj, labs)
+      
+      %   CONTAINS -- Return whether the given labels are present in the
+      %     Container's labels object.
+      %
+      %     tf = contains( obj, 'ny' ) returns true if 'ny' is a label
+      %     present in the Container's labels object.
+      %
+      %     tf = contains( obj, {'ny', 'la'} ) returns a 1x2 logical array
+      %     where tf(1) corresponds to 'ny', and tf(2) to 'la'.
+      %
+      %     See also Labels/contains, SparseLabels/contains
+      %
+      %     IN:
+      %       - `labs` (cell array of strings, char)
+      %     OUT:
+      %       - `tf` (logical)
+      
+      tf = contains( obj.labels, labs );
+    end
+    
     %{
         ITERATION
     %}
