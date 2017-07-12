@@ -2126,9 +2126,9 @@ classdef Container
       %
       %     plot( obj, 'outcomes' ) creates a plot whose data-series are
       %     drawn from the unique labels in 'outcomes'. If data in the
-      %     object are a matrix or column-vector, each data-series will be
-      %     rendered as a line. If data are instead a row-vector or scalar,
-      %     each data-series will be a single point.
+      %     object are a matrix or row-vector, each data-series will be
+      %     rendered as a line. If data are instead a column-vector or
+      %     scalar, each data-series will be a single point.
       %
       %     plot( obj, 'outcomes', 'doses' ) creates a separate line- or
       %     point-plot for each 'doses'.
