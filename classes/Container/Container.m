@@ -1284,6 +1284,44 @@ classdef Container
       obj = do_recursive( obj, varargin{:} );
     end
     
+    function out = pdo_recursive(obj, within, func)
+      
+      within = Labels.ensure_cell( within );
+      Assertions.assert__is_cellstr( within );
+      Assertions.assert__isa( func, 'function_handle' );
+      use_par = true;
+      p = gcp( 'nocreate' );
+      if ( isempty(p) )
+        warning( 'No parallel pool exists. Using non-parallelized function.' );
+        use_par = false;
+      end
+      if ( numel(within) < 2 )
+        use_par = false;
+      end
+      if ( ~use_par )
+        out = do_recursive( obj, within, func );
+        return;
+      end
+      first = within(1:2);
+      rest = within(3:end);
+      psize = p.NumWorkers;
+      C = pcombs( obj, first );
+      NC = size( C, 1 );
+      if ( psize > NC )
+        N = NC;
+      else
+        N = psize;
+      end      
+      if ( NC > N )
+        %binned
+      end
+      spmd (N)
+        subset = only( obj, C(labindex, :) );
+        subset_out = do_recursive( subset, rest, func );
+      end
+      out = extend( subset_out{:} );
+    end
+    
     function out = do_recursive(obj, varargin)
       
       %   DO_RECURSIVE -- Apply a function to the data associated with each
@@ -2869,6 +2907,15 @@ classdef Container
       labels = labs(2:2:end);
       labels = cellfun( @(x) Labels.ensure_cell(x), labels, 'un', false );
       cellfun( @(x) Assertions.assert__is_cellstr(x), labels );
+      for i = 1:numel(labels)
+        lab = labels{i};
+        if ( size(data, 1) ~= numel(lab) )
+          assert( numel(lab) == 1, ['The number of labels must' ...
+            , ' match the number of rows in `data`, unless there is only' ...
+            , ' one label.'] );
+          labels{i} = repmat( lab, size(data, 1), 1 );
+        end
+      end
       labels = cellfun( @(x) x(:), labels, 'un', false );
       labels = cellfun( @(x) {x}, labels, 'un', false );
       struct_input = cell( size(labs) );
