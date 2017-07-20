@@ -176,6 +176,54 @@ classdef SparseLabels
       obj = set_category( obj, cat, set_as, varargin{:} );
     end
     
+    function obj = set_category_cell(obj, cat, set_as, index)
+      
+      %   SET_CATEGORY_CELL -- Assign all or part of a given category to a
+      %     given set of labels.
+      %
+      %     obj = set_category_cell( obj, 'rewards', {'high'; 'low'} )
+      %     changes the contents of the category 'rewards' such that the
+      %     first label in 'rewards' is 'high', and the second is
+      %     'low'. In this case, the object's `indices` matrix must have
+      %     2 rows.
+      %
+      %     obj = set_category_cell( ..., {'high; 'low'}, index ); places
+      %     elements 'high' and 'low' in the locations specified by
+      %     `index`. In this case, `index` must be a column-vector with the
+      %     same number of rows as the object, and the sum of `index` must
+      %     equal the number of to-be-assigned labels (in this example, 2).
+      %
+      %     See also SparseLabels/set_category
+      %
+      %     IN:
+      %       - `cat` (char) -- Category to set.
+      %       - `set_as` (cell array of strings) -- Labels to assign to the
+      %         category.
+      %       - `index` (logical) |OPTIONAL| -- Optionally specify the
+      %         rows at which to place the elements of `set_as`.
+      
+      if ( nargin < 4 )
+        index = rep_logic( obj, true );
+      end
+      Assertions.assert__is_cellstr( set_as );
+      Assertions.assert__isa( cat, 'char' );
+      assert__is_properly_dimensioned_logical( obj, index );
+      nset = numel( set_as );
+      if ( nset > 1 )
+        assert( sum(index) == nset, ['If assigning more than one label,' ...
+          , ' the number of true elements in the index must match the' ...
+          , ' number of assigned-labels.'] );
+      end
+      unqs = unique( set_as );
+      for i = 1:numel(unqs)
+        val = unqs{i};
+        index_ = index;
+        ind = strcmp( set_as, val );
+        index_( ~ind ) = false;
+        obj = set_category( obj, cat, val, index_ );
+      end
+    end
+    
     function obj = set_category(obj, cat, set_as, index)
       
       %   SET_CATEGORY -- Assign all labels in a given category to a
@@ -201,8 +249,13 @@ classdef SparseLabels
       if ( ~any(index) ), return; end;
       char_msg = 'Expected %s to be a char; was a ''%s''';
       assert( isa(cat, 'char'), char_msg, 'category name', class(cat) );
-      assert( isa(set_as, 'char'), char_msg, 'the labels-to-be-set' ... 
-        , class(set_as) );
+      if ( iscell(set_as) )
+        obj = set_category_cell( obj, cat, set_as, index );
+        return;
+      else
+        assert( isa(set_as, 'char'), char_msg, 'the labels-to-be-set' ... 
+          , class(set_as) );
+      end
       assert( contains_categories(obj, cat), ['The specified category ''%s''' ...
         , ' does not exist'], cat );
       labels_to_replace = labels_in_category( obj, cat );
@@ -810,6 +863,25 @@ classdef SparseLabels
       to_keep = cellfun( @(x) all(cellfun(@(y) ~isempty(strfind(x, y)), substrs)) ...
         , labs );
       [ind, cats] = where( obj, labs(to_keep) );
+    end
+    
+    function inds = find_labels(obj, labs)
+      
+      %   FIND_LABELS -- Obtain the index of the given labels in the
+      %     obj.labels array.
+      %
+      %     An error is thrown if any of the labels in `labs` are not
+      %     found.
+      %
+      %     IN:
+      %       - `labs` (cell array of strings, char)
+      %     OUT:
+      %       - `inds` (double) -- Numeric indices.
+      
+      labs = SparseLabels.ensure_cell( labs );
+      cellfun( @(x) assert(contains(obj, x), 'Could not find ''%s''.' ...
+        , x), labs, 'un', false );
+      inds = cellfun( @(x) find(strcmp(obj.labels, x)), labs );
     end
     
     %{

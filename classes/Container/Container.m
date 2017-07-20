@@ -51,7 +51,7 @@ classdef Container
       %     rwds = rwds( randperm(numel(rwds)) );
       %     cont = Container( data, 'outcomes', outs, 'rewards', rwds );
       
-      if ( nargin == 0 ), return; end;
+      if ( nargin == 0 ), return; end
       if ( nargin == 2 )
         data = varargin{1};
         labels = varargin{2};
@@ -81,7 +81,7 @@ classdef Container
       %     IN:
       %       - `to` ('on' or 'off')
       
-      if ( nargin < 2 ), return; end;
+      if ( nargin < 2 ), return; end
       if ( isequal(to, 'on') )
         obj.VERBOSE = true; 
         obj.labels = verbosity( obj.labels, 'on' ); return; 
@@ -133,7 +133,7 @@ classdef Container
       %       - `s` (double) -- dimensions.
       
       s = size( obj.data );
-      if ( nargin < 2 ), return; end;
+      if ( nargin < 2 ), return; end
       s = s( dim );
     end
     
@@ -201,7 +201,7 @@ classdef Container
       %       - `obj` (Container) -- Object with one row's worth of data
       %         and labels.
       
-      if ( nargin < 2 ), N = 1; end;
+      if ( nargin < 2 ), N = 1; end
       Assertions.assert__isa( N, 'double' );
       assert( isscalar(N), 'Specify a scalar numeric index' );
       ref_struct = struct( 'type', '()', 'subs', {{N}} );
@@ -495,9 +495,9 @@ classdef Container
       
       fs = SparseLabels.ensure_cell( fs );
       Assertions.assert__is_cellstr( fs );
-      if ( isempty(fs) ), return; end;
+      if ( isempty(fs) ), return; end
       are_present = contains_fields( obj.labels, fs );
-      if ( all(are_present) ), return; end;
+      if ( all(are_present) ), return; end
       new_fs = fs( ~are_present );
       for i = 1:numel(new_fs)
         obj = obj.add_field( new_fs{i} );
@@ -999,9 +999,9 @@ classdef Container
       %       - `tf` (logical) -- true or false.
       
       tf = false;
-      if ( ~isa(B, 'Container') ), return; end;
-      if ( ~isequal(obj.dtype, B.dtype) ), return; end;
-      if ( ne(obj.labels, B.labels) ), return; end;
+      if ( ~isa(B, 'Container') ), return; end
+      if ( ~isequal(obj.dtype, B.dtype) ), return; end
+      if ( ne(obj.labels, B.labels) ), return; end
       tf = isequaln( obj.data, B.data );
     end
     
@@ -1015,7 +1015,7 @@ classdef Container
     
     function tf = shapes_match(obj, B)
       tf = false;
-      if ( ~isa(B, 'Container') ), return; end;
+      if ( ~isa(B, 'Container') ), return; end
       tf = all( shape(obj) == shape(B) );
     end
     
@@ -1039,7 +1039,7 @@ classdef Container
       %       - `obj` (Container) -- object with `B` appended.
       
       Assertions.assert__isa( B, 'Container' );
-      if ( isempty(obj) ), obj = B; return; end;
+      if ( isempty(obj) ), obj = B; return; end
       assert__columns_match( obj, B );
       assert__dtypes_match( obj, B );
       obj.labels = append( obj.labels, B.labels );
@@ -1256,7 +1256,7 @@ classdef Container
       new_obj = Container();
       for i = 1:size(c, 1)
         ind = where( obj, c(i, :) );
-        if ( ~any(ind) ), continue; end;
+        if ( ~any(ind) ), continue; end
         extr = keep( obj, ind );
         result = func( extr, varargin{:} );
         assert( isa(result, 'Container'), ['The returned value of a function' ...
@@ -1474,7 +1474,7 @@ classdef Container
       %
       %     See also Container/row_op, Container/n_dimension_op
       
-      if ( nargin < 2 ), dim = 1; end;
+      if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @mean, 1 );
       else obj = n_dimension_op( obj, @mean, dim );
@@ -1492,7 +1492,7 @@ classdef Container
       %
       %     See also Container/row_op, Container/n_dimension_op
       
-      if ( nargin < 2 ), dim = 1; end;
+      if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @nanmean, 1 );
       else obj = n_dimension_op( obj, @nanmean, dim );
@@ -1510,7 +1510,7 @@ classdef Container
       %
       %     See also Container/row_op, Container/n_dimension_op
       
-      if ( nargin < 2 ), dim = 1; end;
+      if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @median, 1 );
       else obj = n_dimension_op( obj, @median, dim );
@@ -1528,7 +1528,7 @@ classdef Container
       %
       %     See also Container/row_op, Container/n_dimension_op
       
-      if ( nargin < 2 ), dim = 1; end;
+      if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @sum, 1 );
       else obj = n_dimension_op( obj, @sum, dim );
@@ -1546,7 +1546,7 @@ classdef Container
       %
       %     See also Container/row_op, Container/n_dimension_op
       
-      if ( nargin < 2 ), dim = 1; end;
+      if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @min, [], 1 );
       else obj = n_dimension_op( obj, @min, [], dim );
@@ -1564,7 +1564,7 @@ classdef Container
       %
       %     See also Container/row_op, Container/n_dimension_op
       
-      if ( nargin < 2 ), dim = 1; end;
+      if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @max, [], 1 );
       else obj = n_dimension_op( obj, @max, [], dim );
@@ -1582,7 +1582,7 @@ classdef Container
       %
       %     See also Container/row_op, Container/n_dimension_op
       
-      if ( nargin < 2 ), dim = 1; end;
+      if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @std, [], 1 );
       else obj = n_dimension_op( obj, @std, [], dim );
@@ -1600,7 +1600,7 @@ classdef Container
       %
       %     See also Container/row_op, Container/n_dimension_op
       
-      if ( nargin < 2 ), dim = 1; end;
+      if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @Container.sem_nd, 1 );
       else obj = n_dimension_op( obj, @Container.sem_nd, dim );
@@ -1673,12 +1673,12 @@ classdef Container
       
       assert( ~obj.LABELS_ARE_SPARSE, ['Cannot compress a Container with' ...
         , ' SparseLabels.'] );
-      if ( nargin < 2 ), rows = shape(obj, 1); end;
+      if ( nargin < 2 ), rows = shape(obj, 1); end
       if ( nargin < 3 )
         comp = Container();
         comp = preallocate( comp, cell(rows, 1), nfields(obj.labels) );
       end
-      if ( isempty(obj) ), comp = cleanup( comp ); return; end;
+      if ( isempty(obj) ), comp = cleanup( comp ); return; end
       if ( obj.VERBOSE )
         fprintf( '\n ! Container/compress: Remaining items: %d', shape(obj, 1) );
       end
@@ -1727,7 +1727,7 @@ classdef Container
       %     -> cell(n). Note again that the number of columns must be
       %     consistent across all inner arrays.
       
-      if ( nargin < 2 ), rows = shape(obj, 1); end;
+      if ( nargin < 2 ), rows = shape(obj, 1); end
       if ( ~obj.IGNORE_CHECKS )
         if ( isequal(obj.dtype, 'double') )
           opts.msg = 'The object is already decompressed';
@@ -2038,7 +2038,7 @@ classdef Container
       %   COLUMNIZE -- Ensure labels and categories are stored row-wise
       %     in SparseLabels
       
-      if ( ~obj.LABELS_ARE_SPARSE ), return; end;
+      if ( ~obj.LABELS_ARE_SPARSE ), return; end
       obj.labels = columnize( obj.labels );      
     end
     
@@ -2079,7 +2079,7 @@ classdef Container
           else func = @methods; reformatted_format = '%s/%s()';
           end
           matches = Container.matches_substring( str, func(current_obj), 2, 4 );
-          if ( isempty(matches) ), continue; end;
+          if ( isempty(matches) ), continue; end
           matches = ...
             cellfun( @(x) sprintf(reformatted_format, obj_kind, x), matches, ...
             'UniformOutput', false );
@@ -2106,14 +2106,32 @@ classdef Container
       %       - 'logic' (logical) -- logical column vector true at each 
       %         value in `ind`, and false elsewhere.
       
-      if ( islogical(ind) ), logic = ind; return; end;
+      if ( islogical(ind) ), logic = ind; return; end
       logic = false( shape(obj, 1), 1 );
-      if ( isempty(ind) ), return; end;
+      if ( isempty(ind) ), return; end
       assert( isvector(ind), 'The array cannot be a matrix' );
       assert( all(ind > 0), 'The index to-be-converted cannot contain 0s' );
       assert( max(ind) <= shape(obj, 1), 'Requested index is out of bounds' );
       assert( all( sign(diff(ind)) == 1 ), 'The index must be continuously increasing' );
       logic(ind) = true;
+    end
+    
+    function tfs = logic(obj, tf)
+      
+      %   LOGIC -- Return a logical column-vector with the same number of
+      %     rows as the object.
+      %
+      %     IN:
+      %       - `tf` (true, false)
+      %     OUT:
+      %       - `tfs` (logical)
+      
+      Assertions.assert__isa( tf, 'logical' );
+      if ( tf )
+        tfs = true( shape(obj, 1), 1 );
+      else
+        tfs = false( shape(obj, 1), 1 );
+      end
     end
     
     %{
@@ -2375,7 +2393,7 @@ classdef Container
       if ( one_empty || both_empty )
         auto_set = get_non_uniform_categories( obj.labels );
         all_fields = field_names( obj );
-        if ( isempty(auto_set) ), auto_set = all_fields(1); end;
+        if ( isempty(auto_set) ), auto_set = all_fields(1); end
       end
       if ( one_empty )
         %   If rows are specified OR columns are specified, but not both,
@@ -2440,7 +2458,7 @@ classdef Container
       for i = 1:n_rows
         for j = 1:n_cols
           extr = only( obj, [row_labs(i, :), col_labs(j, :)] );
-          if ( isempty(extr) ), continue; end;
+          if ( isempty(extr) ), continue; end
           cols{j}{i} = extr.data;
         end
       end
@@ -2463,8 +2481,8 @@ classdef Container
       function str = str_joiner( arr, delimiter )
         %   STR_JOINER -- Join a cell array of cell arrays of strings such
         %     that each row of `str` is a char
-        if ( size(arr, 2) == 1 ), str = arr; return; end;
-        if ( nargin < 2 ), delimiter = ' | '; end;
+        if ( size(arr, 2) == 1 ), str = arr; return; end
+        if ( nargin < 2 ), delimiter = ' | '; end
         str = cell( size(arr, 1), 1 );
         for ii = 1:size( arr, 1 )
           str{ii} = strjoin( arr(ii, :), delimiter );
@@ -2508,7 +2526,7 @@ classdef Container
       %     OUT:
       %       - `out` (cell array)
       
-      if ( obj.LABELS_ARE_SPARSE ), obj = full( obj ); end;
+      if ( obj.LABELS_ARE_SPARSE ), obj = full( obj ); end
       dat = cell( shape(obj, 1), 1 );
       for i = 1:numel(dat)
         dat{i} = obj.data(i, :);
@@ -2676,7 +2694,7 @@ classdef Container
       assert( obj.IS_PREALLOCATING, ...
         'Can only populate after an explicit call to preallocate()' );
       
-      if ( isempty(with) ), return; end;
+      if ( isempty(with) ), return; end
       if ( ~obj.BEEN_POPULATED ), obj.BEEN_POPULATED = true; end
       
       assert__dtypes_match( obj, with );
@@ -2698,7 +2716,7 @@ classdef Container
       %     is an error to call cleanup() before at least one call to
       %     populate() has been made.
       
-      if ( ~obj.IS_PREALLOCATING ), return; end;
+      if ( ~obj.IS_PREALLOCATING ), return; end
       assert( obj.BEEN_POPULATED, ...
         'The object must be populated before it can be cleaned up' );
       obj.IS_PREALLOCATING = false;
@@ -2960,11 +2978,11 @@ classdef Container
       assert( max_length > 0, 'Maximum string length must be greater than 0' );
       assert( max_length > min_length, ...
         'Maximum string length must be greater than minimum string length' );
-      if ( numel(str) < min_length ), return; end;
-      if ( numel(str) > max_length ), str = str(1:max_length); end;
+      if ( numel(str) < min_length ), return; end
+      if ( numel(str) > max_length ), str = str(1:max_length); end
       too_big = cellfun( @(x) numel(x) < numel(str), comparitors );
       comparitors(too_big) = [];
-      if ( isempty(comparitors) ), return; end;
+      if ( isempty(comparitors) ), return; end
       does_match = cellfun( @(x) any(min(strfind(x, str)) == 1), comparitors );
       matches = comparitors( does_match );
       
