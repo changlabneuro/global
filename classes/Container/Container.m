@@ -1275,6 +1275,15 @@ classdef Container
       obj = do_recursive( obj, varargin{:} );
     end
     
+    function obj = parfor_each(obj, varargin)
+      
+      %   FOR_EACH -- Alias for `pdo_recursive`.
+      %
+      %     See also Container/pdo_recursive
+      
+      obj = pdo_recursive( obj, varargin{:} );
+    end
+    
     function obj = do(obj, varargin)
       
       %   DO -- Alias for `do_recursive`.
@@ -1284,7 +1293,12 @@ classdef Container
       obj = do_recursive( obj, varargin{:} );
     end
     
-    function out = pdo_recursive(obj, within, func)
+    function out = pdo_recursive(obj, within, func, varargin)
+      
+      %   PDO_RECURSIVE -- Recursively apply a function to the unique
+      %     combinations of labels in the given fields, in parallel.
+      %
+      %     See also Container/do_recursive
       
       within = Labels.ensure_cell( within );
       Assertions.assert__is_cellstr( within );
@@ -1299,25 +1313,49 @@ classdef Container
         use_par = false;
       end
       if ( ~use_par )
-        out = do_recursive( obj, within, func );
+        out = do_recursive( obj, within, func, varargin{:} );
         return;
       end
-      first = within(1:2);
-      rest = within(3:end);
+      max_n = min( 2, numel(within) );
       psize = p.NumWorkers;
+      first = within(1:max_n);
+      rest = within(max_n+1:end);
       C = pcombs( obj, first );
       NC = size( C, 1 );
       if ( psize > NC )
         N = NC;
       else
         N = psize;
-      end      
+      end
       if ( NC > N )
-        %binned
+        cmbs = cell( 1, N );
+        n_per = floor( NC / N );
+        stp = 1;
+        i = 1;
+        should_continue = true;
+        while ( should_continue )
+          cmbs{i} = C(stp:stp+n_per-1, :);
+          i = i + 1;
+          stp = stp + n_per;
+          should_continue = (stp+n_per-1) < NC && i < N;
+        end
+        cmbs{end} = C(stp:end, :);
+      else
+        cmbs = cell( 1, N );
+        for i = 1:size(C, 1)
+          cmbs{i} = C(i, :);
+        end
       end
       spmd (N)
-        subset = only( obj, C(labindex, :) );
-        subset_out = do_recursive( subset, rest, func );
+        C_ = cmbs{labindex};
+        subset_out = Container();
+        for i = 1:size(C_, 1)
+          subset = obj;
+          row = C_(i, :);
+          subset = only( subset, row );
+          subset = do_recursive( subset, rest, func, varargin{:} );
+          subset_out = append( subset_out, subset );
+        end
       end
       out = extend( subset_out{:} );
     end

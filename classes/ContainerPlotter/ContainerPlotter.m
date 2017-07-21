@@ -1266,6 +1266,30 @@ classdef ContainerPlotter < handle
       reformatted = [reformatted; actual(full_ind)];
     end
     
+    function y = mean_1d(x)
+      
+      %   MEAN_1D -- Mean across the first dimension.
+      %
+      %     IN:
+      %       - `x` (double) -- Data.
+      %     OUT:
+      %       - `y` (double) -- Vector of the same size as `x`. 
+      
+      y = mean( x, 1 );
+    end
+    
+    function y = median_1d(x)
+      
+      %   MEDIAN_1D -- Median across the first dimension.
+      %
+      %     IN:
+      %       - `x` (double) -- Data.
+      %     OUT:
+      %       - `y` (double) -- Vector of the same size as `x`. 
+      
+      y = median( x, 1 );
+    end
+    
     function y = sem_1d(x)
       
       %   SEM_1D -- Standard error across the first dimension.
@@ -1277,6 +1301,24 @@ classdef ContainerPlotter < handle
       
       N = size( x, 1 );
       y = ContainerPlotter.std_1d( x ) / sqrt( N );
+    end
+    
+    function y = mad_1d(x)
+      
+      %   MAD_1D -- Median absolute deviation across the first dimension.
+      %
+      %     IN:
+      %       - `x` (double) -- Data.
+      %     OUT:
+      %       - `y` (double) -- Vector of the same size as `x`.
+      
+      med = median( x, 1 );
+      diffed = zeros( size(x) );
+      for i = 1:size( x, 2 )
+        diffed(:, i) = x(:, i) - med(i);
+      end
+      diffed = abs( diffed );
+      y = median( diffed, 1 );
     end
     
     function y = std_1d(x)
