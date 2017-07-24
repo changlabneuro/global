@@ -1275,15 +1275,6 @@ classdef Container
       obj = do_recursive( obj, varargin{:} );
     end
     
-    function obj = parfor_each(obj, varargin)
-      
-      %   FOR_EACH -- Alias for `pdo_recursive`.
-      %
-      %     See also Container/pdo_recursive
-      
-      obj = pdo_recursive( obj, varargin{:} );
-    end
-    
     function obj = do(obj, varargin)
       
       %   DO -- Alias for `do_recursive`.
@@ -1293,33 +1284,71 @@ classdef Container
       obj = do_recursive( obj, varargin{:} );
     end
     
-    function out = pdo_recursive(obj, within, func, varargin)
+    function out = parfor_each(obj, varargin)
       
-      %   PDO_RECURSIVE -- Recursively apply a function to the unique
-      %     combinations of labels in the given fields, in parallel.
+      %   PARFOR_EACH -- Apply a function to the unique combinations of
+      %     labels in the given fields, in parallel.
+      %
+      %     obj = parfor_each( obj, 'date', @mean ) creates separate
+      %     data subsets for each 'date', distributes those subsets
+      %     among N workers, and allows each worker to independently
+      %     calculate a mean for each 'date' in its subset. N is either the
+      %     number of workers in the current parpool, or the number of
+      %     'date's, if there are fewer 'date's than workers. If no pool
+      %     exists, no pool is created, and the non-parellelized version of
+      %     for_each is called instead.
+      %
+      %     obj = parfor_each( obj, {'date', 'region'}, @mean ) works the
+      %     same as above, but subsets are drawn from the unique
+      %     combinations of 'date' and 'region'.
+      %
+      %     obj = parfor_each( obj, {'date', 'region'}, 'date', @mean )
+      %     works the same as above, but subsets are drawn only from
+      %     'date'. Specifying 'date' in this way does not change the
+      %     output `obj`; it only changes the way subsets of `obj` are
+      %     distributed among workers.
+      %
+      %     obj = parfor_each( obj, ..., func, in1, in2, ... inN ) applies
+      %     the inputs `in1` ... `inN` to each call of `func`.
+      %
+      %     IN:
+      %       - `varargin` (cell array)
       %
       %     See also Container/do_recursive
       
-      within = Labels.ensure_cell( within );
+      narginchk( 3, Inf );
+      within = Labels.ensure_cell( varargin{1} );
       Assertions.assert__is_cellstr( within );
-      Assertions.assert__isa( func, 'function_handle' );
-      use_par = true;
+      within = unique( within );
+      if ( isa(varargin{2}, 'function_handle') )
+        func = varargin{2};
+        max_n = max( 2, numel(within) );
+        first = within(1:max_n);
+        rest = within(max_n+1:end);
+        varargin(1:2) = [];
+      else
+        msg = sprintf( ['Expected input #3 to be a ''function_handle''' ...
+          , ' instead was a ''%s'''], class(varargin{2}) );
+        assert( nargin > 3, 'Incorrect number of inputs.' );
+        assert( isa(varargin{3}, 'function_handle'), msg );
+        parlabs = Labels.ensure_cell( varargin{2} );
+        Assertions.assert__is_cellstr( parlabs );
+        parlabs = unique( parlabs );
+        assert( isempty(setdiff(parlabs, within)), ['If specifying fields' ...
+          , ' from which to create separate distributions, those fields' ...
+          , ' must be contained in `within`.'] );
+        func = varargin{3};
+        first = parlabs;
+        rest = setdiff( within, parlabs );
+        varargin(1:3) = [];
+      end
       p = gcp( 'nocreate' );
       if ( isempty(p) )
         warning( 'No parallel pool exists. Using non-parallelized function.' );
-        use_par = false;
-      end
-      if ( numel(within) < 2 )
-        use_par = false;
-      end
-      if ( ~use_par )
         out = do_recursive( obj, within, func, varargin{:} );
         return;
       end
-      max_n = min( 2, numel(within) );
       psize = p.NumWorkers;
-      first = within(1:max_n);
-      rest = within(max_n+1:end);
       C = pcombs( obj, first );
       NC = size( C, 1 );
       if ( psize > NC )
