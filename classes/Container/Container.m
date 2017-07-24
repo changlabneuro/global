@@ -1319,10 +1319,12 @@ classdef Container
       narginchk( 3, Inf );
       within = Labels.ensure_cell( varargin{1} );
       Assertions.assert__is_cellstr( within );
+      dup_msg = 'At least one duplicate %s field was specified.';
+      assert( numel(unique(within)) == numel(within), dup_msg, 'within' );
       within = unique( within );
       if ( isa(varargin{2}, 'function_handle') )
         func = varargin{2};
-        max_n = max( 2, numel(within) );
+        max_n = min( 2, numel(within) );
         first = within(1:max_n);
         rest = within(max_n+1:end);
         varargin(1:2) = [];
@@ -1333,7 +1335,7 @@ classdef Container
         assert( isa(varargin{3}, 'function_handle'), msg );
         parlabs = Labels.ensure_cell( varargin{2} );
         Assertions.assert__is_cellstr( parlabs );
-        parlabs = unique( parlabs );
+        assert( numel(unique(parlabs)) == numel(parlabs), dup_msg, 'parallel' );
         assert( isempty(setdiff(parlabs, within)), ['If specifying fields' ...
           , ' from which to create separate distributions, those fields' ...
           , ' must be contained in `within`.'] );
@@ -1839,6 +1841,43 @@ classdef Container
         decomped = populate( decomped, extr );
       end
       decomped = cleanup( decomped );
+    end
+    
+    function new_obj = subsample(obj, fields, n, can_replace)
+      
+      %   SUBSAMPLE -- Select, at random, a subset of label combinations,
+      %     with or without replacement.
+      %
+      %     newobj = subsample( obj, 'date', 10 ); returns a new object
+      %     containing data associated with 10 'date's, selected at random,
+      %     without replacement. In this case, there must be at least 10
+      %     'date' labels in the object.
+      %
+      %     newobj = subsample( obj, 'date', 10, true ) works as above, but
+      %     allows replacement. In this case, there can be fewer than 10
+      %     'date' labels in the object.
+      %
+      %     newobj = subsample( obj, {'date', 'city'}, 10 ) works as above,
+      %     but selects 10 'date' x 'city' pairs.
+      
+      if ( nargin < 4 ), can_replace = false; end
+      assert( isscalar(n), 'Specify the number of samples as a scalar number.' );
+      C = pcombs( obj, fields );
+      NC = size( C, 1 );
+      if ( ~can_replace )
+        assert( NC >= n, ['If subsampling without replacement,' ...
+          , ' the maximum number of samples for this set of label' ...
+          , ' combinations is %d; %d were requested.'], NC, n );
+        ind = randperm( NC, n );
+      else
+        ind = datasample( 1:NC, n, 'Replace', true );
+      end
+      sub_combs = C( ind, : );
+      ind = logic( obj, false );
+      for i = 1:size(sub_combs, 1)
+        ind = ind | where( obj, sub_combs(i, :) );
+      end
+      new_obj = keep( obj, ind );
     end
     
     %{
