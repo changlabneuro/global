@@ -46,6 +46,27 @@ classdef SparseLabels
     end
     
     %{
+        STATE
+    %}
+    
+    function obj = verbosity(obj, to)
+      
+      %   VERBOSITY -- turn more descriptive / debug messages 'on' or
+      %     'off'. 
+      %
+      %     If no inputs are specified, the object is returned unchanged. 
+      %     If `to` is neither 'on' nor 'off', the object is returned 
+      %     unchanged.
+      %
+      %     IN:
+      %       - `to` ('on' or 'off')
+      
+      if ( nargin < 2 ), return; end
+      if ( isequal(to, 'on') ), obj.VERBOSE = true; return; end
+      if ( isequal(to, 'off') ), obj.VERBOSE = false; return; end
+    end
+    
+    %{
         SIZE / SHAPE
     %}
     

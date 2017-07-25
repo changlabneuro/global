@@ -143,6 +143,7 @@ classdef FigureEdit < handle
       %     IN:
       %       - `filename` (char)
       
+      if ( obj.is_open() ), obj.close(); end
       FigureEdit.assert__file_exists( filename );
       obj.figure = openfig( filename );
       obj.filename = filename;
@@ -153,7 +154,13 @@ classdef FigureEdit < handle
       %   CLOSE -- Close the current figure.
       
       obj.assert__figure_defined();
-      close( obj.figure );
+      if ( ~obj.is_open() ), return; end
+      try
+        close( obj.figure );
+      catch err
+        warning( ['Could not close figure. The following error ocurred: \n' ...
+          , ' %s'], err.message );
+      end
     end
     
     function show(obj)
@@ -161,6 +168,7 @@ classdef FigureEdit < handle
       %   SHOW -- Show the current figure.
       
       obj.assert__figure_defined();
+      obj.assert__figure_open();
       figure( obj.figure.Number ); %#ok<*CPROP>
     end
     
@@ -248,6 +256,22 @@ classdef FigureEdit < handle
       obj.history{end+1} = { @FigureEdit.set_ax, {axs, prop, was_} };
     end
     
+    function tf = is_open(obj)
+      
+      %   IS_OPEN -- Return whether the figure is open.
+      
+      if ( ~obj.is_figure_defined() ), tf = false; return; end
+      tf = obj.figure.isvalid;
+    end
+    
+    function tf = is_figure_defined(obj)
+      
+      %   IS_FIGURE_DEFINED -- Return whether the figure propery contains a
+      %     valid Matlab figure.
+      
+      tf = isa( obj.figure, 'matlab.ui.Figure' );
+    end
+    
     function assert__filename_defined( obj )
       
       %   ASSERT__FILENAME_DEFINED -- Ensure a filename has been defined.
@@ -255,12 +279,27 @@ classdef FigureEdit < handle
       assert( ~isnan(obj.filename), 'No filename has been defined.' );
     end
     
-    function assert__figure_defined( obj )
+    function assert__figure_defined(obj)
       
       %   ASSERT__FIGURE_DEFINED -- Ensure a figure has been defined.
       
-      isfig = isa( obj.figure, 'matlab.ui.Figure' );
-      assert( isfig, 'No figure has been defined.' );
+      assert( obj.is_figure_defined(), 'No figure has been defined.' );
+    end
+    
+    function assert__figure_closed(obj)
+      
+      %   ASSERT__FIGURE_CLOSED -- Ensure the figure has been closed.
+      
+      obj.assert__figure_defined();
+      assert( ~obj.figure.isvalid, 'Expected the figure to be closed.' );
+    end
+    
+    function assert__figure_open(obj)
+      
+      %   ASSERT__FIGURE_CLOSED -- Ensure the figure is open.
+      
+      obj.assert__figure_defined();
+      assert( obj.figure.isvalid, 'Expected the figure to be open.' );
     end
   end
   
