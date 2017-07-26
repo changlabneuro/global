@@ -10,7 +10,24 @@ classdef FigureEdit < handle
   
   methods
     function obj = FigureEdit( f )
+      
+      %   FIGUREEDIT -- Instantiate a FigureEdit object.
+      %
+      %     obj = FigureEdit( f ), where `f` is a handle to a Matlab
+      %     figure, returns a new editor associated with `f`.
+      %
+      %     obj = FigureEdit( f ), where `f` is a filename, opens the .fig
+      %     file `f`, if it exists, and returns a new editor associated
+      %     with that figure.
+      %
+      %     IN:
+      %       - `f` (char, matlab.ui.Figure)
+      
       if ( nargin == 0 ), return; end
+      if ( isa(f, 'char') )
+        obj.assert__file_exists(f);
+        f = openfig( f );
+      end
       obj.figure = f;
       obj.axes = FigureEdit.get_axes_in_figure( f );
       linkaxes( obj.axes, 'off' );
@@ -87,6 +104,32 @@ classdef FigureEdit < handle
       obj.set_ax_val( axs, 'DataAspectRatio', was, curr );
     end
     
+    function remove_legend(obj, ind)
+      
+      %   REMOVE_LEGEND -- Remove legend(s) from the associated figure.
+      %
+      %     obj.remove_legend() removes all legends in the figure.
+      %     obj.remove_legend(1) removes the first legend in the figure.
+      %     obj.remove_legend([1, 3]) removes the first and third legends
+      %     in the figure.
+      %
+      %     IN:
+      %       - `ind` (double) |OPTIONAL| -- Index or indices of the
+      %         legends to remove.
+      
+      h_leg = findobj( obj.figure, 'Tag', 'legend' );
+      assert( numel(h_leg) > 0, 'There are no legends to remove.' );
+      if ( nargin == 1 )
+        ind = 1:numel( h_leg );
+      else
+        obj.assert__index_in_bounds( ind, numel(h_leg) );
+      end
+      subset = h_leg( ind );
+      set( subset, 'Visible', 'off' );
+      history_item = { @(x) set(subset, 'Visible', 'on'), {} };
+      obj.history{end+1} = history_item;
+    end
+    
     function axs = get_axes(obj, inds)
       
       %   GET_AXES -- Get the axes associated with the given indices, or
@@ -145,7 +188,11 @@ classdef FigureEdit < handle
       
       if ( obj.is_open() ), obj.close(); end
       FigureEdit.assert__file_exists( filename );
-      obj.figure = openfig( filename );
+      try
+        obj.figure = openfig( filename );
+      catch err
+        throwAsCaller( err );
+      end
       obj.filename = filename;
     end
     
@@ -188,6 +235,7 @@ classdef FigureEdit < handle
       obj.assert__figure_defined();
       if ( nargin == 1 )
         obj.assert__filename_defined();
+        filename = obj.filename;
       else
         FigureEdit.assert__file_does_not_exist( filename );
       end
@@ -198,7 +246,10 @@ classdef FigureEdit < handle
       
       %   UNDO -- Undo the previous action.
       
-      if ( isempty(obj.history) ), return; end
+      if ( isempty(obj.history) )
+        fprintf( '\n Nothing to undo.\n\n' );
+        return;
+      end
       last = obj.history{end};
       func = last{1};
       args = last{2};
@@ -276,7 +327,7 @@ classdef FigureEdit < handle
       
       %   ASSERT__FILENAME_DEFINED -- Ensure a filename has been defined.
       
-      assert( ~isnan(obj.filename), 'No filename has been defined.' );
+      assert( ischar(obj.filename), 'No filename has been defined.' );
     end
     
     function assert__figure_defined(obj)
@@ -356,6 +407,22 @@ classdef FigureEdit < handle
       assertions.assert__isa( fname, 'char', 'the filename' );
       assert( exist(fname, 'file') == 0, ['The file ''%s'' already' ...
         , ' exists.'], fname );
+    end
+    
+    function assert__index_in_bounds(inds, N)
+      
+      %   ASSERT__VALID_NUMERIC_INDEX -- Ensure a numeric index has
+      %     elements that are > 0, and <= the number of elements in the
+      %     indexed array.
+      %
+      %     IN:
+      %       - `inds` (double) -- Numeric index.
+      %       - `N` (double) |SCALAR| -- Number of elements in the
+      %         to-be-indexed array.
+      
+      assert( max(inds) <= N && min(inds) > 0, ['Expected' ...
+        , ' the supplied index to contain elements greater than 0' ...
+        , ' and at most %d.'], N );
     end
   end
   

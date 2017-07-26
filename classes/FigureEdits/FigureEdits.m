@@ -10,26 +10,41 @@ classdef FigureEdits < handle
     function obj = FigureEdits(fig_or_fname)
       
       %   FIGUREEDITS -- Instantiate a FigureEdits object.
+      %
+      %     obj = FigureEdits( f ), where `f` is the handle to a Matlab
+      %     figure, creates a new editor associated with `f`.
+      %
+      %     obj = FigureEdits( {f1, f2} ), where `f1` and `f2` are Matlab
+      %     figure handles, creates a new editor associated with `f1` and
+      %     `f2`. Subsequent calls to property-setting functions (e.g.,
+      %     `xlim`) will update both `f1` and `f2`.
+      %
+      %     obj = FigureEdits( {file1, file2} ), where `file1` and `file2`
+      %     are valid paths to Matlab .fig files, works as above, but first
+      %     opens the figures associated with `file1` and `file2`.
+      %
+      %     See also FigureEdits/open FigureEdits/xlim
+      %
+      %     IN:
+      %       - `fig_or_fname` (char, cell array of strings,
+      %         matlab.ui.Figure, cell array of matlab.ui.Figure)
       
       if ( nargin == 0 ), return; end
       fig_or_fname = FigureEdits.ensure_cell( fig_or_fname );
       if ( ~iscellstr(fig_or_fname) )
         try
           cellfun( @(x) FigureEdits.assert__is_fig(x), fig_or_fname );
-        catch
+        catch err
           msg = ['Expected figure(s) to be either figure handles or' ...
             , ' filenames.'];
-          error( msg );
+          err = MException( '', msg );
+          throwAsCaller( err );
         end
         figs = fig_or_fname;
         obj.editors = cellfun( @(x) FigureEdit(x), figs, 'un', false );
       else
         fnames = fig_or_fname;
-        for i = 1:numel(fnames)
-          editor = FigureEdit();
-          editor.open( fnames{i} );
-          obj.editors{end+1} = editor;
-        end
+        obj.open( fnames );
       end
       obj.activate();
     end
@@ -70,31 +85,43 @@ classdef FigureEdits < handle
       %     IN:
       %       - `ind` (number) |OPTIONAL|
       
-      obj.assert__some_editors();
-      if ( nargin == 2 )
-        obj.assert__valid_editor_index( ind );
-      else
-        ind = 1:numel( obj.editors );
+      try
+        obj.assert__some_editors();
+        if ( nargin == 2 )
+          FigureEdit.assert__index_in_bounds( ind, numel(obj.editors) );
+        else
+          ind = 1:numel( obj.editors );
+        end
+        obj.active = obj.editors( ind );
+      catch err
+        throwAsCaller( err );
       end
-      obj.active = obj.editors( ind );
     end
     
     function close(obj)
       
       %   CLOSE -- Close the figures associated with the active editors.
-
-      obj.assert__some_active();
-      obj.apply( obj.active, 0, @close );
+      
+      try
+        obj.assert__some_active();
+        obj.apply( obj.active, 0, @close );
+      catch err
+        throwAsCaller( err );
+      end
     end
     
     function reopen(obj)
       
       %   REOPEN -- Reopen closed figures.
       
-      obj.assert__some_active();
-      obj.close();
-      cellfun( @(x) x.reset(), obj.active );
-      cellfun( @(x) x.open(x.filename), obj.active );
+      try
+        obj.assert__some_active();
+        fnames = obj.filenames;
+        obj.reset();
+        obj.open( fnames );
+      catch err
+        throwAsCaller( err );
+      end
     end
     
     function lims = xlim(obj, varargin)
@@ -141,14 +168,20 @@ classdef FigureEdits < handle
       %     obj.distribute() arranges the figures in `obj.active` so that
       %     they are maximally evenly distributed on the full screen.
       %
-      %     obj.distribute(.5) arranges the active figures so that they
-      %     take up half of the diagonal screen space.
+      %     obj.distribute( .5 ) uses half of the diagonal screen space.
+      %
+      %     obj.distribute( [.5, 1] ) uses half of the horizontal, and all
+      %     of the vertical screen space.
       %
       %     IN:
-      %       - `scale` (number) -- Scale the amount of space taken up by
-      %         the distributed set of figures.
+      %       - `scale` (number) |OPTIONAL|
       
-      if ( nargin == 1 ), scale = 1; end
+      if ( nargin == 1 )
+        scale = [1, 1]; 
+      else
+        obj.assert__n_elements_in_range( numel(scale), 1, 2, 'the scale' );
+      end
+      if ( numel(scale) == 1 ), scale = [ scale, scale ]; end
       obj.assert__some_active();
       cellfun( @(x) x.assert__figure_open(), obj.active );
       N = numel( obj.active );
@@ -160,8 +193,8 @@ classdef FigureEdits < handle
         cols = ceil( N/rows );
       end
       stp = 1;
-      width = 1/cols * scale;
-      height = 1/rows * scale;
+      width = 1/cols * scale(1);
+      height = 1/rows * scale(2);
       for i = 1:rows
         for j = 1:cols
           if ( stp > N ), return; end
@@ -188,6 +221,8 @@ classdef FigureEdits < handle
       
       %   RESET -- Remove all current FigureEdit objects.
       
+      open_editors = obj.editors( obj.is_open() );
+      cellfun( @(x) x.close(), open_editors );
       obj.filenames = {};
       obj.active = {};
       obj.editors = {};
@@ -229,15 +264,53 @@ classdef FigureEdits < handle
       %     IN:
       %       - `fnames` (cell array of strings, char) -- Filenames.
       
-      fnames = obj.ensure_cell( fnames );
-      assertions.assert__iscellstr( fnames, 'the filenames' );
-      for i = 1:numel(fnames)
-        editor = FigureEdit();
-        editor.open( fnames{i} );
-        obj.editors{end+1} = editor;
+      try
+        fnames = obj.ensure_cell( fnames );
+        assertions.assert__iscellstr( fnames, 'the filenames' );
+        for i = 1:numel(fnames)
+          editor = FigureEdit();
+          editor.open( fnames{i} );
+          obj.editors{end+1} = editor;
+        end
+        obj.filenames = [obj.filenames, fnames];
+        obj.activate();
+      catch err
+        throwAsCaller( err );
       end
-      obj.filenames = [obj.filenames, fnames];
-      obj.activate();
+    end
+    
+    function save(obj, pattern)
+      
+      %   SAVE -- Save all active figures.
+      %
+      %     obj.save() saves all active figures, overwriting the original
+      %     files.
+      %
+      %     obj.save( 'new_%s' ) saves all active figures, appending 'new_'
+      %     to each filename, such that each original file is not
+      %     overwritten. The format string '%s' must be present in the
+      %     filename pattern.
+      
+      if ( nargin == 1 )
+        cellfun( @(x) x.save(), obj.active );
+        return;
+      end
+      assertions.assert__isa( pattern, 'char', 'the filename pattern' );
+      assert( ~isempty(strfind(pattern, '%s')), ['The filename pattern' ...
+        , ' must include the string format specifier ''%s''.'] );
+      fnames = obj.filenames;
+      fnames = cellfun( @(x) sprintf(pattern, x), fnames, 'un', false );
+      for i = 1:numel(fnames)
+        obj.active{i}.save( fnames{i} );
+      end
+    end
+    
+    function tf = is_open(obj)
+      
+      %   IS_OPEN -- Return whether a given editor has an open figure.
+      
+      if ( isempty(obj.editors) ), tf = false; return; end
+      tf = cellfun( @(x) x.is_open(), obj.editors );
     end
     
     function assert__some_editors(obj)
@@ -289,6 +362,41 @@ classdef FigureEdits < handle
       
       if ( nargin < 2 ), kind = 'input'; end      
       assertions.assert__isa( f, 'matlab.ui.Figure', kind );
+    end
+    
+    function assert__n_elements(N, n, var_name)
+      
+      %   ASSERT__N_ELEMENTS -- Ensure a variable has exactly n elements.
+      %
+      %     IN:
+      %       - `N` (double) -- Actual number of elements.
+      %       - `n` (double) -- Expected number.
+      %       - `var_name` (char) |OPTIONAL| -- Optionally provide a more
+      %         verbose variable description, in case the assertion fails.
+      %         Defaults to 'input'.
+      
+      if ( nargin < 4 ), var_name = 'input'; end
+      assert( N == n, ['Expected %s to have %d elements; instead %d were' ...
+        , ' present.'], var_name, n, N );
+    end
+    
+    function assert__n_elements_in_range(N, low, high, var_name)
+      
+      %   ASSERT__N_ELEMENTS_IN_RANGE -- Ensure an array has at least x and
+      %     at most y elements.
+      %
+      %     IN:
+      %       - `N` (double) -- Actual number of elements.
+      %       - `low` (double)
+      %       - `high` (double)
+      %       - `var_name` (char) |OPTIONAL| -- Optionally provide a more
+      %         verbose variable description, in case the assertion fails.
+      %         Defaults to 'input'.
+      
+      if ( nargin < 4 ), var_name = 'input'; end
+      assert( N >= low && N <= high, ['Expected %s to have' ...
+        , ' at least %d elements and at most %d elements; %d were' ...
+        , ' present.'], var_name, low, high, N );
     end
   end
 end

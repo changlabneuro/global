@@ -354,6 +354,12 @@ classdef Container
       %         of labels in `fields`; each row of combs is identified by
       %         the corresponding row of `indices`.
       
+      if ( isempty(fields) )
+        objs = { obj };
+        indices = { logic(obj, true) };
+        combs = {};
+        return;
+      end
       [indices, combs] = get_indices( obj, fields );
       objs = cell( size(indices) );
       for i = 1:numel(objs)

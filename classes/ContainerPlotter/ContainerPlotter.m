@@ -33,6 +33,7 @@ classdef ContainerPlotter < handle
       , 'point_label_categories', {{}} ...
       , 'current_points', {{}} ...
       , 'compare_series', false ...
+      , 'p_correct_type', 'none' ...
       , 'match_fit_line_color', true ...
       , 'plot_function_type', 'plot' ...
       , 'main_line_width', 3 ...
@@ -674,7 +675,16 @@ classdef ContainerPlotter < handle
               extr2 = store_lines{2}.data(:, k);
               [~, sig_vec(k)] = ttest2( extr1(:), extr2(:) );
             end
-            sig_vec = sig_vec <= .05;
+            p_correct_type = lower( obj.params.p_correct_type );
+            switch ( p_correct_type )
+              case 'none'
+                sig_vec = sig_vec <= .05;
+              case 'fdr'
+                sig_vec = obj.fdr_bh( sig_vec(:) );
+                sig_vec = sig_vec <= .05;
+              otherwise
+                error( 'Unrecognized `p_correct_type` ''%s''', p_correct_type );
+            end
             if ( any(sig_vec) )
               sig_series{i} = x( sig_vec );
             end
@@ -705,14 +715,14 @@ classdef ContainerPlotter < handle
       end
       %   add significant stars if comparing series
       if ( ~all(cellfun(@isempty, sig_series)) )
-        for i = 1:numel(sig_series)
-          sig_xs = sig_series{i};
+        for jj = 1:numel(sig_series)
+          sig_xs = sig_series{jj};
           if ( isempty(sig_xs) ), continue; end;
-          current_y_lim = get( h(i), 'yLim' );
+          current_y_lim = get( h(jj), 'yLim' );
           set_y = current_y_lim(2);
           sig_ys = repmat( set_y, size(sig_xs) );
           hold on;
-          plot( h(i), sig_xs, sig_ys, '*', 'markersize', obj.params.marker_size );
+          plot( h(jj), sig_xs, sig_ys, '*', 'markersize', obj.params.marker_size );
         end
         hold off;
       end
@@ -1351,6 +1361,44 @@ classdef ContainerPlotter < handle
           n = size( x, dim );
           y = std( x, [], dim ) ./ sqrt( n );
       end
+    end
+    
+    function adj_p = fdr_bh(pvals)
+      
+      %   FDR_BH -- Get FDR-adjusted pvalues.
+      %
+      %     http://www.mathworks.com/matlabcentral/fileexchange/27418-fdr-bh
+      %
+      %     IN:
+      %       - `pvals` (double)
+
+      q = .05;
+      s=size(pvals);
+      if (length(s)>2) || s(1)>1,
+        [p_sorted, sort_ids]=sort(reshape(pvals,1,prod(s)));
+      else
+        %p-values are already a row vector
+        [p_sorted, sort_ids]=sort(pvals);
+      end
+      [~, unsort_ids]=sort(sort_ids); %indexes to return p_sorted to pvals order
+      m=length(p_sorted); %number of tests
+      
+      wtd_p=m*p_sorted./(1:m);
+
+      %compute adjusted p-values; This can be a bit computationally intensive
+      adj_p=zeros(1,m)*NaN;
+      [wtd_p_sorted, wtd_p_sindex] = sort( wtd_p );
+      nextfill = 1;
+      for k = 1 : m
+        if wtd_p_sindex(k)>=nextfill
+          adj_p(nextfill:wtd_p_sindex(k)) = wtd_p_sorted(k);
+          nextfill = wtd_p_sindex(k)+1;
+          if nextfill>m
+            break;
+          end
+        end
+      end
+      adj_p=reshape(adj_p(unsort_ids),s);
     end
     
     function params = parse_params_struct(params, varargin)
