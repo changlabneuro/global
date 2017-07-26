@@ -87,6 +87,72 @@ classdef FigureEdit < handle
       end
     end
     
+    function was = title(obj, val, varargin)
+      
+      %   TITLE -- Update the title property of the current figure.
+      %
+      %     obj.title( 'test' ) adds the title 'test' to each axis in
+      %     `obj.axes.`
+      %
+      %     obj.title( 'test', 1 ) adds the title 'test' to only the first
+      %     axis.
+      %
+      %     See also FigureEdit/ylabel FigureEdit/xlim
+      
+      axs = obj.get_axes( varargin{:} );
+      was = obj.text_setter( axs, 'title', val );
+    end
+    
+    function was = ylabel(obj, val, varargin)
+      
+      %   YLABEL -- Update the ylabel property of the current figure.
+      %
+      %     obj.ylabel( 'test' ) adds the ylabel 'test' to each axis in
+      %     `obj.axes.`
+      %
+      %     obj.ylabel( 'test', 1 ) adds the ylabel 'test' to only the
+      %     first axis.
+      %
+      %     See also FigureEdit/title FigureEdit/ylim
+      
+      axs = obj.get_axes( varargin{:} );
+      was = obj.text_setter( axs, 'ylabel', val );
+    end
+    
+    function was = xlabel(obj, val, varargin)
+      
+      %   XLABEL -- Update the xlabel property of the current figure.
+      %
+      %     obj.xlabel( 'test' ) adds the xlabel 'test' to each axis in
+      %     `obj.axes.`
+      %
+      %     obj.xlabel( 'test', 1 ) adds the xlabel 'test' to only the
+      %     first axis.
+      %
+      %     See also FigureEdit/ylabel FigureEdit/ylim
+      
+      axs = obj.get_axes( varargin{:} );
+      was = obj.text_setter( axs, 'xlabel', val );
+    end
+    
+    function was = text_setter(obj, axs, prop, val)
+      
+      %   TEXT_SETTER -- Update a text property of the current figure.
+      %
+      %     `text_setter` is the generalized form of update to 
+      
+      was = get( axs, prop );
+      msg = sprintf( 'the %s string', prop );
+      assertions.assert__isa( val, 'char', msg );
+      if ( nargin > 1 && ~isempty(val) )
+        labels = cell( numel(axs), 1 );
+        for i = 1:numel(axs)
+          labels{i} = text( 'String', val );
+        end
+        obj.set_ax_val( axs, prop, was, labels );
+      end
+    end
+    
     function was = square(obj, varargin)
       
       %   SQUARE -- Make axes square.

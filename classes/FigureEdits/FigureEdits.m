@@ -130,8 +130,12 @@ classdef FigureEdits < handle
       %
       %     See also FigureEdit/xlim FigureEdits/activate
       
-      obj.assert__some_active();
-      lims = obj.apply( obj.active, 1, @xlim, varargin{:} );
+      try
+        obj.assert__some_active();
+        lims = obj.apply( obj.active, 1, @xlim, varargin{:} );
+      catch err
+        throwAsCaller( err );
+      end
     end
     
     function lims = ylim(obj, varargin)
@@ -140,8 +144,12 @@ classdef FigureEdits < handle
       %
       %     See also FigureEdit/ylim FigureEdits/activate
       
-      obj.assert__some_active();
-      lims = obj.apply( obj.active, 1, @ylim, varargin{:} );
+      try
+        obj.assert__some_active();
+        lims = obj.apply( obj.active, 1, @ylim, varargin{:} );
+      catch err
+        throwAsCaller( err );
+      end
     end
     
     function lims = clim(obj, varargin)
@@ -150,8 +158,54 @@ classdef FigureEdits < handle
       %
       %     See also FigureEdit/clim FigureEdits/activate
       
-      obj.assert__some_active();
-      lims = obj.apply( obj.active, 1, @clim, varargin{:} );
+      try
+        obj.assert__some_active();
+        lims = obj.apply( obj.active, 1, @clim, varargin{:} );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function was = title(obj, varargin)
+      
+      %   TITLE -- Change the title of each active editor.
+      %
+      %     See also FigureEdit/title FigureEdits/activate
+      
+      try
+        obj.assert__some_active();
+        was = obj.apply( obj.active, 1, @title, varargin{:} );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function was = ylabel(obj, varargin)
+      
+      %   YLABEL -- Change the ylabel of each active editor.
+      %
+      %     See also FigureEdit/ylabel FigureEdits/activate
+      
+      try
+        obj.assert__some_active();
+        was = obj.apply( obj.active, 1, @ylabel, varargin{:} );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function was = xlabel(obj, varargin)
+      
+      %   XLABEL -- Change the xlabel of each active editor.
+      %
+      %     See also FigureEdit/xlabel FigureEdits/activate
+      
+      try
+        obj.assert__some_active();
+        was = obj.apply( obj.active, 1, @xlabel, varargin{:} );
+      catch err
+        throwAsCaller( err );
+      end
     end
     
     function undo(obj)
@@ -298,11 +352,55 @@ classdef FigureEdits < handle
       assertions.assert__isa( pattern, 'char', 'the filename pattern' );
       assert( ~isempty(strfind(pattern, '%s')), ['The filename pattern' ...
         , ' must include the string format specifier ''%s''.'] );
-      fnames = obj.filenames;
+      fnames = obj.get_active_filenames();
       fnames = cellfun( @(x) sprintf(pattern, x), fnames, 'un', false );
       for i = 1:numel(fnames)
         obj.active{i}.save( fnames{i} );
       end
+    end
+    
+    %{
+        UTIL
+    %}
+    
+    function disp(obj)
+      
+      %   DISP -- Pretty-print the object.
+      
+      active_files = get_raw_filenames( obj.get_active_filenames() );
+      all_files = get_raw_filenames( obj.filenames );
+      link_str = '<a href="matlab:helpPopup FigureEdits">FigureEdits</a>';
+      if ( numel(active_files) > 0 )
+        fprintf( '%s\n\nActive .fig files: \n\n', link_str );
+        disp( active_files(:) );
+      elseif ( numel(all_files) > 0 )
+        fprintf( '%s\n\nNo active .fig files \n\n', link_str );
+      else
+        fprintf( '%s\n\nNo .fig files. \n\n', link_str );
+        return;
+      end
+      fprintf( 'All .fig files: \n\n' );
+      disp( all_files(:) );
+      function fnames_ = get_raw_filenames(fnames_)
+        if ( ispc() )
+          slash = '\';
+        else
+          slash = '/';
+        end
+        fnames_ = cellfun( @(x) strsplit(x, slash), fnames_, 'un', false );
+        fnames_ = cellfun( @(x) x{end}, fnames_, 'un', false );
+      end
+    end
+    
+    function fnames = get_active_filenames(obj)
+      
+      %   GET_ACTIVE_FILENAMES -- Return filenames associated with the
+      %     active figures.
+      %
+      %     OUT:
+      %       - `fnames` (cell array of strings)
+      
+      fnames = cellfun( @(x) x.filename, obj.active, 'un', false );
     end
     
     function tf = is_open(obj)
