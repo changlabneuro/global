@@ -89,7 +89,10 @@ classdef FigureEdit < handle
     
     function was = title(obj, val, varargin)
       
-      %   TITLE -- Update the title property of the current figure.
+      %   TITLE -- Get or set the title property of the current figure.
+      %
+      %     current = obj.title() returns the current title(s) of each axis
+      %     in `obj.axes`.
       %
       %     obj.title( 'test' ) adds the title 'test' to each axis in
       %     `obj.axes.`
@@ -97,15 +100,25 @@ classdef FigureEdit < handle
       %     obj.title( 'test', 1 ) adds the title 'test' to only the first
       %     axis.
       %
+      %     was = obj.title( ... ) returns the previous title(s) before
+      %     setting new value(s).
+      %
       %     See also FigureEdit/ylabel FigureEdit/xlim
       
       axs = obj.get_axes( varargin{:} );
-      was = obj.text_setter( axs, 'title', val );
+      if ( nargin > 1 )
+        was = obj.text_setter( axs, 'title', val );
+      else
+        was = get( axs, 'title' );
+      end
     end
     
     function was = ylabel(obj, val, varargin)
       
-      %   YLABEL -- Update the ylabel property of the current figure.
+      %   YLABEL -- Get or set the ylabel property of the current figure.
+      %
+      %     current = obj.ylabel() returns the current ylabels(s) of each
+      %     axis in `obj.axes`.
       %
       %     obj.ylabel( 'test' ) adds the ylabel 'test' to each axis in
       %     `obj.axes.`
@@ -113,15 +126,25 @@ classdef FigureEdit < handle
       %     obj.ylabel( 'test', 1 ) adds the ylabel 'test' to only the
       %     first axis.
       %
+      %     was = obj.ylabel( ... ) returns the previous ylabels(s) before
+      %     setting new value(s).
+      %
       %     See also FigureEdit/title FigureEdit/ylim
       
       axs = obj.get_axes( varargin{:} );
-      was = obj.text_setter( axs, 'ylabel', val );
+      if ( nargin > 1 )
+        was = obj.text_setter( axs, 'ylabel', val );
+      else
+        was = get( axs, 'ylabel' );
+      end
     end
     
     function was = xlabel(obj, val, varargin)
       
-      %   XLABEL -- Update the xlabel property of the current figure.
+      %   XLABEL -- Get or set the xlabel property of the current figure.
+      %
+      %     current = obj.xlabel() returns the current xlabels(s) of each
+      %     axis in `obj.axes`.
       %
       %     obj.xlabel( 'test' ) adds the xlabel 'test' to each axis in
       %     `obj.axes.`
@@ -129,10 +152,17 @@ classdef FigureEdit < handle
       %     obj.xlabel( 'test', 1 ) adds the xlabel 'test' to only the
       %     first axis.
       %
+      %     was = obj.xlabel( ... ) returns the previous xlabels(s) before
+      %     setting new value(s).
+      %
       %     See also FigureEdit/ylabel FigureEdit/ylim
       
       axs = obj.get_axes( varargin{:} );
-      was = obj.text_setter( axs, 'xlabel', val );
+      if ( nargin > 1 )
+        was = obj.text_setter( axs, 'xlabel', val );
+      else
+        was = get( axs, 'xlabel' );
+      end
     end
     
     function was = text_setter(obj, axs, prop, val)
@@ -283,6 +313,16 @@ classdef FigureEdit < handle
       obj.assert__figure_defined();
       obj.assert__figure_open();
       figure( obj.figure.Number ); %#ok<*CPROP>
+      set( obj.figure, 'Visible', 'on' );
+    end
+    
+    function hide(obj)
+      
+      %   HIDE -- Hide the current figure.
+      
+      obj.assert__figure_defined();
+      obj.assert__figure_open();
+      set( obj.figure, 'Visible', 'off' );
     end
     
     function save(obj, filename)
@@ -322,6 +362,13 @@ classdef FigureEdit < handle
       [varargout{1:nargout()}] = func( args{:} );
       obj.future{end+1} = last;
       obj.history(end) = [];
+    end
+    
+    function revert(obj)
+      
+      %   REVERT -- Revert the figure to its original state.
+      
+      while ( ~isempty(obj.history) ), obj.undo(); end
     end
     
     function varargout = redo(obj)

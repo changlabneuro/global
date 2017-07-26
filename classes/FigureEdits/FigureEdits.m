@@ -72,23 +72,59 @@ classdef FigureEdits < handle
     
     function activate(obj, ind)
       
-      %   ACTIVATE -- Make some or all editors active.
-      %
-      %     obj.activate(1) activates the first FigureEdit object in
-      %     `obj.editors`. Any subsequent operations, such as updating
-      %     limits, axes formatting, etc. will be applied to the that
-      %     FigureEdit object, alone.
+      %   ACTIVATE -- Make editors active or inactive.
       %
       %     obj.activate(), without additional arguments, activates all
-      %     editors.
+      %     editors. Any subsequent operations, such as updating
+      %     limits, axes formatting, etc. will be applied to all editors.
+      %
+      %     obj.activate(0) inactivates all editors.
+      %
+      %     obj.activate(1) activates the first FigureEdit object in
+      %     `obj.editors`.
+      %
+      %     obj.activate( [1, 3] ) activates the first and third editor.
+      %
+      %     obj.activate( 'rwd' ) activates the editor(s) whose filenames
+      %     contain the string 'rwd'. An error is thrown if no matching
+      %     filenames are found.
+      %
+      %     obj.activate( {'rwd', 'choice'} ) activate the editor(s) whose
+      %     filenames contain the strings 'rwd' AND 'choice'. An error is
+      %     thrown if no matching filenames are found.
       %
       %     IN:
-      %       - `ind` (number) |OPTIONAL|
+      %       - `ind` (number, char) |OPTIONAL|
       
       try
         obj.assert__some_editors();
         if ( nargin == 2 )
-          FigureEdit.assert__index_in_bounds( ind, numel(obj.editors) );
+          if ( ischar(ind) )
+            fnames = obj.filenames;
+            contents = cellfun( @(x) ~isempty(strfind(x, ind)), fnames );
+            assert( any(contents), ['No filenames matched the selector' ...
+              , ' ''%s''.'], ind );
+            ind = find( contents );
+          elseif ( iscell(ind) )
+            assertions.assert__iscellstr( ind, 'the filename selectors' );
+            fnames = obj.filenames;
+            contents = true( size(fnames) );
+            for i = 1:numel(ind)
+              contents = contents & ...
+                cellfun( @(x) ~isempty(strfind(x, ind{i})), fnames );
+            end
+            assert( any(contents), ['No filenames matched the given' ...
+              , ' selectors.'] );
+            ind = find( contents );
+          else
+            assertions.assert__isa( ind, 'double', 'the editor index' );
+            if ( isscalar(ind) && ind == 0 )
+              obj.active = {};
+              return;
+            else
+              FigureEdit.assert__index_in_bounds( ind, numel(obj.editors) );
+            end
+          end
         else
           ind = 1:numel( obj.editors );
         end
@@ -208,11 +244,39 @@ classdef FigureEdits < handle
       end
     end
     
+    function remove_legend(obj, varargin)
+      
+      %   REMOVE_LEGEND -- Remove a legend from the active figure(s).
+      %
+      %     obj.remove_legend() removes all legends from all active
+      %     figures.
+      %
+      %     obj.remove_legend(1) removes the first legend in all active
+      %     figures.
+      %
+      %     IN:
+      %       - `varargin` (cell array) |OPTIONAL|
+      
+      narginchk( 1, 2 );
+      try
+        cellfun( @(x) x.remove_legend(varargin{:}), obj.active );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
     function undo(obj)
       
       %   UNDO -- Undo the previous action.
       
       cellfun( @(x) x.undo(), obj.active );
+    end
+    
+    function revert(obj)
+      
+      %   REVERT -- Revert each active figure to its original state.
+      
+      cellfun( @(x) x.revert(), obj.active );
     end
     
     function distribute(obj, scale)
@@ -263,12 +327,95 @@ classdef FigureEdits < handle
       end
     end
     
+    function shift(obj, amt)
+      
+      %   SHIFT -- Move the active figure(s) by a given amount.
+      %
+      %     obj.shift( .1 ) moves each active figure .1 units left and up,
+      %     relative to the bottom-left corner of the screen. Units are
+      %     normalized such that 1 is the full width and height of the
+      %     screen.
+      %
+      %     obj.shift( [.1, 0] ) moves each active figure .1 units left,
+      %     and 0 units up.
+      
+      try
+        obj.assert__n_elements_in_range( numel(amt), 1, 2, 'the shift amount' );
+        if ( numel(amt) == 1 ), amt = [ amt, amt ]; end
+        for i = 1:numel(obj.active)
+          curr = obj.active{i}.figure;
+          curr.Units = 'normalized';
+          pos = curr.Position;
+          pos(1:2) = pos(1:2) + amt;
+          curr.Position = pos;
+        end
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function shift_x(obj, amt)
+      
+      %   SHIFT_X -- Move the active figure(s) left or right.
+      %
+      %     IN:
+      %       - `amt` (double) -- Single number specifying the
+      %         x-displacement
+      
+      try
+        obj.assert__n_elements_in_range( numel(amt), 1, 1 );
+        obj.shift( [amt, 0] );      
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function shift_y(obj, amt)
+      
+      %   SHIFT_Y -- Move the active figure(s) up or down.
+      %
+      %     IN:
+      %       - `amt` (double) -- Single number specifying the
+      %         y-displacement
+      
+      try
+        obj.assert__n_elements_in_range( numel(amt), 1, 1 );
+        obj.shift( [0, amt] );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
     function show(obj)
       
-      %   SHOW -- Bring figures to foreground.
+      %   SHOW -- Bring the active figure(s) to the foreground.
       
-      obj.assert__some_active();
-      cellfun( @(x) x.show(), obj.active );
+      try
+        obj.assert__some_active();
+        cellfun( @(x) x.show(), obj.active );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function hide(obj)
+      
+      %   HIDE -- Make the active figure(s) invisible.
+      
+      try
+        obj.assert__some_active();
+        cellfun( @(x) x.hide(), obj.active );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function hide_inactive(obj)
+      
+      %   HIDE_INACTIVE -- Make the inactive figure(s) invisible.
+      
+      inactive = obj.get_inactive_editors();
+      cellfun( @(x) x.hide(), inactive );
     end
     
     function reset(obj)
@@ -370,17 +517,28 @@ classdef FigureEdits < handle
       active_files = get_raw_filenames( obj.get_active_filenames() );
       all_files = get_raw_filenames( obj.filenames );
       link_str = '<a href="matlab:helpPopup FigureEdits">FigureEdits</a>';
-      if ( numel(active_files) > 0 )
-        fprintf( '%s\n\nActive .fig files: \n\n', link_str );
-        disp( active_files(:) );
-      elseif ( numel(all_files) > 0 )
-        fprintf( '%s\n\nNo active .fig files \n\n', link_str );
+      n_active = numel( active_files );
+      n_all = numel( all_files );
+      if ( n_active > 0 )
+        if ( n_active ~= n_all )
+          fprintf( '%s\n\nActive .fig files: \n\n', link_str );
+          display_files( active_files(:) );
+        else
+          fprintf( '%s\n\nActive (and all) .fig files: \n\n', link_str );
+          display_files( active_files(:) );
+          fprintf( '\n' );
+          return;
+        end
+        fprintf( '\n' );
+      elseif ( n_all > 0 )
+        fprintf( '%s\n\nNo active .fig files. \n\n', link_str );
       else
-        fprintf( '%s\n\nNo .fig files. \n\n', link_str );
+        fprintf( '%s\n\nNo .fig files. Use `open` to add a figure.\n\n' ...
+          , link_str );
         return;
       end
       fprintf( 'All .fig files: \n\n' );
-      disp( all_files(:) );
+      display_files( all_files(:) );
       function fnames_ = get_raw_filenames(fnames_)
         if ( ispc() )
           slash = '\';
@@ -389,6 +547,35 @@ classdef FigureEdits < handle
         end
         fnames_ = cellfun( @(x) strsplit(x, slash), fnames_, 'un', false );
         fnames_ = cellfun( @(x) x{end}, fnames_, 'un', false );
+      end
+      function display_files(files)        
+        for i = 1:numel(files)
+          ind = strcmp(all_files, files{i});
+          editor = obj.editors{ind};
+          is_open = editor.is_open();
+          extra_str = '';
+          if ( ~is_open ), extra_str = ' (closed)'; end
+          fprintf( '    %s%s\n', files{i}, extra_str );
+        end
+      end
+    end
+    
+    function inactive = get_inactive_editors(obj)
+      
+      %   GET_INACTIVE_EDITORS -- Return non-active editors.
+      %
+      %     If all editors are active, an empty cell is returned.
+      %
+      %     OUT:
+      %       - `inactive` (cell array of FigureEdit, {})
+      
+      fnames = obj.filenames;
+      active_fnames = obj.get_active_filenames();
+      inactive_fnames = setdiff( fnames, active_fnames );
+      inactive = {};
+      for i = 1:numel(inactive_fnames)
+        ind = strcmp( fnames, inactive_fnames{i} );
+        inactive{end+1} = obj.editors{ind};
       end
     end
     

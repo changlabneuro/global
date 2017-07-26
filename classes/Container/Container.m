@@ -891,8 +891,6 @@ classdef Container
             %   if the ref is to a method, but is called without (), an
             %   error is thrown. E.g., Container.eq -> error ...
             if ( numel(s) == 0 )
-%               error( ['''%s'' is the name of a %s method, but was' ...
-%                 , ' referenced as if it were a property.'], subs, class(obj) );
               s(1).subs = {};
             end
             inputs = [ {obj} {s(:).subs{:}} ];
@@ -984,6 +982,21 @@ classdef Container
       %   continue referencing if this is a nested reference, e.g.
       %   obj.labels.labels
       [varargout{1:nargout()}] = subsref( out, s );
+    end
+    
+    function s = end(obj, ind, N)
+      
+      %   END -- Return the number of rows in the object.
+      
+      if ( N == 1 )
+        s = shape( obj, 1 );
+        return;
+      end
+      if ( N == 2 )
+        error( '(row, col) indexing is not supported.' );
+      else
+        error( 'Multidimensional indexing is not supported.' );
+      end
     end
     
     %{
