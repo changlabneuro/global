@@ -946,8 +946,10 @@ classdef Container
           %   or if the indices are not monotonically increasing (e.g.,
           %   Container([4 2]) is an error)
           if ( isa(subs{1}, 'double') )
-            ind = double_to_logical( obj, subs{1} );
-            out = keep( obj, ind ); proceed = false;
+%             ind = double_to_logical( obj, subs{1} );
+%             out = keep( obj, ind ); 
+            out = numeric_index( obj, subs{1} );
+            proceed = false;
           end
           %   else, if subs{1} is already a logical, retain the elements
           %   associated with the index
@@ -993,9 +995,33 @@ classdef Container
         return;
       end
       if ( N == 2 )
-        error( '(row, col) indexing is not supported.' );
+        error( '(row, col) indexing is not supported with `end`.' );
       else
         error( 'Multidimensional indexing is not supported.' );
+      end
+    end
+    
+    function obj = numeric_index(obj, ind)
+      
+      %   NUMERIC_INDEX -- Apply a numeric index to the object.
+      %
+      %     newobj = numeric_index( obj, [2; 3; 4] ) returns a new
+      %     3-by-M-by-... object whose data and labels are the 2nd, 3rd, 
+      %     and 4th rows of `obj`.
+      %
+      %     newobj = numeric_index( obj, [2; 2; 2; 2] ) returns a new
+      %     4-by-M-by-... object whose data and labels are duplicates of
+      %     the 2nd row of `obj`.
+      %
+      %     IN:
+      %       - `ind` (double) |VECTOR|
+      
+      try
+        obj.labels = numeric_index( obj.labels, ind );
+        colons = repmat( {':'}, 1, ndims(obj.data)-1 );
+        obj.data = obj.data( ind, colons{:} );
+      catch err
+        throwAsCaller( err );
       end
     end
     
@@ -1033,9 +1059,58 @@ classdef Container
     end
     
     function tf = shapes_match(obj, B)
+      
+      %   SHAPES_MATCH -- True if two Container objects have matching
+      %     shapes.
+      
       tf = false;
       if ( ~isa(B, 'Container') ), return; end
       tf = all( shape(obj) == shape(B) );
+    end
+    
+    function tf = eq_contents(obj, B)
+      
+      %   EQ_CONTENTS -- Return whether two objects have equal contents.
+      %
+      %     Two Container objects A and B are said to have equal contents
+      %     if, for each unique set of labels in A, the subsets of A and B
+      %     identified by that label-set are equal. 
+      %
+      %     For example, if A and B are two Container objects, 
+      %     C = append( A, B ), and D = append( B, A ), then:
+      %
+      %     C == D               % false
+      %     eq_contents( C, D )  % true
+      %
+      %     IN:
+      %       - `B` (/any/) -- Values to test.
+      %     OUT:
+      %       - `tf` (logical) |SCALAR|
+      
+      tf = false;
+      if ( eq(obj, B) ), tf = true; return; end
+      if ( ~isa(B, 'Container') ), return; end
+      if ( ~isequal(obj.dtype, B.dtype) ), return; end
+      if ( ~shapes_match(obj, B) ), return; end
+      if ( ~shapes_match(obj.labels, B.labels) ), return; end
+      while ( ~isempty(obj) )
+        %   take the first row of `obj`
+        first = keep_one( obj );
+        %   get the labels of that first row
+        unqs = flat_uniques( first.labels, categories(obj) );
+        %   locate all elements that match these labels in both `obj` and
+        %   `B`
+        ind_a = where( obj, unqs );
+        ind_b = where( B, unqs );
+        if ( sum(ind_a) ~= sum(ind_b) ), return; end
+        A2 = keep( obj, ind_a );
+        B2 = keep( B, ind_b );
+        %   if the subsets of `obj` and `B` identified by `unqs` are not
+        %   equal, the contents are not equal.
+        if ( ne(A2, B2) ), return; end
+        obj = keep( obj, ~ind_a );
+      end
+      tf = true;
     end
     
     %{
@@ -1341,11 +1416,40 @@ classdef Container
       dup_msg = 'At least one duplicate %s field was specified.';
       assert( numel(unique(within)) == numel(within), dup_msg, 'within' );
       within = unique( within );
+      p = gcp( 'nocreate' );
+      if ( ~isempty(p) )
+        psize = p.NumWorkers;
+      else
+        psize = 0;
+      end
       if ( isa(varargin{2}, 'function_handle') )
         func = varargin{2};
-        max_n = min( 2, numel(within) );
-        first = within(1:max_n);
-        rest = within(max_n+1:end);
+        if ( ~isempty(p) )
+          MAX_CHOOSE = 2;
+          n_unqs = cellfun( @(x) numel(x), uniques(obj, within) );
+          max_n = min( MAX_CHOOSE, numel(within) );
+          ids = 1:numel( n_unqs );
+          combs_n = combnk( n_unqs, max_n );
+          combs_ids = combnk( ids, max_n );
+          product = prod( combs_n, 2 );
+          difference = abs( product - psize );
+          difference_single = abs( n_unqs - psize );
+          min_mult = min( difference );
+          min_single = min( difference_single );
+          if ( min_single < min_mult )
+            all_inds = 1:numel( n_unqs );
+            min_single_ind = find( difference_single == min_single, 1, 'first' );
+            first = within( min_single_ind );
+            rest = within( setdiff(all_inds, min_single_ind) );
+          else
+            min_mult_ind = find( difference == min_mult, 1, 'first' );
+            row_ids = combs_ids( min_mult_ind, : );
+            first = within( row_ids );
+            rest = within( setdiff(combs_ids(:), row_ids) );
+          end
+%           first = within(1:max_n);
+%           rest = within(max_n+1:end);
+        end
         varargin(1:2) = [];
       else
         msg = sprintf( ['Expected input #3 to be a ''function_handle''' ...
@@ -1363,13 +1467,12 @@ classdef Container
         rest = setdiff( within, parlabs );
         varargin(1:3) = [];
       end
-      p = gcp( 'nocreate' );
+      %   call non-parellelized function if not parpool exists.
       if ( isempty(p) )
         warning( 'No parallel pool exists. Using non-parallelized function.' );
         out = do_recursive( obj, within, func, varargin{:} );
         return;
       end
-      psize = p.NumWorkers;
       C = pcombs( obj, first );
       NC = size( C, 1 );
       if ( psize > NC )

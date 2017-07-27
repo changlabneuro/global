@@ -650,6 +650,21 @@ classdef Labels
       obj.labels = obj.labels(ind, :);
     end
     
+    function obj = numeric_index(obj, ind)
+      
+      %   NUMERIC_INDEX -- Apply a numeric index to the object.
+      %
+      %     obj = numeric_index( obj, [2; 3; 4] ) returns an object whose
+      %     indices contain the 2nd, 3rd, and 4th rows of the inputted
+      %     object.
+      %
+      %     IN:
+      %       - `ind` (double) |VECTOR|
+      
+      assert__is_valid_numeric_index( obj, ind );
+      obj.labels = obj.labels(ind, :);
+    end
+    
     function [obj, full_ind] = remove(obj, selectors)
       
       %   REMOVE -- remove rows of labels for which any of the labels in
@@ -1317,6 +1332,19 @@ classdef Labels
     %{
         LABELS-SPECIFIC ASSERTIONS
     %}
+    
+    function assert__is_valid_numeric_index(obj, ind)
+      
+      %   ASSERT__IS_VALID_NUMERIC_INDEX
+      
+      Assertions.assert__isa( ind, 'double' );
+      max_n = shape( obj, 1 );
+      msg = sprintf( ['Expected the numeric' ...
+        , ' index to be a double vector whose elements are greater than 0' ...
+        , ' and less than %d.'], max_n );
+      assert( isvector(ind), msg );
+      assert( all(ind > 0) && all(ind <= max_n), msg );
+    end
     
     function assert__is_properly_dimensioned_logical(obj, B, opts)
       if ( nargin < 3 )
