@@ -50,6 +50,8 @@ classdef Container
       %     outs = outs( randperm(numel(outs)) );
       %     rwds = rwds( randperm(numel(rwds)) );
       %     cont = Container( data, 'outcomes', outs, 'rewards', rwds );
+      %
+      %     See also Container/parfor_each, Container/subsref
       
       if ( nargin == 0 ), return; end
       if ( nargin == 2 )
@@ -60,8 +62,14 @@ classdef Container
         obj.labels = labels;
         obj.dtype = class( data );
         obj = update_label_sparsity( obj );
+        %   MARK: Made labels sparse by default.
+        obj = sparse( obj );
       else
-        obj = Container.create( varargin{:} );
+        try
+          obj = Container.create( varargin{:} );
+        catch err
+          throwAsCaller( err );
+        end
       end
     end
     
@@ -610,143 +618,108 @@ classdef Container
     
     function obj = subsasgn(obj, s, values)
       
-      %   SUBSASGN -- assign values to the object. 
+      %   SUBSASGN -- Assign values to the object.
       %
-      %     Almost never will this function be called explicitly -- it's 
-      %     invoked when you do something like Container.data(:, 2) = 10.
+      %     obj.data = newdata assigns new data to the object. Incoming
+      %     data must have the same 1st-dimension size as the overwritten
+      %     data.
       %
-      %     // '.' assignment //
+      %     obj.labels = newlabels assigns new labels to the object.
+      %     Incoming labels must be a `SparseLabels` or `Labels` object
+      %     with the same 1st-dimension shape as the overwritten labels.
       %
-      %     '.' assignment occurs when attempting to overwrite a property,
-      %     e.g., Container.data = `some values`.
+      %     obj( 'date' ) = 'May-05-2017', where 'date' is a category /
+      %     field of labels, assigns each element of 'date' to 
+      %     'May-05-2017'.
       %
-      %     Values will be validated before they are accepted. If 
-      %     attempting to assign new data to the Container object, the new 
-      %     data must have the same number of rows as the object. If 
-      %     attempting to assign new labels to the object, the new labels 
-      %     must be a `Labels`, or a `SparseLabels` object, and have the 
-      %     same number of rows as the `Container`.
+      %     obj('date', :) = 'May-05-2017' is the same as above.
       %
-      %     // '()' assignment //
+      %     obj( 'date', index ) = 'May-05-2017' overwrites labels in
+      %     'date' at `index`. `index` can be logical or numeric; if it
+      %     is numeric, it must be continuously increasing, and cannot
+      %     contain duplicate values.
       %
-      %     '()' assignment is used when a) setting the contents of a field
-      %     of the labels object, b) deleting elements of the Container, or
-      %     c) assigning new Container elements to the object.
+      %     obj(1) = [] deletes the first element of `obj`.
       %
-      %     In case a), Container('fieldname') = 'values' is equivalent
-      %     to: 
+      %     obj(1:10) = otherobj replaces elements 1:10 in `obj` with
+      %     `otherobj`. `otherobj` must be a Container whose data are of
+      %     the same class and size (beyond the 1-st dimension) as that of
+      %     `obj`. The labels in `otherobj` must have the same fields /
+      %     categories as `obj`, and be of the same class.
       %
-      %     Container.labels = ...
-      %       Container.labels.set_field( 'fieldname', 'values' );
+      %     See also Container/subsref, SparseLabels/set_field
       %
-      %     If labels is a Labels object, you can optionally input an 
-      %     index after 'fieldname' to specify which elements in 
-      %     'fieldname' are overwritten:
-      %
-      %     Container('fieldname', `index`) = 'values', which is equivalent
-      %     to:
-      %
-      %     Container.labels = ...
-      %       Container.labels.set_field( 'fieldname', 'values', `index` );
-      %
-      %     Note that indexing is not possible if the labels are
-      %     SparseLabels.
-      %
-      %     In case b), Container(`index`) = [] deletes the elements
-      %     specified by the index. If `index` is a logical, it must be
-      %     properly dimensioned (be a column vector with the same number 
-      %     of rows as the Container object). If it is instead an array of
-      %     numeric indices, an attempt will be made to convert it to a
-      %     logical.
-      %
-      %     In case c) Container(`index`) = `container2` assigns the values
-      %     of `container2` to the Container at the index specified by
-      %     `index`. Again, `index` can be numeric or logical. If it is
-      %     numeric, it must have the same number of elements as
-      %     `container2` has rows. If it is logical, it must have the same
-      %     number of true values as `container2` has rows.
-      %
-      %     // EXAMPLES //
-      %
-      %     cont = Container( data, labels );
-      %
-      %     cont.data = cell( shape(cont, 1), 10 ); % ok -- the number of
-      %                                             % rows didn't change
-      %
-      %     cont.data -> M x N cell array
-      %
-      %     cont.data = 10
-      %
-      %     % Error: When overwriting the data property on the object, the
-      %     % number of rows cannot change. Current number of rows is 16519; 
-      %     % new values had 1 rows
-      %
-      %     cont.shape() %  [100 1]
-      %
-      %     cont(1:10) = []
-      %
-      %     cont.shape() %  [90 1]
-      %
-      %     unique( cont('monkeys') ) % { 'jodo', 'kuro', 'tarantino' }
-      %
-      %     cont('monkeys') = 'jodo'
-      %
-      %     unique( cont('monkeys') ) % { 'jodo' }
+      %     IN:
+      %       - `s` (struct) -- Reference struct.
+      %       - `values` (/any/) -- Values to assign.
       
-      switch ( s(1).type )
-        case '.'
-          top = subsref( obj, s(1) );
-          prop = s(1).subs;
-          s(1) = [];
-          if ( ~isempty(s) )
-            values = builtin( 'subsasgn', top, s, values );
-          end
-          %   validate the incoming property, and assign if valid.
-          obj = set_property( obj, prop, values );
-        case '()'
-          assert( numel(s) == 1, ...
-            'Nested assignments with ''()'' are illegal.' );
-          subs = s(1).subs;
-          switch class( subs{1} )
-            %   if we're going to set a field of the Container.labels
-            %   object, e.g., Container('monkeys') = 'jodo'
-            case 'char'
-              if ( isequal(subs{1}, ':') )
-                error( 'Assignment with '':'' is not supported.' );
-              end
-              if ( numel(subs) == 1 )
-                index = true( shape(obj, 1), 1 ); 
-              elseif ( numel(subs) == 2 )
-                index = double_to_logical( obj, subs{2} );
-              else
-                error( ['At maximum, two references can be made when' ...
-                  , ' setting a field -- the first is the fieldname,' ...
-                  , ' and the second is, optionally, the index.'] );
-              end
-              obj.labels = set_field( obj.labels, subs{1}, values, index );
-            case { 'double', 'logical' }
-              %   if the format is Container(1:10) = `container_2` or 
-              %   Container(ind) = [], i.e., if we're performing element 
-              %   deletion, convert subs{1} to a logical index. If values 
-              %   is [], return a new object without the elements 
-              %   identified by `index`. Otherwise, attempt to assign the
-              %   values to the container
-              assert( numel(subs) == 1, '(row, col) assignment is not supported.' );
-              index = double_to_logical( obj, subs{1} );
-              if ( isequal(values, []) )
-                obj = keep( obj, ~index );
-              elseif ( isa(values, 'Container') )
-                obj = overwrite( obj, values, index );
-              else
-                error( ['Currently, only element deletion with [] and' ...
-                  , ' assignment of other Container objects is supported.'] );
-              end
-            otherwise
-              error( ['Expected the first reference to be a char or number,' ...
-                , ' but was a ''%s'''], class(subs{1}) );
-          end
-        otherwise
-          error( 'Assignment via ''%s'' is not supported', s(1).type );
+      try
+        switch ( s(1).type )
+          case '.'
+            top = subsref( obj, s(1) );
+            prop = s(1).subs;
+            s(1) = [];
+            if ( ~isempty(s) )
+              values = builtin( 'subsasgn', top, s, values );
+            end
+            %   validate the incoming property, and assign if valid.
+            obj = set_property( obj, prop, values );
+          case '()'
+            assert( numel(s) == 1, ...
+              'Nested assignments with ''()'' are illegal.' );
+            subs = s(1).subs;
+            switch class( subs{1} )
+              %   if we're going to set a field of the Container.labels
+              %   object, e.g., Container('monkeys') = 'jodo'
+              case 'char'
+                if ( isequal(subs{1}, ':') )
+                  error( 'Assignment with '':'' is not supported.' );
+                end
+                if ( numel(subs) == 1 )
+                  index = true( shape(obj, 1), 1 ); 
+                elseif ( numel(subs) == 2 )
+                  if ( ischar(subs{2}) && strcmp(subs{2}, ':') )
+                    index = logic( obj, true );
+                  else
+                    assert( isa(subs{2}, 'double') || ...
+                      isa(subs{2}, 'logical'), ['Expected the index' ...
+                      , ' to be a double or logical; was a ''%s''.'] ...
+                      , class(subs{2}) );
+                    index = double_to_logical( obj, subs{2} );
+                  end
+                else
+                  error( ['At maximum, two references can be made when' ...
+                    , ' setting a field -- the first is the fieldname,' ...
+                    , ' and the second is, optionally, the index.'] );
+                end
+                obj.labels = set_field( obj.labels, subs{1}, values, index );
+              case { 'double', 'logical' }
+                %   if the format is Container(1:10) = `container_2` or 
+                %   Container(ind) = [], i.e., if we're performing element 
+                %   deletion, convert subs{1} to a logical index. If values 
+                %   is [], return a new object without the elements 
+                %   identified by `index`. Otherwise, attempt to assign the
+                %   values to the container
+                assert( numel(subs) == 1, ['Multidimensional assignment is not' ...
+                  , ' supported in this context.'] );
+                index = double_to_logical( obj, subs{1} );
+                if ( isequal(values, []) )
+                  obj = keep( obj, ~index );
+                elseif ( isa(values, 'Container') )
+                  obj = overwrite( obj, values, index );
+                else
+                  error( ['Currently, only element deletion with [] and' ...
+                    , ' assignment of other Container objects is supported.'] );
+                end
+              otherwise
+                error( ['Expected the first reference to be a char or number,' ...
+                  , ' but was a ''%s'''], class(subs{1}) );
+            end
+          otherwise
+            error( 'Assignment via ''%s'' is not supported', s(1).type );
+        end
+      catch err
+        throwAsCaller( err );
       end
     end
     
@@ -786,204 +759,175 @@ classdef Container
     
     function varargout = subsref(obj, s)
       
-      %   SUBSREF -- reference properties and call methods on the Container
-      %     object, as well as on the Container.labels object. 
+      %   SUBSREF -- Get properties and call methods of the object.
       %
-      %     Almost never will this function be called explicitly -- it's
-      %     called when you do something like Container.('propertyname'), 
-      %     or Container(10).
+      %     prop = obj.labels or prop = obj.('labels') returns the property
+      %     'labels'.
       %
-      %     // '.' indexing -- i.e., Container.(subs) //
+      %     output = obj.for_each(in1, in2, ... in_n) calls the Container
+      %     method `for_each` with inputs `in1` ... `in_n`.
       %
-      %     If `subs` is the name of a Container property, the
-      %     property is returned. If `subs` is the name of a Container
-      %     method, the method is called on the Container object, with
-      %     whatever other inputs are passed. If `subs` is the name of a
-      %     *Labels* method, the method is called on the Labels object in
-      %     obj.labels, with whatever other inputs are passed. Note that,
-      %     in cases where the Container and Container.labels objects have
-      %     overlapping method or property names, the returned values or
-      %     called methods are *always* those of the Container object.
+      %     newobj = obj(1) returns the first element of `obj`.
       %
-      %     // '()' indexing -- i.e., Container(subs) //
+      %     newobj = obj([1; 100; 4]) returns the 1st, 100th, and 4th
+      %     elements of `obj`, in that order.
       %
-      %     If `subs` is a cell array with 1 element, whose internal array 
-      %     is a logical vector, keep() is called on the object with 
-      %     subs{1} as the index. If the internal array is a double ( e.g.,
-      %     if you call Container(3), or Container(3:8) ) the double array 
-      %     will be converted to a logical array, and then keep() will be 
-      %     called. If the internal array is a string / char, the 
-      %     get_field() method of the Container.labels object will be 
-      %     called with the char as input. In all cases, it is an error for 
-      %     more than one item to be placed in parenthetical references. 
-      %     E.g., Container(10, 4) is an error; Container('hi', 'hello') 
-      %     is an error.
+      %     newobj = obj([true; false; false]), where `obj` is a 3-by-N-by-
+      %     ... Container, returns the first element of `obj`.
       %
-      %     EXAMPLES:
+      %     newobj = obj( 'dates' ), where 'dates' is a field of labels, 
+      %     returns the unique labels in 'dates'.
       %
-      %     //
+      %     newobj = obj( 'dates', [5; 6] ), where 'dates' is a field of 
+      %     labels, returns the labels in 'dates' at rows 5:6.
       %
-      %     cont = Container( data, labels );
+      %     newobj = obj( 'dates', : ) returns the full field of 'dates'.
       %
-      %     cont.nfields();
-      %   
-      %     ans -> 7
-      %
-      %     Because nfields() is a method on the labels object in 
-      %     cont.labels, it is called directly on that object, and the
-      %     result is returned.
-      %
-      %     //
-      %
-      %     cont = Container( data, labels );
-      %
-      %     cont.shape()
-      %
-      %     ans -> [4, 1]
-      %
-      %     shape() is a method that exists on both the Container and
-      %     Container.labels objects. But we only call the method with the 
-      %     Container as input, and return the resulting output.
-      %
-      %     //
-      %
-      %     cont = Container( data, labels );
-      %
-      %     cont.fields
-      %
-      %     ERROR using Container/subsref: No properties or methods matched
-      %     the name 'fields'
-      %
-      %     Even though fields is a property of the labels object in the
-      %     Container, it is not accessible by referencing the Container.
-      %     Only *methods* found in the labels object can be called /
-      %     referenced, not properties.
-      %
-      %     //
-      %
-      %     c = cont([10 13]) % access the tenth and thirteenth rows
-      %
-      %     c.shape()
-      %
-      %     ans -> [2 1]
+      %     IN:
+      %       - `s` (struct) -- Reference struct.
       %
       %     See also Container/subsasgn
+      
+      try
+        subs = s(1).subs;
+        type = s(1).type;
 
-      subs = s(1).subs;
-      type = s(1).type;
-      
-      s(1) = [];
+        s(1) = [];
 
-      proceed = true;
-      
-      switch ( type )
-        case '.'
-          %   if the ref is the name of a Container property, return the
-          %   property
-          if ( proceed && any(strcmp(properties(obj), subs)) )
-            out = obj.(subs); proceed = false;
-          end
-          %   if the ref is the name of a Container method, call the method
-          %   on the Container object (with whatever other inputs are
-          %   passed), and return
-          if ( proceed && any(strcmp(methods(obj), subs)) )
-            func = eval( sprintf('@%s', subs) );
-            %   if the ref is to a method, but is called without (), an
-            %   error is thrown. E.g., Container.eq -> error ...
-            if ( numel(s) == 0 )
-              s(1).subs = {};
+        proceed = true;
+
+        switch ( type )
+          case '.'
+            %   if the ref is the name of a Container property, return the
+            %   property
+            if ( proceed && any(strcmp(properties(obj), subs)) )
+              out = obj.(subs); proceed = false;
             end
-            inputs = [ {obj} {s(:).subs{:}} ];
-            %   assign `out` to the output of func() and return
-            [varargout{1:nargout()}] = func( inputs{:} );
-            return; %   note -- in this case, we do not proceed
-          end
-          %   check if the ref is a method of the label object in
-          %   Container.labels. If it is, call the method on the labels
-          %   object (with whatever other inputs are passed), mutate the
-          %   `obj.labels` object, and return
-          label_methods = methods( obj.labels );
-          if ( proceed && any(strcmp(label_methods, subs)) )
-            func = eval( sprintf('@%s', subs) );
-            %   if the ref is to a method, but is called without (), an
-            %   error is thrown. E.g., Container.uniques -> error ...
-            if ( numel(s) == 0 )
-              error( ['''%s'' is the name of a %s method, but was' ...
-                , ' referenced as if it were a property'], subs, ...
-                class(obj.labels) );
+            %   if the ref is the name of a Container method, call the method
+            %   on the Container object (with whatever other inputs are
+            %   passed), and return
+            if ( proceed && any(strcmp(methods(obj), subs)) )
+              func = eval( sprintf('@%s', subs) );
+              %   if the ref is to a method, but is called without (), an
+              %   error is thrown. E.g., Container.eq -> error ...
+              if ( numel(s) == 0 )
+                s(1).subs = {};
+              end
+              inputs = [ {obj} {s(:).subs{:}} ];
+              %   assign `out` to the output of func() and return
+              [varargout{1:nargout()}] = func( inputs{:} );
+              return; %   note -- in this case, we do not proceed
             end
-            inputs = { s(:).subs{:} };
-            %   if the output of the called function is a `Labels` object,
-            %   assign it back to the Container.labels object, and return
-            %   the object. Otherwise, return the output as is.
-            labs = func( obj.labels, inputs{:} );
-            if ( isa(labs, 'Labels') || isa(labs, 'SparseLabels') )
-              obj.labels = labs; varargout{1} = obj; return;
-            else varargout{1} = labs; return;
+            %   check if the ref is a method of the label object in
+            %   Container.labels. If it is, call the method on the labels
+            %   object (with whatever other inputs are passed), mutate the
+            %   `obj.labels` object, and return
+            label_methods = methods( obj.labels );
+            if ( proceed && any(strcmp(label_methods, subs)) )
+              func = eval( sprintf('@%s', subs) );
+              %   if the ref is to a method, but is called without (), an
+              %   error is thrown. E.g., Container.uniques -> error ...
+              if ( numel(s) == 0 )
+                error( ['''%s'' is the name of a %s method, but was' ...
+                  , ' referenced as if it were a property'], subs, ...
+                  class(obj.labels) );
+              end
+              inputs = { s(:).subs{:} };
+              %   if the output of the called function is a `Labels` object,
+              %   assign it back to the Container.labels object, and return
+              %   the object. Otherwise, return the output as is.
+              labs = func( obj.labels, inputs{:} );
+              if ( isa(labs, 'Labels') || isa(labs, 'SparseLabels') )
+                obj.labels = labs; varargout{1} = obj; return;
+              else varargout{1} = labs; return;
+              end
             end
-          end
-          if ( proceed )
-            %   if we've reached this point, it's because we couldn't find
-            %   a property or method that matched the incoming `subs`. In
-            %   that case, let's do a check to see if there are any
-            %   almost-matches to `subs`. If there are, display them 
-            %   before throwing an error.
-            matches = maybe_you_meant( obj, subs );
-            if ( ~isempty(matches) )
-              fprintf( '\n Perhaps you meant ... \n' );
-              cellfun( @(x) fprintf('\n - %s', x), matches ); fprintf( '\n\n' );
+            if ( proceed )
+              %   if we've reached this point, it's because we couldn't find
+              %   a property or method that matched the incoming `subs`. In
+              %   that case, let's do a check to see if there are any
+              %   almost-matches to `subs`. If there are, display them 
+              %   before throwing an error.
+              matches = maybe_you_meant( obj, subs );
+              if ( ~isempty(matches) )
+                fprintf( '\n Perhaps you meant ... \n' );
+                cellfun( @(x) fprintf('\n - %s', x), matches ); fprintf( '\n\n' );
+              end
+              error( 'No properties or methods matched the name ''%s''', subs );
             end
-            error( 'No properties or methods matched the name ''%s''', subs );
-          end
-        case '()'
-          %   make sure we're not attempting to specify (row, col) indices.
-          assert( numel(subs) == 1, ...
-            ['(row, col) indexing is not supported. Specify monotonically' ...
-            , ' increasing row indices only'] );
-          %   if the ref is of type double, e.g., if the refs are [1:10],
-          %   attempt to create a logical index where elements (1:10) are
-          %   true. Will throw an error if any indices are out of bounds,
-          %   or if the indices are not monotonically increasing (e.g.,
-          %   Container([4 2]) is an error)
-          if ( isa(subs{1}, 'double') )
-%             ind = double_to_logical( obj, subs{1} );
-%             out = keep( obj, ind ); 
-            out = numeric_index( obj, subs{1} );
-            proceed = false;
-          end
-          %   else, if subs{1} is already a logical, retain the elements
-          %   associated with the index
-          if ( isa(subs{1}, 'logical') && proceed )
-            out = keep( obj, subs{1} ); proceed = false;
-          end
-          %   else, if subs{1} is ':', convert the object's data to a
-          %   column vector (consistent with the built-in behavior
-          %   associated with (:))
-          if ( proceed && isequal(subs{1}, ':') )
-            out = make_column( obj ); proceed = false;
-          end
-          %   else, if subs{1} is a char, get the labels associated with the
-          %   field subs{1]
-          if ( isa(subs{1}, 'char') && proceed )
-            out = get_fields( obj.labels, subs{1} ); proceed = false;
-          end
-          %   otherwise, we've attempted to pass an illegal type to the
-          %   index
-          if ( proceed )
-            error( '() Referencing with values of class ''%s'' is not supported', ...
-              class(subs{1}) );
-          end
-        otherwise
-          error( 'Referencing with ''%s'' is not supported', type );
+          case '()'
+            nsubs = numel( subs );
+            %   ensure we're not doing x()
+            assert( nsubs ~= 0, ['Attempted to reference a variable' ...
+              , ' as if it were a function.'] );
+            %   ensure we're not doing x(1, 2, 3)
+            if ( ~ischar(subs{1}) )
+              assert( nsubs == 1, ['Multidimensional indexing is not' ...
+                , ' supported in this context.'] );
+            end
+            %   use a numeric index
+            if ( isa(subs{1}, 'double') )
+              out = numeric_index( obj, subs{1} );
+              proceed = false;
+            end
+            %   else, if subs{1} is already a logical, retain the elements
+            %   associated with the index
+            if ( isa(subs{1}, 'logical') && proceed )
+              out = keep( obj, subs{1} ); proceed = false;
+            end
+            %   else, if subs{1} is ':', convert the object's data to a
+            %   column vector (consistent with the built-in behavior
+            %   associated with (:))
+            if ( proceed && isequal(subs{1}, ':') )
+              assert( nsubs == 1, ['Multidimensional indexing is not' ...
+                , ' supported in this context.'] );
+              out = make_column( obj ); proceed = false;
+            end
+            %   obj('images') returns the unique labels in 'images'.
+            %   obj('images', 100) returns the 100th label in the field
+            %   'images'.
+            %   obj('images', :) returns the full field of 'images'.
+            if ( isa(subs{1}, 'char') && proceed )
+              assert( nsubs <= 2, 'Too many subscripts.' );
+              if ( numel(subs) == 1 )
+                out = get_fields( obj.labels, subs{1} );
+              else
+                ind_ = subs{2};
+                if ( isa(ind_, 'logical') )
+                  assert__is_properly_dimensioned_logical( obj.labels, ind_ );
+                elseif ( isa(ind_, 'double') )
+                  assert__is_valid_numeric_index( obj.labels, ind_ );
+                else
+                  msg = sprintf( ['Label-field referencing with values of' ...
+                    , ' class ''%s'' is not supported.'], class(ind_) );
+                  assert( ischar(ind_), msg);
+                  assert( strcmp(ind_, ':'), msg ); 
+                end
+                out = full_fields( obj, subs{1} );
+                out = out( ind_ );
+              end
+              proceed = false;
+            end
+            %   otherwise, we've attempted to pass an illegal type to the
+            %   index
+            if ( proceed )
+              error( '() Referencing with values of class ''%s'' is not supported.', ...
+                class(subs{1}) );
+            end
+          otherwise
+            error( 'Referencing with ''%s'' is not supported', type );
+        end
+
+        if ( isempty(s) )
+          varargout{1} = out;
+          return;
+        end
+        %   continue referencing if this is a nested reference, e.g.
+        %   obj.labels.labels
+        [varargout{1:nargout()}] = subsref( out, s );
+      catch err
+        throwAsCaller( err );
       end
-      
-      if ( isempty(s) )
-        varargout{1} = out;
-        return;
-      end
-      %   continue referencing if this is a nested reference, e.g.
-      %   obj.labels.labels
-      [varargout{1:nargout()}] = subsref( out, s );
     end
     
     function s = end(obj, ind, N)
@@ -1582,16 +1526,6 @@ classdef Container
       %   DO_RECURSIVE -- Apply a function to the data associated with each
       %     unique combination of labels in the specified fields.
       %
-      %     This function produces output equivalent to that of `do_per`,
-      %     but is potentially must faster.
-      %
-      %     See `help Container/do_per` for more info and restrictions on
-      %     the types of functions that can be passed / called.
-      %
-      %     See also Container/do_per
-      %
-      %     EX. //
-      %
       %     out = do_recursive( obj, {'doses', 'images'}, @mean );
       %     calculates a mean for each unique (dose x image) pair of labels
       %     in 'doses' and 'images'.
@@ -1599,6 +1533,8 @@ classdef Container
       %     out = do_recursive( obj, 'doses', @percentages, 'images' );
       %     calculates the percentage of trials associated with each image
       %     label in 'images', separately for each dose in 'doses'.
+      %
+      %     See also Container/do_per
       %
       %     IN:
       %       - `varargin` -- The initial invocation of `do_recursive`
@@ -2318,8 +2254,8 @@ classdef Container
       for i = 2:n_dims
         size_str = sprintf( '%s-by-%d', size_str, size(obj.data, i) );
       end
-      fprintf('\n\n%s %s Container with %s:\n', ...
-        size_str, obj.dtype, class(obj.labels) );
+      fprintf('\n\n%s %s %s with %s:\n', ...
+        size_str, obj.dtype, class(obj), class(obj.labels) );
       disp( obj.labels );
     end
     
@@ -2805,7 +2741,11 @@ classdef Container
       %
       %     See `help Container/to_table` for more info.
       
-      tbl = to_table( obj, varargin{:} );
+      try
+        tbl = to_table( obj, varargin{:} );
+      catch err
+        throwAsCaller( err );
+      end
     end
     
     function out = array(obj)
@@ -3031,38 +2971,38 @@ classdef Container
     
     function assert__shapes_match(obj, B)
       Assertions.assert__isa( B, 'Container' );
-      assert( shapes_match(obj, B), 'The shapes of the objects do not match' );
+      assert( shapes_match(obj, B), 'The shapes of the objects do not match.' );
     end
     
     function assert__columns_match(obj, B)
       Assertions.assert__isa( B, 'Container' );
       assert( shape(obj, 2) == shape(B, 2), ...
-        'The objects are not equal in the second (column) dimension' );
+        'The objects are not equal in the second (column) dimension.' );
     end
     
     function assert__dtypes_match(obj, B)
       Assertions.assert__isa( B, 'Container' );
-      assert( isequal(obj.dtype, B.dtype), 'The dtypes of the objects do not match' );
+      assert( isequal(obj.dtype, B.dtype), 'The dtypes of the objects do not match.' );
     end
     
     function assert__capable_of_operations(obj, B, op_kind)
       assert__shapes_match(obj, B);
       assert__dtypes_match(obj, B);
-      assert( eq_non_uniform(obj.labels, B.labels), ['In order to perform' ...
-        , ' operations, the non-uniform fields of each labels object must' ...
-        , ' match.'] );
+      assert( eq_non_uniform(obj.labels, B.labels), ['In order to use' ...
+        , ' ''%s'', the non-uniform fields of each labels object must' ...
+        , ' match.'], op_kind );
 %       assert( eq(obj.labels, B.labels), ...
 %         ['In order to perform operations, the label objects between two Container' ...
 %         , ' objects must match exactly'] );
       supports = obj.SUPPORTED_DTYPES.( op_kind );
       assert( any(strcmp(supports, obj.dtype)), ...
-        'The ''%s'' operation is not supported with objects of type ''%s''', ...
+        'The ''%s'' operation is not supported with objects of type ''%s''.', ...
         op_kind, obj.dtype );      
     end
     
     function assert__dtype_is(obj, kind)
       assert( strcmp(obj.dtype, kind), ['Expected the object''s dtype to be ''%s''' ...
-        , ' but was ''%s'''], kind, obj.dtype );
+        , ' but was ''%s''.'], kind, obj.dtype );
     end
     
     function assert__container_plotter_present(obj)      
@@ -3085,12 +3025,12 @@ classdef Container
             , ' create a `Labels` object:\n\n%s\n'], err.message );
           error( ...
             ['Labels must be a label object or valid input to a label object.' ...
-            , ' See `help Labels` for more information'] );
+            , ' See `help Labels` for more information.'] );
         end
       end
       %   make sure the dimensions are compatible
       assert( size(data, 1) == shape(labels, 1), ...
-        'Data must have the same number of rows as labels' );
+        'Data must have the same number of rows as labels.' );
     end
     
     function A = cellwise(func, A, B, varargin)

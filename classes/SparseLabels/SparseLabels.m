@@ -240,7 +240,7 @@ classdef SparseLabels
         val = unqs{i};
         index_ = index;
         ind = strcmp( set_as, val );
-        index_( ~ind ) = false;
+        index_( index_ ) = ind;
         obj = set_category( obj, cat, val, index_ );
       end
     end
@@ -264,10 +264,11 @@ classdef SparseLabels
       
       if ( nargin < 4 )
         index = rep_logic( obj, true ); 
-      else assert__is_properly_dimensioned_logical( obj, index );
+      else
+        assert__is_properly_dimensioned_logical( obj, index );
       end
       %   return early if there are no true elements in the index.
-      if ( ~any(index) ), return; end;
+      if ( ~any(index) ), return; end
       char_msg = 'Expected %s to be a char; was a ''%s''';
       assert( isa(cat, 'char'), char_msg, 'category name', class(cat) );
       if ( iscell(set_as) )
@@ -295,16 +296,21 @@ classdef SparseLabels
       obj.indices(:, lab_inds) = inds;
       if ( contains(obj, set_as) )
         current_ind = strcmp( obj.labels, set_as );
+        current_cat = obj.categories{ current_ind };
+        %   ensure we don't assign to a different category.
+        assert( strcmp(current_cat, cat), ['Cannot assign the label' ...
+          , ' ''%s'' to the category ''%s'' because it already exists' ...
+          , ' in the category ''%s''.'], set_as, cat, current_cat );
         current = obj.indices(:, current_ind);
         obj.indices(:, current_ind) = current | index;
 %         obj.indices(:, current_ind) = index;
       else
-        obj.labels{end+1} = set_as;
-        obj.categories{end+1} = cat;
+        obj.labels{end+1, 1} = set_as;
+        obj.categories{end+1, 1} = cat;
         obj.indices(:, end+1) = index;
       end
       empties = ~any( obj.indices, 1 );
-      if ( ~any(empties) ), return; end;
+      if ( ~any(empties) ), return; end
       obj.labels( empties ) = [];
       obj.categories( empties ) = [];
       obj.indices( :, empties ) = [];
@@ -1147,7 +1153,7 @@ classdef SparseLabels
       %     OUT:
       %       - `new` (SparseLabels) -- Object with `B` appended.
       
-      if ( isempty(obj) ), new = B; return; end;
+      if ( isempty(obj) ), new = B; return; end
       assert__categories_match( obj, B );
       own_n_true = sum( sum(obj.indices) );
       other_n_true = sum( sum(B.indices) );
@@ -1172,8 +1178,8 @@ classdef SparseLabels
         other_label_inds = cellfun(@(x) find(strcmp(B.labels, x)), other_labs);
         other_inds = B.indices( :, other_label_inds );
         new.indices( own_rows+1:end, own_cols+1:end ) = other_inds;
-        new.labels(end+1:end+n_other) = other_labs;
-        new.categories(end+1:end+n_other) = B.categories( other_label_inds );
+        new.labels(end+1:end+n_other, 1) = other_labs;
+        new.categories(end+1:end+n_other, 1) = B.categories( other_label_inds );
       end
     end
     
@@ -1200,7 +1206,7 @@ classdef SparseLabels
           , ' attempted to assign %d rows, but the index has %d true values'], ...
           shape(B, 1), sum(index) );
       end
-      if ( ~issparse(index) ), index = sparse( index ); end;
+      if ( ~issparse(index) ), index = sparse( index ); end
       assert( categories_match(obj, B), 'Categories do not match between objects' );
       shared = intersect( obj.labels, B.labels );
       others = setdiff( B.labels, obj.labels );
@@ -1209,7 +1215,7 @@ classdef SparseLabels
         other_inds = cellfun( @(x) find(strcmp(B.labels, x)), shared );
         obj.indices(index, own_inds) = B.indices( :, other_inds );
       end
-      if ( isempty(others) ), return; end;
+      if ( isempty(others) ), return; end
       new_inds = repmat( rep_logic(obj, false), 1, numel(others) );
       other_inds = cellfun( @(x) find(strcmp(B.labels, x)), others );
       new_inds(index,:) = B.indices(:, other_inds);
@@ -1452,7 +1458,7 @@ classdef SparseLabels
     function assert__is_properly_dimensioned_logical(obj, B, opts)
       if ( nargin < 3 )
         opts.msg = sprintf( ['The index must be a column vector with the same number' ...
-          , ' of rows as the object (%d). The inputted index had (%d) elements'] ...
+          , ' of rows as the object (%d). The inputted index had (%d) elements.'] ...
           , shape(obj, 1), numel(B) );
       end
       assert( islogical(B), opts.msg );
@@ -1462,7 +1468,7 @@ classdef SparseLabels
     
     function assert__categories_exist(obj, B, opts)
       if ( nargin < 3 )
-        opts.msg = 'The requested category ''%s'' is not in the object';
+        opts.msg = 'The requested category ''%s'' is not in the object.';
       end
       cats = unique( obj.categories );
       B = SparseLabels.ensure_cell( B );
@@ -1485,7 +1491,7 @@ classdef SparseLabels
         opts.msg = 'The categories do not match between objects';
       end
       assert( isa(B, 'SparseLabels'), ['This operation requires a SparseLabels' ...
-        , ' as input; input was a ''%s'''], class(B) );
+        , ' as input; input was a ''%s''.'], class(B) );
       assert( categories_match(obj, B), opts.msg );
     end
   end
