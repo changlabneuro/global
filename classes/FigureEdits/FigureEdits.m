@@ -42,6 +42,7 @@ classdef FigureEdits < handle
         end
         figs = fig_or_fname;
         obj.editors = cellfun( @(x) FigureEdit(x), figs, 'un', false );
+        obj.filenames = cellfun( @(x) x.Name, figs, 'un', false );
       else
         fnames = fig_or_fname;
         obj.open( fnames );

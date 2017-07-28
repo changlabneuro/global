@@ -1212,16 +1212,56 @@ classdef Container
     
     function obj = op(obj, B, func, varargin)
       
-      %   OP -- call a function `func` elementwise on the data in two 
-      %     objects.
+      %   OP -- Call a function element-wise on the data in two objects.
       %
-      %     Several checks will take place before operations can occur.
-      %     Both objects need have identical shapes, equivalent Label
-      %     objects, and the same dtype. Further, the dtypes will have to
-      %     be represented in the obj.SUPPORTED_DTYPES array that
-      %     corresponds to the inputted function. This means that, 
-      %     currently, the list of supported operations is limited to those
-      %     in obj.SUPPORTED_DTYPES.
+      %     obj = op( A, B, func ) is the generalized form of binary
+      %     operations like + and - .
+      %
+      %     obj = op( A, B, @minus ) is equivalent to A - B.
+      %
+      %     A and B need have identical shapes, compatible label
+      %     objects, and matching `dtype`s; `dtype` can be 'double' or
+      %     'cell'. Labels objects are considered compatible if they are of 
+      %     the same class and equivalent apart from their uniform fields.
+      %
+      %     For example, let:
+      %
+      %     A = Container( [10; 11] ...
+      %       , 'dose', 'high' ...
+      %       , 'date', {'May-04-2017'; 'May-05-2017'} ...
+      %     );
+      %
+      %     B = Container( [12; 13] ...
+      %       , 'dose', 'low' ...
+      %       , 'date', {'May-04-2017'; 'May-05-2017'} ...
+      %     );
+      %
+      %     C = Container( [14; 15] ...
+      %       , 'dose', 'low' ...
+      %       , 'date', {'May-06-2017'; 'May-07-2017'} ...
+      %     );
+      %
+      %     D = Container( [14; 15; 16] ...
+      %       , 'dose', 'low' ...
+      %       , 'date', 'May-08-2017' ...
+      %     );
+      %
+      %     obj = op( A, A, @minus ) works: the shape of A matches the
+      %     shape of A, and the label objects of A and A are identical.
+      %     obj.data is A.data - A.data, and the labels in `obj` are
+      %     identical to the labels in A.
+      %       
+      %     obj = op( A, B, @minus ) works: the non-uniform fields of A and
+      %     B ('date') are equivalent. The data in `obj` is A.data -
+      %     B.data. The uniform fields of A and B for which A and B have 
+      %     different labels ('dose') are modified to reflect the 
+      %     operation: the 'dose' field of `obj` becomes 'high_minus_low'.
+      %
+      %     obj = op( B, C, @minus ) does not work: the non-uniform fields
+      %     of B and C ('date') are different.
+      %
+      %     obj = op( B, D, @minus ) does not work: the shapes of B and D
+      %     are different.
       %
       %     IN:
       %       - `B` (Container) -- second input to the function
@@ -1232,48 +1272,66 @@ classdef Container
       %       - `varargin` (/any/) |OPTIONAL| -- additional arguments to 
       %         pass to the func.
       %     OUT:
-      %       - `obj` (Container) -- Container object with the mutated
-      %         data.
-      %
-      %     EXAMPLE:
-      %       Add two objects:
-      %           A = op( A, B, @plus ); % A + B
-      %       Subtract two objects:
-      %           B = op( A, B, @minus ); % A - B
+      %       - `obj` (Container) -- Container object with mutated
+      %         data and labels.
       
-      assert__capable_of_operations( obj, B, func2str(func) );
-      switch ( obj.dtype )
-        case 'double'
-          obj.data = func( obj.data, B.data, varargin{:} );
-        case 'cell'
-          obj.data = Container.cellwise( func, obj.data, B.data, varargin{:} );
+      try
+        name = func2str( func );
+        assert__capable_of_operations( obj, B, name );
+        switch ( obj.dtype )
+          case 'double'
+            obj.data = func( obj.data, B.data, varargin{:} );
+          case 'cell'
+            obj.data = Container.cellwise( func, obj.data, B.data ...
+              , varargin{:} );
+        end
+        un = get_uniform_fields( obj.labels );
+        for i = 1:numel(un)
+          unq_a = char( flat_uniques(obj.labels, un{i}) );
+          unq_b = char( flat_uniques(B.labels, un{i}) );
+          if ( strcmp(unq_a, unq_b) ), continue; end
+          joined = sprintf( '%s_%s_%s', unq_a, name, unq_b );
+          obj.labels = set_field( obj.labels, un{i}, joined );
+        end
+      catch err
+        throwAsCaller( err );
       end
     end
     
     function obj = plus(obj, B)
       
-      %   PLUS -- add two Container objects. See `help Container/op` for
-      %     more information on requirements for operations.
+      %   PLUS -- Add two Container objects.
+      %
+      %     See also Container/op
       
       obj = op( obj, B, @plus );
     end
     
     function obj = minus(obj, B)
       
-      %   MINUS -- subtract the data in Container object `B` from the data 
-      %     in `obj`. See `help Container/op` for more information on
-      %     requirements for operations to occur.
+      %   MINUS -- Subtract one Container object from another.
+      %
+      %     See also Container/op
       
       obj = op( obj, B, @minus );
     end
     
     function obj = rdivide(obj, B)
       
-      %   RDIVIDE -- divide the data in the object by the data in `B`. 
-      %     See `help Container/op` for more information on requirements 
-      %     for operations to occur.
+      %   RDIVIDE -- Divide one Container object by another.
+      %
+      %     See also Container/op
       
       obj = op( obj, B, @rdivide );
+    end
+    
+    function obj = times(obj, B)
+      
+      %   TIMES -- Element-wise multiplication of two Container objects.
+      %
+      %     See also Container/op
+      
+      obj = op( obj, B, @times );
     end
     
     function obj = make_column(obj)
@@ -1366,7 +1424,11 @@ classdef Container
       %
       %     See also Container/do_recursive
       
-      obj = do_recursive( obj, varargin{:} );
+      try
+        obj = do_recursive( obj, varargin{:} );
+      catch err
+        throwAsCaller( err );
+      end
     end
     
     function obj = do(obj, varargin)
@@ -1425,6 +1487,10 @@ classdef Container
       if ( isa(varargin{2}, 'function_handle') )
         func = varargin{2};
         if ( ~isempty(p) )
+          %   Choose the fields / categories to form the label-sets to be
+          %   distributed to each worker. Choose the combination of fields
+          %   (up to MAX_CHOOSE) that minimizes the difference between the
+          %   number of label-sets and the number of workers.
           MAX_CHOOSE = 2;
           n_unqs = cellfun( @(x) numel(x), uniques(obj, within) );
           max_n = min( MAX_CHOOSE, numel(within) );
@@ -1447,8 +1513,6 @@ classdef Container
             first = within( row_ids );
             rest = within( setdiff(combs_ids(:), row_ids) );
           end
-%           first = within(1:max_n);
-%           rest = within(max_n+1:end);
         end
         varargin(1:2) = [];
       else
@@ -2048,8 +2112,6 @@ classdef Container
       %
       %     This function is primarily designed to be used with the
       %     `for_each` function.
-      %
-      %     EXAMPLE:
       %
       %     obj = obj.for_each( 'days', @require, obj('outcomes') );
       %     removes days in the object for which not all 'outcomes' are
@@ -2986,9 +3048,12 @@ classdef Container
     function assert__capable_of_operations(obj, B, op_kind)
       assert__shapes_match(obj, B);
       assert__dtypes_match(obj, B);
-      assert( eq(obj.labels, B.labels), ...
-        ['In order to perform operations, the label objects between two Container' ...
-        , ' objects must match exactly'] );
+      assert( eq_non_uniform(obj.labels, B.labels), ['In order to perform' ...
+        , ' operations, the non-uniform fields of each labels object must' ...
+        , ' match.'] );
+%       assert( eq(obj.labels, B.labels), ...
+%         ['In order to perform operations, the label objects between two Container' ...
+%         , ' objects must match exactly'] );
       supports = obj.SUPPORTED_DTYPES.( op_kind );
       assert( any(strcmp(supports, obj.dtype)), ...
         'The ''%s'' operation is not supported with objects of type ''%s''', ...

@@ -29,6 +29,7 @@ classdef FigureEdit < handle
         f = openfig( f );
       end
       obj.figure = f;
+      obj.filename = f.Name;
       obj.axes = FigureEdit.get_axes_in_figure( f );
       linkaxes( obj.axes, 'off' );
     end

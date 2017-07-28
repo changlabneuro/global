@@ -1019,9 +1019,9 @@ classdef SparseLabels
       %     %   ans -> true
       
       tf = false;
-      if ( ~shapes_match(obj, B) ), return; end;
-      if ( ~categories_match(obj, B) ), return; end;
-      if ( ~labels_match(obj, B) ), return; end;
+      if ( ~shapes_match(obj, B) ), return; end
+      if ( ~categories_match(obj, B) ), return; end
+      if ( ~labels_match(obj, B) ), return; end
       obj = sort_labels( obj );
       B = sort_labels( B );
       tf = isequal( obj.indices, B.indices );
@@ -1029,6 +1029,35 @@ classdef SparseLabels
     
     function tf = ne(obj, B)
       tf = ~eq(obj, B);
+    end
+    
+    function tf = eq_non_uniform(obj, B)
+      
+      %   EQ_NON_UNIFORM -- Determine equality, disregarding
+      %     uniform-categories.
+      %
+      %     Uniform categories are those which have only a single label,
+      %     whose index is true for all rows of `obj.indices`.
+      %
+      %     IN:
+      %       - `B` (/any/) -- Values to test.
+      
+      tf = false;
+      if ( ~isa(B, 'SparseLabels') ), return; end
+      if ( eq(obj, B) ), tf = true; return; end
+      if ( ~categories_match(obj, B) ), return; end
+      n1 = shape( obj, 1 );
+      n2 = shape( B, 1 );
+      if ( n1 ~= n2 ), return; end
+      cats_a = get_non_uniform_categories( obj );
+      cats_b = get_non_uniform_categories( B );
+      if ( ~isequal(sort(cats_a), sort(cats_b)) ), return; end
+      if ( isempty(cats_a) ), tf = true; return; end
+      others_a = setdiff( unique(obj.categories), cats_a );
+      others_b = setdiff( unique(B.categories), cats_b );
+      A = rm_categories( obj, others_a );
+      B = rm_categories( B, others_b );
+      tf = eq( A, B );
     end
     
     function tf = categories_match(obj, B)
@@ -1097,7 +1126,7 @@ classdef SparseLabels
       %     Note that the ordering of labels is intentionally not tested.
       
       tf = false;
-      if ( ~isa(B, 'SparseLabels') ), return; end;
+      if ( ~isa(B, 'SparseLabels') ), return; end
       tf = isequal( sort(obj.labels), sort(B.labels) );
     end
     

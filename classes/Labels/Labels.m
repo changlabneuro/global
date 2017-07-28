@@ -387,13 +387,25 @@ classdef Labels
       %     which there is only one unique label present in the field.
       %
       %     OUT:
-      %       - `uniform` (cell array of strings) -- Category names.
+      %       - `uniform` (cell array of strings) -- Field names.
       
       uniform_ind = false( 1, size(obj.labels, 2) );
       for i = 1:size(obj.labels, 2)
         uniform_ind(i) = numel( unique(obj.labels(:, i)) ) == 1;
       end
       uniform = obj.fields( uniform_ind );
+    end
+    
+    function non_un = get_non_uniform_fields(obj)
+      
+      %   GET_NON_UNIFORM_FIELDS -- Return an array of field names for
+      %     which there is more than one unique label in the field.
+      %
+      %     OUT:
+      %       - `uniform` (cell array of strings) -- Field names.
+      
+      un = get_uniform_fields( obj );
+      non_un = setdiff( obj.fields, un );
     end
     
     function labs = get_fields(obj, fields)
@@ -1056,6 +1068,34 @@ classdef Labels
       %   NE -- ~eq(). See `help Labels/eq` for more information.
       
       tf = ~eq(obj, B);
+    end
+    
+    function tf = eq_non_uniform(obj, B)
+      
+      %   EQ_NON_UNIFORM -- Determine equality, disregarding
+      %     uniform-fields.
+      %
+      %     Uniform fields are those which have only a single label.
+      %
+      %     IN:
+      %       - `B` (/any/) -- Values to test.
+      
+      tf = false;
+      if ( ~isa(B, 'Labels') ), return; end
+      if ( eq(obj, B) ), tf = true; return; end
+      if ( ~fields_match(obj, B) ), return; end
+      n1 = shape( obj, 1 );
+      n2 = shape( B, 1 );
+      if ( n1 ~= n2 ), return; end
+      cats_a = get_non_uniform_fields( obj );
+      cats_b = get_non_uniform_fields( B );
+      if ( ~isequal(sort(cats_a), sort(cats_b)) ), return; end
+      if ( isempty(cats_a) ), tf = true; return; end
+      others_a = setdiff( unique(obj.fields), cats_a );
+      others_b = setdiff( unique(B.fields), cats_b );
+      A = rm_fields( obj, others_a );
+      B = rm_fields( B, others_b );
+      tf = eq( A, B );
     end
     
     %{
