@@ -2259,6 +2259,43 @@ classdef Container
       s.labels = label_struct( obj.labels );
     end
     
+    function pair = field_label_pairs(obj)
+      
+      %   FIELD_LABEL_PAIRS -- Return an array of 'field', {'label'} pairs.
+      %
+      %     pairs = field_label_pairs( obj ); returns a 1xN cell array
+      %     where N is the number of label fields times 2. pairs{1} is a
+      %     field name, and pairs{2} is the full-field of labels in that
+      %     field.
+      %
+      %     Ex. //
+      %
+      %     a = Container( zeros(100, 1), 'months', 'May' );
+      %
+      %     b = one( a );
+      %
+      %     pair = field_label_pairs( b );
+      %
+      %     c = Container( zeros(2, 1), pair{:} );
+      %
+      %     See also Container/create
+      %
+      %     OUT:
+      %       - `pair` (cell array)
+      
+      s = struct( obj );
+      labs = s.labels;
+      fs = fieldnames( labs );
+      pair = cell( 1, numel(fs) * 2 );
+      stp = 1;
+      for i = 1:2:numel(fs)*2
+        field = fs{stp};
+        pair{i} = field;
+        pair{i+1} = labs.(field);
+        stp = stp + 1;
+      end
+    end
+    
     function disp(obj)
       
       %   DISP -- Print the size of the data in the object, the class of
