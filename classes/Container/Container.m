@@ -216,6 +216,21 @@ classdef Container
       obj = subsref( obj, ref_struct );      
     end
     
+    function obj = one(obj)
+      
+      %   ONE -- Obtain a single element.
+      %
+      %     newobj = one( obj ); returns a 1x1 Container whose data are NaN
+      %     and whose labels are like those of `obj`, except that
+      %     the non-uniform fields of `obj` are collapsed.
+      %
+      %     See also Container/keep_one, Container/row_op, Container/mean
+      
+      obj = collapse_non_uniform( obj );
+      obj = keep_one( obj );
+      obj = set_property( obj, 'data', NaN );
+    end
+    
     function [obj, ind] = remove(obj, selectors)
       
       %   REMOVE -- remove rows of data and labels identified by
@@ -1798,47 +1813,6 @@ classdef Container
       end
     end
     
-    function obj = describe(obj, dim, funcs)
-      
-      %   DESCRIBE -- Return descriptive stats within the given
-      %     specificity.
-      %
-      %     obj = describe( obj ) returns the mean, standard-deviation,
-      %     median, min, and max of the data in the object, across the 1st
-      %     dimension (rows). The resulting `obj` has a new field
-      %     'measures' identifying each descriptive statistic.
-      %     Consequently, the incoming object must not have a 'measures'
-      %     field.
-      %
-      %     obj = describe( ..., dim ) calculates the descriptive stats
-      %     across `dim`, instead of 1 (rows).
-      %
-      %     obj = describe( ..., funcs ) uses the functions in `funcs`,
-      %     instead of @mean, @std, @median, @min, and @max.
-      %
-      %     IN:
-      %       - `dim` (double) -- Dimension specifier. Defaults to 1.
-      %       - `funcs` (cell array of function_handle) -- Functions to use
-      %         to calculate the descriptives.
-      
-      if ( nargin < 3 )
-        funcs = { @mean, @median, @std, @min, @max };
-      end
-      if ( nargin < 2 )
-        dim = 1; 
-      end
-      fs = field_names( obj );    
-      assert( ~any(strcmp(fs, 'measures')), ['The object cannot have' ...
-        , ' a ''measures'' field.'] );
-      objs = cellfun( @(x) x(obj, dim), funcs, 'un', false );
-      objs = cellfun( @(x) add_field(x, 'measures'), objs, 'un', false );
-      for i = 1:numel(funcs)
-        func_name = func2str( funcs{i} );
-        objs{i}.labels = set_field( objs{i}.labels, 'measures', func_name );
-      end
-      obj = extend( objs{:} );
-    end
-    
     %{
         DATA MANIPULATION
     %}
@@ -2076,6 +2050,47 @@ classdef Container
     %{
         DESCRIPTIVES
     %}
+    
+    function obj = describe(obj, dim, funcs)
+      
+      %   DESCRIBE -- Return descriptive stats within the given
+      %     specificity.
+      %
+      %     obj = describe( obj ) returns the mean, standard-deviation,
+      %     median, min, and max of the data in the object, across the 1st
+      %     dimension (rows). The resulting `obj` has a new field
+      %     'measures' identifying each descriptive statistic.
+      %     Consequently, the incoming object must not have a 'measures'
+      %     field.
+      %
+      %     obj = describe( ..., dim ) calculates the descriptive stats
+      %     across `dim`, instead of 1 (rows).
+      %
+      %     obj = describe( ..., funcs ) uses the functions in `funcs`,
+      %     instead of @mean, @std, @median, @min, and @max.
+      %
+      %     IN:
+      %       - `dim` (double) -- Dimension specifier. Defaults to 1.
+      %       - `funcs` (cell array of function_handle) -- Functions to use
+      %         to calculate the descriptives.
+      
+      if ( nargin < 3 )
+        funcs = { @mean, @median, @std, @min, @max };
+      end
+      if ( nargin < 2 )
+        dim = 1; 
+      end
+      fs = field_names( obj );    
+      assert( ~any(strcmp(fs, 'measures')), ['The object cannot have' ...
+        , ' a ''measures'' field.'] );
+      objs = cellfun( @(x) x(obj, dim), funcs, 'un', false );
+      objs = cellfun( @(x) add_field(x, 'measures'), objs, 'un', false );
+      for i = 1:numel(funcs)
+        func_name = func2str( funcs{i} );
+        objs{i}.labels = set_field( objs{i}.labels, 'measures', func_name );
+      end
+      obj = extend( objs{:} );
+    end
     
     function obj = counts(obj, varargin)
       
