@@ -599,6 +599,7 @@ classdef ContainerPlotter < handle
         if ( ~isempty(panels_are) )
           title_labels = ...
             strjoin( flat_uniques(one_panel.labels, panels_are), ' | ' );
+          title_labels = strrep( title_labels, '_', ' ' );
         else title_labels = obj.params.title;
         end
         h(i) = subplot( obj.params.shape(1), obj.params.shape(2), i );
