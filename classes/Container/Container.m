@@ -949,15 +949,7 @@ classdef Container
       
       %   END -- Return the number of rows in the object.
       
-      if ( N == 1 )
-        s = shape( obj, 1 );
-        return;
-      end
-      if ( N == 2 )
-        error( '(row, col) indexing is not supported with `end`.' );
-      else
-        error( 'Multidimensional indexing is not supported.' );
-      end
+      s = shape( obj, 1 );
     end
     
     function obj = numeric_index(obj, ind)
@@ -2306,7 +2298,7 @@ classdef Container
       for i = 2:n_dims
         size_str = sprintf( '%s-by-%d', size_str, size(obj.data, i) );
       end
-      fprintf('\n\n%s %s %s with %s:\n', ...
+      fprintf('  %s %s %s with %s:\n', ...
         size_str, obj.dtype, class(obj), class(obj.labels) );
       disp( obj.labels );
     end

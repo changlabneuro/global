@@ -1295,8 +1295,8 @@ classdef SparseLabels
       for i = 1:numel(cats)
         current = unqs{i};
         if ( desktop_exists )
-          fprintf( '\n - <strong>%s</strong>', cats{i} );
-        else fprintf( '\n - %s', cats{i} );
+          fprintf( '\n  - <strong>%s</strong>', cats{i} );
+        else fprintf( '\n  - %s', cats{i} );
         end
         if ( obj.VERBOSE )
           nprint = numel( current );
@@ -1305,11 +1305,11 @@ classdef SparseLabels
         for j = 1:nprint
           ind = get_index( obj, current{j} );
           N = full( sum(ind) );
-          fprintf( '\n\t - %s (%d)', current{j}, N );
+          fprintf( '\n     - %s (%d)', current{j}, N );
         end
         remaining = numel(current) - j;
         if ( remaining > 0 )
-          fprintf( '\n\t - ... and %d others', remaining );
+          fprintf( '\n     - ... and %d others', remaining );
         end
       end
       fprintf( '\n\n' );
