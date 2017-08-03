@@ -1002,7 +1002,16 @@ classdef Labels
       end
       indices(remove) = [];
       c(remove, :) = [];
-    end    
+    end
+    
+    function [indices, c] = rget_indices(obj, fields)
+      
+      %   RGET_INDICES -- Alias for `get_indices`.
+      %
+      %     See also Labels/get_indices
+      
+      [indices, c] = get_indices( obj, fields );
+    end
     
     %{
         EQUALITY AND INTER-OBJECT COMPATIBILITY

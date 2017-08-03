@@ -723,7 +723,16 @@ classdef SparseLabels
     
     function [obj, ind] = only(obj, selectors)
       
-      %   ONLY -- retain the labels that match the labels in `selectors`.
+      %   ONLY -- Retain rows that match labels.
+      %
+      %     newobj = only( obj, 'NY' ) returns a SparseLabels object with
+      %     rows that match 'NY'. If 'NY' is not present in `obj`, `newobj`
+      %     is empty.
+      %
+      %     [newobj, ind] = ... also returns the index used to select rows
+      %     of `obj`.
+      %
+      %     See also SparseLabels/where
       %
       %     IN:
       %       - `selectors` (cell array of strings, char) -- labels to
@@ -757,9 +766,13 @@ classdef SparseLabels
     
     function obj = keep(obj, ind)
       
-      %   KEEP -- given a logical column vector, return a `SparseLabels` 
-      %     object whose indices, labels, and categories are truncated to
-      %     the elements that match the true elements in the index.
+      %   KEEP -- Retain rows associated with a logical index.
+      %
+      %     newobj = keep( obj, [true; false] ), where `obj` is a 2xN
+      %     SparseLabels object, returns a new object containing the first
+      %     row of `obj`.
+      %
+      %     See also SparseLabels/only
       %
       %     IN:
       %       - `ind` (logical) |COLUMN VECTOR| -- index of elements to 
@@ -823,7 +836,7 @@ classdef SparseLabels
       %   	for which there are no true elements of indices.
       
       empties = ~any( obj.indices, 1 );
-      if ( ~any(empties) ), return; end;
+      if ( ~any(empties) ), return; end
       obj.labels(empties) = [];
       obj.categories(empties) = [];
       obj.indices(:, empties) = [];
@@ -831,18 +844,25 @@ classdef SparseLabels
     
     function [full_index, cats] = where(obj, selectors)
       
-      %   WHERE -- obtain a row index associated with desired labels in 
-      %     `selectors`. 
+      %   WHERE -- Return an index of labels.
       %
-      %     ACROSS fields, indices are AND indices; WITHIN a field, indices 
-      %     are OR indices. If any of the labels in `selectors` is not 
-      %     found, the entire index is false. Also returns the categories 
-      %     associated with each label in `selectors`. If a given 
-      %     `selectors`{i} is not found, the `cats`{i} will be -1.
-      %     `cats` will always be of the same dimensions as `selectors`; 
-      %     i.e., the function is guaranteed to list the category
-      %     associated with `selectors`(i), even if, say, the very first
-      %     element of `selectors` is not found.
+      %     I = where( obj, 'NY' ) returns an Mx1 logical index that is 
+      %     true for rows that match 'NY'.
+      %
+      %     I = where( obj, {'NY', 'LA'} ), where 'NY' and 'LA' are labels
+      %     in the same category, returns an index that is true for rows
+      %     that match 'NY' OR 'LA'.
+      %
+      %     I = where( obj, {'NY', 'LA', 'low-income'} ), where 'NY' and
+      %     'LA' are labels in the same category, but 'low-income' is a
+      %     label in a different category, returns an index that is true
+      %     for rows that match 'low-income' AND ('NY' OR 'LA').
+      %
+      %     [I, C] ... also returns the categories in which each
+      %     `selectors` resides. If a selector is not found, its category
+      %     will be -1.
+      %
+      %     See also SparseLabels/only, SparseLabels/get_indices
       %
       %     IN:
       %       - `selectors` (cell array of strings, char) -- Desired
@@ -862,25 +882,25 @@ classdef SparseLabels
       full_index = rep_logic( obj, false );
       all_false = false;
       cats = cell( size(selectors) );
-      if ( isempty(selectors) ), return; end;
+      if ( isempty(selectors) ), return; end
       inds = false( shape(obj,1), numel(selectors) );
       for i = 1:numel(selectors)
         label_ind = strcmp( obj.labels, selectors{i} );
-        if ( ~any(label_ind) ), all_false = true; cats{i} = -1; continue; end;
+        if ( ~any(label_ind) ), all_false = true; cats{i} = -1; continue; end
         inds(:,i) = obj.indices( :, label_ind );
         cats(i) = obj.categories( label_ind  );
       end
-      if ( all_false ), return; end;
+      if ( all_false ), return; end
       unqs = unique( cats );
       n_unqs = numel( unqs );
       if ( n_unqs == numel(cats) )
         full_index = sparse( all(inds, 2) ); return; 
-      end;
+      end
       full_index(:) = true;
       for i = 1:n_unqs
         current = inds( :, strcmp(cats, unqs{i}) );
         full_index = full_index & any(current, 2);
-        if ( ~any(full_index) ), full_index = sparse(full_index); return; end;
+        if ( ~any(full_index) ), full_index = sparse(full_index); return; end
       end
       full_index = sparse( full_index );
     end
@@ -945,7 +965,7 @@ classdef SparseLabels
       %         which each column c(:,i) contains labels in category
       %         `cats(i)`, and each row a unique combination of labels.
       
-      if ( nargin < 2 ), cats = unique( obj.categories ); end;
+      if ( nargin < 2 ), cats = unique( obj.categories ); end
       if ( ~obj.IGNORE_CHECKS )
         cats = SparseLabels.ensure_cell( cats );
       end
@@ -962,7 +982,7 @@ classdef SparseLabels
       %     I.e., some unique combinations of labels might not exist in the 
       %     object, and if so, the index of their location is not returned. 
       %     Thus when calling keep() on the object with each index returned 
-      %     by get_indices(), it is guarenteed that the object will not be 
+      %     by get_indices(), it is guaranteed that the object will not be 
       %     empty. The idea behind this function is to avoid nested loops 
       %     -- instead, you can call get_indices with the desired 
       %     specificty, and then only loop through the resulting indices.
@@ -988,6 +1008,97 @@ classdef SparseLabels
       end
       inds(remove) = [];
       c(remove,:) = [];
+    end
+    
+    function [I, C] = rget_indices(obj, cats)
+      
+      %   RGET_INDICES -- Get indices of label combinations, recursively.
+      %
+      %     I = rget_indices( obj, 'cities' ); returns the index of each
+      %     label in 'cities'.
+      %
+      %     I = rget_indices( obj, {'cities', 'states'} ); returns the
+      %     index of each 'cities' x 'states' pair of labels.
+      %
+      %     [I, C] = ... also returns the combinations of labels in the
+      %     given categories associated with each index. `C` is an MxN cell
+      %     array of M label combinations by N categories. Each row of C
+      %     corresponds to each row of I.
+      %
+      %     See also SparseLabels/where, SparseLabels/only,
+      %     SparseLabels/keep
+      %
+      %     IN:
+      %       - `cats` (cell array of strings, char)
+      %     OUT:
+      %       - `I` (cell array of logical)
+      %       - `C` (cell array of strings)
+      
+      cats = SparseLabels.ensure_cell( cats );
+      
+      cellfun( @(x) assert(any(strcmp(obj.categories, x)), ...
+        'The category ''%s'' does not exist.', x), cats );
+      
+      if ( numel(cats) == 1 )
+        %   we can do a faster version if there's only category
+        [I, C] = one_cat( obj, cats );
+        return;
+      end
+      
+      ind = true( shape(obj, 1), 1 );
+      N = numel( cats );
+      %   guess a preallocation amount of 500
+      I = cell( 500, 1 );
+      C = cell( 500, N );
+      istp = 1;
+      cstp = 0;
+      row = cell( 1, N );
+      
+      get_indices_( obj, ind, cats );
+      
+      I = I(1:istp-1);
+      C = C(1:istp-1, :);
+      
+      %   - subroutines
+      
+      function get_indices_(obj, ind, cats)        
+        if ( isempty(cats) )
+          I{istp, 1} = ind;
+          C(istp, :) = row;
+          istp = istp + 1;
+          return;
+        end
+        [inds, unqs] = enumerate_( obj, cats(1) );
+        cats(1) = [];
+        cstp = cstp + 1;
+        for i = 1:size(inds, 2)
+          ind_ = ind;
+          ind_( ind_ ) = inds(:, i);
+          row{cstp} = unqs{i};
+          get_indices_( fast_keep_(obj, inds(:, i)), ind_, cats );
+        end
+        cstp = cstp - 1;
+      end
+      function [I, C] = one_cat(obj, category)
+        [inds, C] = enumerate_(obj, category);
+        C = C(:);
+        I = cell( size(inds, 2), 1 );
+        for i = 1:size(inds, 2)
+          I{i} = inds(:, i);
+        end
+      end
+      function [inds, unqs] = enumerate_(obj, cat)
+        unqs = obj.labels( strcmp(obj.categories, cat) );
+        ninds = cellfun( @(x) find(strcmp(obj.labels, x)), unqs );
+        inds = obj.indices( :, ninds );
+      end
+      function obj = fast_keep_(obj, ind)
+        obj.indices = obj.indices( ind, : );
+        empties = ~any( obj.indices, 1 );
+        obj.labels( empties ) = [];
+        obj.categories( empties ) = [];
+        obj.indices( :, empties ) = [];
+      end
     end
     
     %{
@@ -1083,7 +1194,7 @@ classdef SparseLabels
       %         object with matching unique categories.
       
       tf = false;
-      if ( ~isa(B, 'SparseLabels') ), return; end;
+      if ( ~isa(B, 'SparseLabels') ), return; end
       tf = isequal( unique(obj.categories), unique(B.categories) );
     end
     
@@ -1101,7 +1212,7 @@ classdef SparseLabels
       %         object with the same number of columns as B
       
       tf = false;
-      if ( ~isa(B, 'SparseLabels') ), return; end;
+      if ( ~isa(B, 'SparseLabels') ), return; end
       tf = shape( obj, 2 ) == shape( B, 2 );
     end
     
@@ -1120,7 +1231,7 @@ classdef SparseLabels
       %         object.
       
       tf = false;
-      if ( ~isa(B, 'SparseLabels') ), return; end;
+      if ( ~isa(B, 'SparseLabels') ), return; end
       tf = isequal( shape(obj), shape(B) );
     end
     
@@ -1404,10 +1515,11 @@ classdef SparseLabels
       %       - `log` (logical) |COLUMN| -- Sparse logical column vector;
       %         either all true or all false.
       
-      if ( isempty(obj) ), log = tf; return; end;
+      if ( isempty(obj) ), log = tf; return; end
       if ( tf )
         log = sparse( true(shape(obj, 1), 1) );
-      else log = sparse( false(shape(obj, 1), 1) );
+      else
+        log = sparse( false(shape(obj, 1), 1) );
       end
     end
     

@@ -362,20 +362,26 @@ classdef Container
     
     function [objs, indices, combs] = enumerate(obj, fields)
       
-      %   ENUMERATE -- Obtain a cell array of objects, indices, and label
-      %     combinations that contain values associated with each unique
-      %     combination of labels in the specified fields.
+      %   ENUMERATE -- Enumerate objects for combinations of labels.
       %
+      %     objs = enumerate( obj, 'cities' ) returns an Mx1 cell array of
+      %     Container objects, in which each element contains only one
+      %     label in the field / category 'cities'.
+      %
+      %     objs = enumerate( obj, {'cities', 'states'} ) works as above,
+      %     except that each element contains only one 'cities' x 'states'
+      %     pair.
+      %
+      %     [objs, indices, combs] = enumerate( ... ) also returns the
+      %     indices and combinations of labels in `fields` used to select
+      %     each object.
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char, {})
       %     OUT:
-      %       - `objs` (cell array of Containers) -- cell array where each
-      %         objs{i} is a Container containing the unique combination of
-      %         labels present in combs(i, :)
-      %       - `indices` (cell array of logicals) -- indices associated 
-      %         with the labels identified by each row of `c`, with respect
-      %         to the original object `obj`.
-      %       - `combs` (cell array of strings) -- the unique combinations 
-      %         of labels in `fields`; each row of combs is identified by
-      %         the corresponding row of `indices`.
+      %       - `objs` (cell array of Containers)
+      %       - `indices` (cell array of logicals)
+      %       - `combs` (cell array of strings)
       
       if ( isempty(fields) )
         objs = { obj };
@@ -384,17 +390,18 @@ classdef Container
         return;
       end
       [indices, combs] = get_indices( obj, fields );
-      objs = cell( size(indices) );
-      for i = 1:numel(objs)
-        objs{i} = keep( obj, indices{i} );
-      end
+      objs = cellfun( @(x) keep(obj, x), indices, 'un', false );
     end
     
     function c = combs(obj, fields)
       
-      %   COMBS -- Get all unique combinations of the labels in `fields`.
+      %   COMBS -- Return all possible combinations of labels.
       %
-      %     See also Labels/combs
+      %     c = combs( obj, {'cities', 'states'} ) returns an Mx2 cell
+      %     array of M pairs of 'cities' x 'states' labels. Not all pairs
+      %     necessarily exist in `obj`.
+      %
+      %     See also Container/pcombs
       %
       %     IN:
       %       - `fields` (cell array of strings, char) -- fields in the 
@@ -408,11 +415,13 @@ classdef Container
     
     function c = pcombs(obj, fields)
       
-      %   PCOMBS -- Return the unique combinations of labels that are
-      %     present in the object.
+      %   PCOMBS -- Return present unique combinations of labels.
       %
-      %     Of all possible combinations of labels in `fields`, only those
-      %     that have data associated with them will be returned.
+      %     c = pcombs( obj, {'cities', 'states'} ) returns an Mx2 cell
+      %     array of M pairs of 'cities' x 'states' labels. Each pair is
+      %     guaranteed to exist in `obj`.
+      %
+      %     See also SparseLabels/rget_indices, Container/combs
       %
       %     IN:
       %       - `fields` (cell array of strings, char)
@@ -424,23 +433,20 @@ classdef Container
     
     function [indices, comb] = get_indices(obj, fields)
       
-      %   GET_INDICES -- Get indices associated with the unique
-      %     combinations of unique labels in `fields`.
+      %   GET_INDICES -- Get indices of label combinations.
       %
-      %     See also Labels/get_indices
+      %     See also SparseLabels/rget_indices
       %
       %     IN:
-      %       - `fields` (cell array of strings, char) -- fields in the
-      %         Labels object in `obj.labels`
-      %
+      %       - `fields` (cell array of strings, char)
       %     OUT:
       %       - `indices` (cell array of logicals) -- indices associated 
-      %         with the labels identified by each row of `c`
+      %         with the labels identified by each row of `c`.
       %       - `comb` (cell array of strings) -- the unique combinations 
       %         of labels in `fields`; each row of c is identified by the
       %         corresponding row of `indices`.
       
-      [indices, comb] = get_indices( obj.labels, fields );
+      [indices, comb] = rget_indices( obj.labels, fields );
     end
     
     %{
@@ -1369,14 +1375,14 @@ classdef Container
       end
     end
     
-    function obj = for_each(obj, varargin)
+    function obj = do_recursive(obj, varargin)
       
-      %   FOR_EACH -- Alias for `do_recursive`.
+      %   DO_RECURSIVE -- Alias for `for_each`.
       %
-      %     See also Container/do_recursive
+      %     See also Container/for_each
       
       try
-        obj = do_recursive( obj, varargin{:} );
+        obj = for_each( obj, varargin{:} );
       catch err
         throwAsCaller( err );
       end
@@ -1421,7 +1427,7 @@ classdef Container
       %     IN:
       %       - `varargin` (cell array)
       %
-      %     See also Container/do_recursive
+      %     See also Container/for_each
       
       narginchk( 3, Inf );
       within = Labels.ensure_cell( varargin{1} );
@@ -1485,7 +1491,7 @@ classdef Container
       %   call non-parellelized function if not parpool exists.
       if ( isempty(p) )
         warning( 'No parallel pool exists. Using non-parallelized function.' );
-        out = do_recursive( obj, within, func, varargin{:} );
+        out = for_each( obj, within, func, varargin{:} );
         return;
       end
       C = pcombs( obj, first );
@@ -1521,39 +1527,30 @@ classdef Container
           subset = obj;
           row = C_(i, :);
           subset = only( subset, row );
-          subset = do_recursive( subset, rest, func, varargin{:} );
+          subset = for_each( subset, rest, func, varargin{:} );
           subset_out = append( subset_out, subset );
         end
       end
       out = extend( subset_out{:} );
     end
     
-    function out = do_recursive(obj, varargin)
+    function out = for_each(obj, varargin)
       
-      %   DO_RECURSIVE -- Apply a function to the data associated with each
+      %   FOR_EACH -- Apply a function to the data associated with each
       %     unique combination of labels in the specified fields.
       %
-      %     out = do_recursive( obj, {'doses', 'images'}, @mean );
+      %     out = for_each( obj, {'doses', 'images'}, @mean );
       %     calculates a mean for each unique (dose x image) pair of labels
       %     in 'doses' and 'images'.
       %
-      %     out = do_recursive( obj, 'doses', @percentages, 'images' );
+      %     out = for_each( obj, 'doses', @percentages, 'images' );
       %     calculates the percentage of trials associated with each image
       %     label in 'images', separately for each dose in 'doses'.
       %
-      %     See also Container/do_per
+      %     See also Container/pcombs
       %
       %     IN:
-      %       - `varargin` -- The initial invocation of `do_recursive`
-      %         requires at least two arguments in addition to the object.
-      %         The first input is the field(s) over which to iterate,
-      %         specified as a cell array of strings or char, and the
-      %         second is the function to execute, specified as a
-      %         'function_handle'. Any additional arguments will be passed
-      %         to each invocation of the function. The function must be
-      %         configured to accept a Container object as its first input,
-      %         and must return a Container object; otherwise, an error is
-      %         thrown.
+      %       - `varargin` (cell array)
       %     OUT:
       %       - `out` (Container) -- Container object
       
@@ -1575,7 +1572,7 @@ classdef Container
         %   we're at the most specific level, so call the function.
         next = func( obj, varargin{:} );
         assert( isa(next, 'Container'), ['The returned value of a function' ...
-          , ' called with do_recursive() must be a Container; was a ''%s'''] ...
+          , ' called with for_each() must be a Container; was a ''%s'''] ...
           , class(next) );
         out = append( out, next );
         return;
@@ -1583,7 +1580,7 @@ classdef Container
       objs = enumerate( obj, within(1) );
       within(1) = [];
       for i = 1:numel(objs)
-        out = do_recursive( objs{i}, out, within, func, varargin{:} );
+        out = for_each( objs{i}, out, within, func, varargin{:} );
       end
     end
     
@@ -2122,7 +2119,7 @@ classdef Container
       fields = varargin{1};
       obj.data = ones( shape(obj, 1), 1 );
       obj.dtype = class( obj.data );
-      obj = do_recursive( obj, fields, @sum );
+      obj = for_each( obj, fields, @sum );
     end
     
     function new_obj = counts_of(obj, fields, labs)
