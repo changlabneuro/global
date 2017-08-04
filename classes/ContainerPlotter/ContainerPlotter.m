@@ -261,6 +261,9 @@ classdef ContainerPlotter < handle
       end
       obj.assign_shape( numel(inds) );
       per_panel_labs = obj.params.per_panel_labels;
+      if ( per_panel_labs )
+        fprintf( '\n Not yet implemented.' );
+      end
       labs = unique( get_fields(cont.labels, category) );
       if ( ~isempty(obj.params.order_by) )
         main_order_ind = obj.preferred_order_index( labs, obj.params.order_by );
