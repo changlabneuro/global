@@ -15,7 +15,7 @@ classdef SparseLabels
   
   methods
     function obj = SparseLabels(labs)
-      if ( nargin < 1 ), return; end;
+      if ( nargin < 1 ), return; end
       if ( isstruct(labs) )
         labs = SparseLabels.convert_struct_input_to_labels( labs );
       elseif ( iscell(labs) )
@@ -40,8 +40,8 @@ classdef SparseLabels
         categories{i} = category{1};
         labels{i} = all_labs{i};
       end
-      obj.labels = labels;
-      obj.categories = categories;
+      obj.labels = labels(:);
+      obj.categories = categories(:);
       obj.indices = sparse( indices );
     end
     
@@ -279,7 +279,18 @@ classdef SparseLabels
           , class(set_as) );
       end
       assert( contains_categories(obj, cat), ['The specified category ''%s''' ...
-        , ' does not exist'], cat );
+        , ' does not exist.'], cat );
+      %   make sure we're not attempting to assign the collapsed expression
+      %   for a given category to the wrong category.
+      unq_cats = unique( obj.categories );
+      clpsed_cat_names = cellfun( @(x) [obj.COLLAPSED_EXPRESSION, x] ...
+        , unq_cats, 'un', false );
+      matches_clpsed_cat = strcmp( clpsed_cat_names, set_as );
+      if ( any(matches_clpsed_cat) )
+        assert( strcmp(unq_cats(matches_clpsed_cat), cat), ['Cannot assign' ...
+          , ' the collapsed expression for category ''%s'' to category' ...
+          , ' ''%s''.'], unq_cats{matches_clpsed_cat}, cat );
+      end
       labels_to_replace = labels_in_category( obj, cat );
       %   if no index is specified, or the index is entirely true, we can
       %   just replace() all labels
@@ -446,7 +457,10 @@ classdef SparseLabels
     
     function obj = replace(obj, search_for, with)
       
-      %   REPLACE -- replace a given number of labels with a single label.
+      %   REPLACE -- Replace a given number of labels with a single label.
+      %
+      %     obj = replace( obj, {'NY', 'CT', 'NJ'}, 'east-coast' ) replaces
+      %     'NY', 'CT', and 'NJ' with 'east-coast'.
       %
       %     All of the to-be-replaced labels must be in the same field; it 
       %     is an error to place the same label in multiple fields. If no
@@ -477,10 +491,22 @@ classdef SparseLabels
       %   where are the current search terms in the obj.labels cell array?
       lab_inds = cellfun( @(x) find(strcmp(obj.labels, x)), search_for );
       cats = obj.categories( lab_inds );
+      unq_cats = unique( cats );
       %   make sure the categories of the search terms are all the same.
-      if ( numel(unique(cats)) ~= 1 )
+      if ( numel(unq_cats) ~= 1 )
         error( ['Replacing the search term(s) with ''%s'' would place ''%s''' ...
           , ' in multiple categories.'], with, with );
+      end
+      %   make sure the replacement term is not a collapsed-expression for
+      %   the wrong category.
+      all_cats = unique( obj.categories );
+      clpsed_expressions = cellfun( @(x) [obj.COLLAPSED_EXPRESSION, x] ...
+        , all_cats, 'un', false );
+      matches_clpsed = strcmp( clpsed_expressions, with );
+      if ( any(matches_clpsed) )
+        assert( strcmp(all_cats(matches_clpsed), unq_cats), ['Cannot assign' ...
+          , ' the collapsed expression for category ''%s'' to category' ...
+          , ' ''%s''.'], all_cats{matches_clpsed}, unq_cats{1} );
       end
       tf = contains( obj, with );
       %   if the object already contains the replace-with term, make sure
@@ -489,7 +515,7 @@ classdef SparseLabels
       if ( tf )
         current_ind = strcmp( obj.labels, with );
         categ = obj.categories( current_ind );
-        assert( all(strcmp(unique(cats), categ)), ['The search term ''%s'' already' ...
+        assert( all(strcmp(unq_cats, categ)), ['The search term ''%s'' already' ...
           , ' exists in the category ''%s''; attempted to place ''%s'' in' ...
           , ' the category ''%s''.'], with, categ{1}, with, cats{1} );
         lab_inds = [ lab_inds, find(current_ind) ];
@@ -497,7 +523,7 @@ classdef SparseLabels
       new_inds = any( obj.indices(:, lab_inds), 2 );
       obj.labels( lab_inds(1) ) = { with };
       obj.indices(:, lab_inds(1)) = new_inds;
-      if ( numel(lab_inds) == 1 ), return; end;
+      if ( numel(lab_inds) == 1 ), return; end
       %   remove category, labels, and indices associated with the
       %   duplicates
       obj.labels( lab_inds(2:end) ) = [];
@@ -507,25 +533,47 @@ classdef SparseLabels
     
     function obj = collapse(obj, cats)
       
-      %   COLLAPSE -- Replace labels in a category or categories with a
-      %     repeated, category-namespaced expression: 'all__`category`'.
+      %   COLLAPSE -- Reduce a category to a single label.
       %
-      %     An error is thrown if even one of the specified categories is
-      %     not found.
+      %     obj = collapse( obj, 'cities' ) replaces all labels in the
+      %     category 'cities' with the label 'all__cities'.
+      %
+      %     obj = collapse( obj, {'cities', 'states'} ) works as above,
+      %     separately for 'cities' and 'states'.
       %
       %     IN:
-      %       - `cats` (cell array of strings, char) -- category or
-      %         categories to collapse.
-      %     OUT:
-      %       - `obj` (Labels) -- object with the appropriate categories
-      %         collapsed.
+      %       - `cats` (cell array of strings, char)
       
-      cats = unique( SparseLabels.ensure_cell(cats) );
-      labs = cellfun( @(x) labels_in_category(obj, x)', cats, ...
-        'UniformOutput', false );
-      for i = 1:numel(labs)
-        obj = replace( obj, labs{i}, [obj.COLLAPSED_EXPRESSION cats{i}] );
-      end      
+      obj = fast_collapse_( obj, cats );
+%       cats = unique( SparseLabels.ensure_cell(cats) );
+%       labs = cellfun( @(x) labels_in_category(obj, x)', cats, 'un', false );
+%       for i = 1:numel(labs)
+%         obj = replace( obj, labs{i}, [obj.COLLAPSED_EXPRESSION cats{i}] );
+%       end
+    end
+    
+    function obj = fast_collapse_(obj, cats)
+      
+      %   FAST_COLLAPSE_ -- Reduce a category to single label.
+      %
+      %     IN:
+      %       - `cats` (cell array of strings, char)
+      
+      cats = SparseLabels.ensure_cell( cats );
+      for i = 1:numel(cats)
+        assert( ischar(cats{i}), 'Category name must be a char; was a %s.' ...
+          , class(cats{i}) );
+        ind = strcmp( obj.categories, cats{i} );
+        assert( any(ind), 'The category ''%s'' does not exist.', cats{i} );
+%         if ( sum(ind) == 1 ), continue; end
+        obj.labels(ind) = [];
+        obj.categories(ind) = [];
+        obj.indices(:, ind) = [];
+        lab = [ obj.COLLAPSED_EXPRESSION, cats{i} ];
+        obj.labels{end+1} = lab;
+        obj.categories{end+1} = cats{i};
+        obj.indices(:, end+1) = true;
+      end
     end
     
     function obj = collapse_except(obj, cats)
@@ -633,8 +681,8 @@ classdef SparseLabels
       else labs = repmat( labs, shape(obj, 1), 1 );
       end
       exists = cellfun( @(x) any(strcmp(obj.labels, x)), unique(labs) );
-      assert( ~any(exists), ['It is an error to insert duplicate labels' ...
-        , 'into the object'] );
+      assert( ~any(exists), ['It is an error to insert duplicate labels ' ...
+        , 'into the object.'] );
       try
         s.(name) = labs;
       catch err
@@ -766,7 +814,7 @@ classdef SparseLabels
     
     function obj = keep(obj, ind)
       
-      %   KEEP -- Retain rows associated with a logical index.
+      %   KEEP -- Retain rows at which an index is true.
       %
       %     newobj = keep( obj, [true; false] ), where `obj` is a 2xN
       %     SparseLabels object, returns a new object containing the first
@@ -780,7 +828,7 @@ classdef SparseLabels
       
       if ( ~obj.IGNORE_CHECKS )
         assert__is_properly_dimensioned_logical( obj, ind );
-        if ( ~issparse(ind) ), ind = sparse( ind ); end;
+        if ( ~issparse(ind) ), ind = sparse( ind ); end
       end
       obj.indices = obj.indices(ind, :);
       empties = ~any( obj.indices, 1 )';
@@ -953,8 +1001,7 @@ classdef SparseLabels
     
     function c = combs(obj, cats)
       
-      %   COMBS -- Get all unique combinations of unique labels in the
-      %     given categories.
+      %   COMBS -- Return all possible combinations of labels.
       %
       %     IN:
       %       - `cats` (cell array of strings, char) |OPTIONAL| --
@@ -1018,7 +1065,7 @@ classdef SparseLabels
       %     label in 'cities'.
       %
       %     I = rget_indices( obj, {'cities', 'states'} ); returns the
-      %     index of each 'cities' x 'states' pair of labels.
+      %     index of each combination of labels in 'cities' and 'states'.
       %
       %     [I, C] = ... also returns the combinations of labels in the
       %     given categories associated with each index. `C` is an MxN cell
@@ -1035,7 +1082,6 @@ classdef SparseLabels
       %       - `C` (cell array of strings)
       
       cats = SparseLabels.ensure_cell( cats );
-      
       cellfun( @(x) assert(any(strcmp(obj.categories, x)), ...
         'The category ''%s'' does not exist.', x), cats );
       

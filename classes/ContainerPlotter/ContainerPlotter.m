@@ -21,6 +21,7 @@ classdef ContainerPlotter < handle
       , 'order_by', [] ...
       , 'order_groups_by', [] ...
       , 'order_panels_by', [] ...
+      , 'per_panel_labels', false ...
       , 'stacked_bar', false ...
       , 'save_outer_folder', [] ...
       , 'save_folder_hierarcy', [] ...
@@ -259,6 +260,7 @@ classdef ContainerPlotter < handle
         end
       end
       obj.assign_shape( numel(inds) );
+      per_panel_labs = obj.params.per_panel_labels;
       labs = unique( get_fields(cont.labels, category) );
       if ( ~isempty(obj.params.order_by) )
         main_order_ind = obj.preferred_order_index( labs, obj.params.order_by );
@@ -266,6 +268,7 @@ classdef ContainerPlotter < handle
       end
       h = cell( 1, numel(inds) );
       subp = gobjects( 1, numel(inds) );
+      %   panels
       for i = 1:numel(inds)
         one_panel = keep( cont, inds{i} );
         title_labels = strjoin( flat_uniques(one_panel.labels, within), ' | ' );
@@ -288,7 +291,7 @@ classdef ContainerPlotter < handle
             one_grouping = keep( one_panel, group_inds{k} );
             for j = 1:numel(labs)
               per_lab = only( one_grouping, labs{j} );
-              if ( isempty(per_lab) ), continue; end;
+              if ( isempty(per_lab) ), continue; end
               means(j, k) = obj.params.summary_function( per_lab.data );
               errors(j, k) = obj.params.error_function( per_lab.data );
               store_values{j, k} = per_lab.data;
@@ -305,7 +308,7 @@ classdef ContainerPlotter < handle
           add_legend = false;
           for k = 1:numel(labs)
             per_lab = only( one_panel, labs{k} );
-            if ( isempty(per_lab) ), continue; end;
+            if ( isempty(per_lab) ), continue; end
             means(k) = obj.params.summary_function( per_lab.data );
             errors(k) = obj.params.error_function( per_lab.data );
             store_values{k} = per_lab.data;
@@ -329,8 +332,6 @@ classdef ContainerPlotter < handle
         %   store newest maxs + mins
         summed = means + errors;
         subbed = means - errors;
-%         maxs = max( [maxs, max(summed(:))] );
-%         mins = min( [mins, min(subbed(:))] );
         if ( obj.params.add_points )
           dcm = datacursormode( gcf );
           datacursormode( 'on' );

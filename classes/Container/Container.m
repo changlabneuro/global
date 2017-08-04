@@ -398,17 +398,15 @@ classdef Container
       %   COMBS -- Return all possible combinations of labels.
       %
       %     c = combs( obj, {'cities', 'states'} ) returns an Mx2 cell
-      %     array of M pairs of 'cities' x 'states' labels. Not all pairs
-      %     necessarily exist in `obj`.
+      %     array of M possible combinations of 'cities' x 'states' labels,
+      %     not all of which necessarily exist in `obj`.
       %
       %     See also Container/pcombs
       %
       %     IN:
-      %       - `fields` (cell array of strings, char) -- fields in the 
-      %         Labels object in `obj.labels`
+      %       - `fields` (cell array of strings, char)
       %     OUT:
-      %       - `c` (cell array of strings) -- Unique combinations of 
-      %         labels.
+      %       - `c` (cell array of strings)
       
       c = combs( obj.labels, fields );
     end
@@ -418,8 +416,8 @@ classdef Container
       %   PCOMBS -- Return present unique combinations of labels.
       %
       %     c = pcombs( obj, {'cities', 'states'} ) returns an Mx2 cell
-      %     array of M pairs of 'cities' x 'states' labels. Each pair is
-      %     guaranteed to exist in `obj`.
+      %     array of M combinations of labels in the fields 'cities' and 
+      %     'states'. Each combination is guaranteed to exist in `obj`.
       %
       %     See also SparseLabels/rget_indices, Container/combs
       %
@@ -1572,7 +1570,7 @@ classdef Container
         %   we're at the most specific level, so call the function.
         next = func( obj, varargin{:} );
         assert( isa(next, 'Container'), ['The returned value of a function' ...
-          , ' called with for_each() must be a Container; was a ''%s'''] ...
+          , ' called with for_each() must be a Container; was a ''%s''.'] ...
           , class(next) );
         out = append( out, next );
         return;
@@ -2671,12 +2669,14 @@ classdef Container
         need_dummy_field = false;
         if ( cols_empty )
           manual_set = rows_are;
-        else manual_set = cols_are;
+        else
+          manual_set = cols_are;
         end
         if ( numel(all_fields) > 1 )
           auto_set = setdiff( auto_set, manual_set );
           if ( isempty(auto_set) ), need_dummy_field = true; end
-        else need_dummy_field = true;
+        else
+          need_dummy_field = true;
         end
         if ( need_dummy_field )
           auto_set = get_dummy_field( obj );
@@ -2684,7 +2684,8 @@ classdef Container
         end
         if ( cols_empty )
           cols_are = auto_set;
-        else rows_are = auto_set;
+        else
+          rows_are = auto_set;
         end
       end
       if ( both_empty )
@@ -2730,7 +2731,8 @@ classdef Container
         end
       end
       try
-        tbl = table( cols{:}, 'VariableNames', str_joiner(col_labs, '_') );
+        col_names = matlab.lang.makeValidName( str_joiner(col_labs, '_') );
+        tbl = table( cols{:}, 'VariableNames', col_names );
       catch err
         if ( ~isempty(strfind(err.identifier, 'InvalidVariableName')) )
           msg = [ 'Each column label in a table must be a valid Matlab' ...
@@ -2884,7 +2886,7 @@ classdef Container
         valid_prop = true;
       end
       if ( ~valid_prop )
-        error( 'It is an error to directly set the ''%s'' property', prop );
+        error( 'It is an error to directly set the ''%s'' property.', prop );
       end
       obj.(prop) = values;
     end
