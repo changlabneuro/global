@@ -24,6 +24,8 @@ classdef SparseLabels
         obj.categories = cellfun( @(x) x.category, labs, 'un', false );
         indices = cellfun( @(x) x.index, labs, 'un', false );
         obj.indices = [ indices{:} ];
+        obj.labels = obj.labels(:);
+        obj.categories = obj.categories(:);
         return;
       elseif ( ~isa(labs, 'Labels') )
         error( ['Cannot create a SparseLabels object from input of class' ...
