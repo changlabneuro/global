@@ -261,19 +261,27 @@ classdef ContainerPlotter < handle
       end
       obj.assign_shape( numel(inds) );
       per_panel_labs = obj.params.per_panel_labels;
-      if ( per_panel_labs )
-        fprintf( '\n Not yet implemented.' );
-      end
-      labs = unique( get_fields(cont.labels, category) );
-      if ( ~isempty(obj.params.order_by) )
-        main_order_ind = obj.preferred_order_index( labs, obj.params.order_by );
-        labs = labs( main_order_ind, : );
+      %   if we want the labels on the x-axis to be consistent across
+      %   panels
+      if ( ~per_panel_labs )
+        labs = unique( get_fields(cont.labels, category) );
+        if ( ~isempty(obj.params.order_by) )
+          main_order_ind = obj.preferred_order_index( labs, obj.params.order_by );
+          labs = labs( main_order_ind, : );
+        end
       end
       h = cell( 1, numel(inds) );
       subp = gobjects( 1, numel(inds) );
       %   panels
       for i = 1:numel(inds)
         one_panel = keep( cont, inds{i} );
+        if ( per_panel_labs )
+          labs = unique( one_panel(category) );
+          if ( ~isempty(obj.params.order_by) )
+            main_order_ind = obj.preferred_order_index( labs, obj.params.order_by );
+            labs = labs( main_order_ind, : );
+          end
+        end
         title_labels = strjoin( flat_uniques(one_panel.labels, within), ' | ' );
         title_labels = strrep( title_labels, '_', ' ' );
         if ( ~isempty(group_by) )
@@ -324,7 +332,7 @@ classdef ContainerPlotter < handle
           switch ( func_type )
             case 'errorbar'
               h{i} = func( means, errors, plot_opts{:} );
-            case 'barwitherr'
+            case 'ContainerPlotter.barwitherr'
               h{i} = func( errors, means, plot_opts{:} );
             otherwise
               error( 'Unrecognized plotting function ''%s''', func_type );
@@ -352,12 +360,17 @@ classdef ContainerPlotter < handle
             current = current{1};
             current_obj = store_objs(k);
             current_obj = current_obj{1};
-            for j = 1:numel(current)
-              plot( xs(k), current(j), '*', 'markersize', obj.params.marker_size );
-              s = struct();
-              s.object = current_obj(j);
-              s.data = [xs(k), current(j)];
-              obj.params.current_points{end+1} = s;
+            try
+              for j = 1:numel(current)
+                if ( isnan(current(j)) ), continue; end
+                plot( xs(k), current(j), '*', 'markersize', obj.params.marker_size );
+                s = struct();
+                s.object = current_obj(j);
+                s.data = [xs(k), current(j)];
+                obj.params.current_points{end+1} = s;
+              end
+            catch err
+              warning( err.message );
             end
           end
           hold off;
@@ -449,7 +462,7 @@ classdef ContainerPlotter < handle
       %     'monkeys' )
       
       if ( ~obj.params.stacked_bar )
-        plot_func = @barwitherr;
+        plot_func = @ContainerPlotter.barwitherr;
         plot_opts = {};
         include_errors = true;
       else
@@ -1440,6 +1453,109 @@ classdef ContainerPlotter < handle
       end
     end
     
+    function varargout = barwitherr(errors,varargin)
+      
+      %   BARWITHERR -- Plot a bar plot with error bars.
+      %
+      %     Search fileexchange for 'barwitherr'
+
+      % Check how the function has been called based on requirements for "bar"
+      if nargin < 3
+          % This is the same as calling bar(y)
+          values = varargin{1};
+          xOrder = 1:size(values,1);
+      else
+          % This means extra parameters have been specified
+          if isscalar(varargin{2}) || ischar(varargin{2})
+              % It is a width / property so the y values are still varargin{1}
+              values = varargin{1};
+              xOrder = 1:size(values,1);
+          else
+              % x-values have been specified so the y values are varargin{2}
+              % If x-values have been specified, they could be in a random order,
+              % get their indices in ascending order for use with the bar
+              % locations which will be in ascending order:
+              values = varargin{2};
+              [tmp xOrder] = sort(varargin{1});
+          end
+      end
+
+      % If an extra dimension is supplied for the errors then they are
+      % assymetric split out into upper and lower:
+      if ndims(errors) == ndims(values)+1
+          lowerErrors = errors(:,:,1);
+          upperErrors = errors(:,:,2);
+      elseif isvector(values)~=isvector(errors)
+          lowerErrors = errors(:,1);
+          upperErrors = errors(:,2);
+      else
+          lowerErrors = errors;
+          upperErrors = errors;
+      end
+      % Check that the size of "errors" corresponsds to the size of the y-values.
+      % Arbitrarily using lower errors as indicative.
+      if any(size(values) ~= size(lowerErrors))
+          error('The values and errors have to be the same length')
+      end
+
+      [nRows nCols] = size(values);
+      if ( nRows > 1 )
+        handles.bar = bar(varargin{:}); % standard implementation of bar fn
+      else
+        mat = repmat( varargin{:}, 2, 1 );
+        handles.bar = bar( mat );
+        for i = 1:numel(handles.bar)
+          handles.bar(i).XData = 1;
+          handles.bar(i).YData = handles.bar(i).YData(1);
+        end
+      end
+      hold on
+      hBar = handles.bar;
+
+      if nRows > 0
+          hErrorbar = zeros(1,nCols);
+          for col = 1:nCols
+              % Extract the x location data needed for the errorbar plots:
+              if verLessThan('matlab', '8.4')
+                  % Original graphics:
+                  x = get(get(handles.bar(col),'children'),'xdata');
+              else
+                  % New graphics:
+                  x =  handles.bar(col).XData + [handles.bar(col).XOffset];
+              end
+              % Use the mean x values to call the standard errorbar fn; the
+              % errorbars will now be centred on each bar; these are in ascending
+              % order so use xOrder to ensure y values and errors are too:
+              hErrorbar(col) = errorbar(mean(x,1), values(xOrder,col), lowerErrors(xOrder,col), upperErrors(xOrder, col), '.k');
+              set(hErrorbar(col), 'marker', 'none')
+          end
+      else
+        hErrorbar = zeros(1,nCols);
+        for col = 1:nCols
+            % Extract the x location data needed for the errorbar plots:
+            if verLessThan('matlab', '8.4')
+                % Original graphics:
+                x = get(get(handles.bar(1),'children'),'xdata');
+            else
+                % New graphics:
+                x =  handles.bar(1).XData + [handles.bar(1).XOffset];
+            end
+            % Use the mean x values to call the standard errorbar fn; the
+            % errorbars will now be centred on each bar; these are in ascending
+            % order so use xOrder to ensure y values and errors are too:
+            hErrorbar(col) = errorbar(x(col), values(xOrder,col), lowerErrors(xOrder,col), upperErrors(xOrder, col), '.k');
+            set(hErrorbar(col), 'marker', 'none')
+        end
+      end
+      hold off
+      switch nargout
+          case 1
+              varargout{1} = hBar;
+          case 2
+              varargout{1} = hBar;
+              varargout{2} = hErrorbar;
+      end   
+    end
   end
   
 end

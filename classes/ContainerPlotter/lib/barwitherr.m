@@ -112,11 +112,20 @@ if any(size(values) ~= size(lowerErrors))
 end
 
 [nRows nCols] = size(values);
-handles.bar = bar(varargin{:}); % standard implementation of bar fn
+if ( nRows > 1 )
+  handles.bar = bar(varargin{:}); % standard implementation of bar fn
+else
+  mat = repmat( varargin{:}, 2, 1 );
+  handles.bar = bar( mat );
+  for i = 1:numel(handles.bar)
+    handles.bar(i).XData = 1;
+    handles.bar(i).YData = handles.bar(i).YData(1);
+  end
+end
 hold on
 hBar = handles.bar;
 
-if nRows > 1
+if nRows > 0
     hErrorbar = zeros(1,nCols);
     for col = 1:nCols
         % Extract the x location data needed for the errorbar plots:
@@ -134,16 +143,32 @@ if nRows > 1
         set(hErrorbar(col), 'marker', 'none')
     end
 else
-    if verLessThan('matlab', '8.4')
-        % Original graphics:
-        x = get(get(handles.bar,'children'),'xdata');
-    else
-       % New graphics:
-       x =  handles.bar.XData + [handles.bar.XOffset];
-   end
-    
-    hErrorbar = errorbar(mean(x,1), values, lowerErrors, upperErrors, '.k');
-    set(hErrorbar, 'marker', 'none')
+  hErrorbar = zeros(1,nCols);
+  for col = 1:nCols
+      % Extract the x location data needed for the errorbar plots:
+      if verLessThan('matlab', '8.4')
+          % Original graphics:
+          x = get(get(handles.bar(1),'children'),'xdata');
+      else
+          % New graphics:
+          x =  handles.bar(1).XData + [handles.bar(1).XOffset];
+      end
+      % Use the mean x values to call the standard errorbar fn; the
+      % errorbars will now be centred on each bar; these are in ascending
+      % order so use xOrder to ensure y values and errors are too:
+      hErrorbar(col) = errorbar(x(col), values(xOrder,col), lowerErrors(xOrder,col), upperErrors(xOrder, col), '.k');
+      set(hErrorbar(col), 'marker', 'none')
+  end
+%     if verLessThan('matlab', '8.4')
+%         % Original graphics:
+%         x = get(get(handles.bar,'children'),'xdata');
+%     else
+%        % New graphics:
+%        x =  handles.bar.XData + [handles.bar.XOffset];
+%    end
+%     
+%     hErrorbar = errorbar(mean(x,1), values, lowerErrors, upperErrors, '.k');
+%     set(hErrorbar, 'marker', 'none')
 end
 
 hold off

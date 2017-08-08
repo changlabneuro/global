@@ -1109,7 +1109,7 @@ classdef SparseLabels
       
       %   - subroutines
       
-      function get_indices_(obj, ind, cats)        
+      function get_indices_(obj, ind, cats)
         if ( isempty(cats) )
           I{istp, 1} = ind;
           C(istp, :) = row;
@@ -1374,13 +1374,15 @@ classdef SparseLabels
         other_inds = cellfun( @(x) find(strcmp(B.labels, x)), shared );
         obj.indices(index, own_inds) = B.indices( :, other_inds );
       end
-      if ( isempty(others) ), return; end
-      new_inds = repmat( rep_logic(obj, false), 1, numel(others) );
-      other_inds = cellfun( @(x) find(strcmp(B.labels, x)), others );
-      new_inds(index,:) = B.indices(:, other_inds);
-      obj.indices = [obj.indices new_inds];
-      obj.labels = [obj.labels; B.labels(other_inds)];
-      obj.categories = [obj.categories; B.categories(other_inds)];
+      if ( ~isempty(others) )
+        new_inds = repmat( rep_logic(obj, false), 1, numel(others) );
+        other_inds = cellfun( @(x) find(strcmp(B.labels, x)), others );
+        new_inds(index,:) = B.indices(:, other_inds);
+        obj.indices = [obj.indices new_inds];
+        obj.labels = [obj.labels; B.labels(other_inds)];
+        obj.categories = [obj.categories; B.categories(other_inds)];
+      end
+      obj = remove_empty_indices( obj );
     end
     
     %{

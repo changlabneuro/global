@@ -63,7 +63,9 @@ classdef Container
         obj.dtype = class( data );
         obj = update_label_sparsity( obj );
         %   MARK: Made labels sparse by default.
-        obj = sparse( obj );
+        if ( ~obj.LABELS_ARE_SPARSE )
+          obj = sparse( obj );
+        end
       else
         try
           obj = Container.create( varargin{:} );
@@ -355,6 +357,26 @@ classdef Container
       
       tf = contains( obj.labels, labs );
     end
+    
+    function tf = contains_fields(obj, fs)
+      
+      %   CONTAINS_FIELDS -- Return whether the given fields exist.
+      %
+      %     tf = contains_fields( obj, 'cities' ) returns true if 'cities'
+      %     is a field / category in `obj`.
+      %
+      %     tf = contains_fields( obj, {'cities', 'states'} ) returns a 1x2
+      %     logical vector of values, where tf(1) indicates whether
+      %     'cities' exists.
+      %
+      %     IN:
+      %       - `fs` (cell array of strings, char)
+      %     OUT:
+      %       - `tf` (logical)      
+      
+      tf = contains_fields( obj.labels, fs );
+    end
+      
     
     %{
         ITERATION
@@ -725,6 +747,7 @@ classdef Container
                 if ( isequal(values, []) )
                   obj = keep( obj, ~index );
                 elseif ( isa(values, 'Container') )
+                  error( 'Container assignment is not yet implemented.' );
                   obj = overwrite( obj, values, index );
                 else
                   error( ['Currently, only element deletion with [] and' ...
@@ -999,6 +1022,7 @@ classdef Container
       %       - `tf` (logical) -- true or false.
       
       tf = false;
+      if ( ~isa(obj, 'Container') ), return; end
       if ( ~isa(B, 'Container') ), return; end
       if ( ~isequal(obj.dtype, B.dtype) ), return; end
       if ( ne(obj.labels, B.labels) ), return; end
@@ -1433,10 +1457,17 @@ classdef Container
       dup_msg = 'At least one duplicate %s field was specified.';
       assert( numel(unique(within)) == numel(within), dup_msg, 'within' );
       within = unique( within );
-      p = gcp( 'nocreate' );
-      if ( ~isempty(p) )
-        psize = p.NumWorkers;
+      %   if we don't have the parallel toolbox, use regular for_each
+      has_distcomp = ~isempty( ver('distcomp') );
+      if ( has_distcomp )
+        p = gcp( 'nocreate' );
+        if ( ~isempty(p) )
+          psize = p.NumWorkers;
+        else
+          psize = 0;
+        end
       else
+        p = [];
         psize = 0;
       end
       if ( isa(varargin{2}, 'function_handle') )
@@ -1486,7 +1517,7 @@ classdef Container
         rest = setdiff( within, parlabs );
         varargin(1:3) = [];
       end
-      %   call non-parellelized function if not parpool exists.
+      %   call non-parellelized function if no parpool exists.
       if ( isempty(p) )
         warning( 'No parallel pool exists. Using non-parallelized function.' );
         out = for_each( obj, within, func, varargin{:} );
@@ -1532,7 +1563,7 @@ classdef Container
       out = extend( subset_out{:} );
     end
     
-    function out = for_each(obj, varargin)
+    function out = for_each(obj, within, func, varargin)
       
       %   FOR_EACH -- Apply a function to the data associated with each
       %     unique combination of labels in the specified fields.
@@ -1552,34 +1583,57 @@ classdef Container
       %     OUT:
       %       - `out` (Container) -- Container object
       
-      if ( isa(varargin{1}, 'cell') || isa(varargin{1}, 'char') )
-        narginchk( 3, Inf );
-        %   first iteration.
-        within = SparseLabels.ensure_cell( varargin{1} );
-        func = varargin{2};
-        out = Container();
-        varargin(1:2) = [];
-        Assertions.assert__isa( func, 'function_handle' );
-      else
-        out = varargin{1};
-        within = varargin{2};
-        func = varargin{3};
-        varargin(1:3) = [];
-      end   
-      if ( isempty(within) )
-        %   we're at the most specific level, so call the function.
-        next = func( obj, varargin{:} );
-        assert( isa(next, 'Container'), ['The returned value of a function' ...
-          , ' called with for_each() must be a Container; was a ''%s''.'] ...
-          , class(next) );
-        out = append( out, next );
-        return;
-      end      
-      objs = enumerate( obj, within(1) );
-      within(1) = [];
-      for i = 1:numel(objs)
-        out = for_each( objs{i}, out, within, func, varargin{:} );
+      within = SparseLabels.ensure_cell( within );
+      Assertions.assert__isa( func, 'function_handle' );
+      out = Container();
+      
+      for_each_( obj, within, func, varargin{:} );
+      
+      function for_each_( obj, within, func, varargin )
+        if ( isempty(within) )
+          %   we're at the most specific level, so call the function.
+          next = func( obj, varargin{:} );
+          assert( isa(next, 'Container'), ['The returned value of a function' ...
+            , ' called with for_each() must be a Container; was a ''%s''.'] ...
+            , class(next) );
+          out = append( out, next );
+          return;
+        end      
+        objs = enumerate( obj, within(1) );
+        within(1) = [];
+        for i = 1:numel(objs)
+          for_each_( objs{i}, within, func, varargin{:} );
+        end
       end
+      
+%       if ( isa(varargin{1}, 'cell') || isa(varargin{1}, 'char') )
+%         narginchk( 3, Inf );
+%         %   first iteration.
+%         within = SparseLabels.ensure_cell( varargin{1} );
+%         func = varargin{2};
+%         out = Container();
+%         varargin(1:2) = [];
+%         Assertions.assert__isa( func, 'function_handle' );
+%       else
+%         out = varargin{1};
+%         within = varargin{2};
+%         func = varargin{3};
+%         varargin(1:3) = [];
+%       end   
+%       if ( isempty(within) )
+%         %   we're at the most specific level, so call the function.
+%         next = func( obj, varargin{:} );
+%         assert( isa(next, 'Container'), ['The returned value of a function' ...
+%           , ' called with for_each() must be a Container; was a ''%s''.'] ...
+%           , class(next) );
+%         out = append( out, next );
+%         return;
+%       end      
+%       objs = enumerate( obj, within(1) );
+%       within(1) = [];
+%       for i = 1:numel(objs)
+%         out = for_each( objs{i}, out, within, func, varargin{:} );
+%       end
     end
     
     function obj = row_op(obj, func, varargin)
@@ -1676,8 +1730,8 @@ classdef Container
     
     function obj = nanmean(obj, dim)
       
-      %   MEAN -- Return an object whose data have been averaged across a
-      %     given dimension, excluding NaN values.
+      %   NANMEAN -- Return an object whose data have been averaged across
+      %     a given dimension, excluding NaN values.
       %
       %     IN:
       %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
@@ -1688,7 +1742,8 @@ classdef Container
       if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @nanmean, 1 );
-      else obj = n_dimension_op( obj, @nanmean, dim );
+      else
+        obj = n_dimension_op( obj, @nanmean, dim );
       end      
     end
     
@@ -1706,7 +1761,27 @@ classdef Container
       if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @median, 1 );
-      else obj = n_dimension_op( obj, @median, dim );
+      else
+        obj = n_dimension_op( obj, @median, dim );
+      end
+    end
+    
+    function obj = nanmedian(obj, dim)
+      
+      %   NANMEDIAN -- Return an object whose data are a median across a
+      %     given dimension, excluding NaN values.
+      %
+      %     IN:
+      %       - `dim` (double) |OPTIONAL| -- Dimension specifier. Defaults
+      %         to 1.
+      %
+      %     See also Container/row_op, Container/n_dimension_op
+      
+      if ( nargin < 2 ), dim = 1; end
+      if ( isequal(dim, 1) )
+        obj = row_op( obj, @nanmedian, 1 );
+      else
+        obj = n_dimension_op( obj, @nanmedian, dim );
       end
     end
     
@@ -1724,7 +1799,8 @@ classdef Container
       if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @sum, 1 );
-      else obj = n_dimension_op( obj, @sum, dim );
+      else
+        obj = n_dimension_op( obj, @sum, dim );
       end
     end
     
@@ -1742,7 +1818,8 @@ classdef Container
       if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @min, [], 1 );
-      else obj = n_dimension_op( obj, @min, [], dim );
+      else
+        obj = n_dimension_op( obj, @min, [], dim );
       end
     end
     
@@ -1760,7 +1837,8 @@ classdef Container
       if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @max, [], 1 );
-      else obj = n_dimension_op( obj, @max, [], dim );
+      else
+        obj = n_dimension_op( obj, @max, [], dim );
       end
     end
     
@@ -1778,7 +1856,8 @@ classdef Container
       if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @std, [], 1 );
-      else obj = n_dimension_op( obj, @std, [], dim );
+      else
+        obj = n_dimension_op( obj, @std, [], dim );
       end
     end
     
@@ -1796,135 +1875,14 @@ classdef Container
       if ( nargin < 2 ), dim = 1; end
       if ( isequal(dim, 1) )
         obj = row_op( obj, @Container.sem_nd, 1 );
-      else obj = n_dimension_op( obj, @Container.sem_nd, dim );
+      else
+        obj = n_dimension_op( obj, @Container.sem_nd, dim );
       end
     end
     
     %{
         DATA MANIPULATION
     %}
-    
-    function comp = compress(obj, rows, comp)
-      
-      %   COMPRESS -- Group elements with the same label-set into a cell
-      %     array, such that, after grouping all elements, each row of the
-      %     compressed object will be identified by a unique label-set.
-      %
-      %     IN:
-      %       - `rows` (double) |OPTIONAL| -- number of rows used to
-      %         preallocate the compressed object. Defaults to the number 
-      %         of rows in the inputted object.
-      %       - `comp` (Labels) |INTERNAL USE ONLY| -- recursively 
-      %         populating object. Do not specify this input directly; it 
-      %         is used only in subsequent recursive calls to compress().
-      %     OUT:
-      %       - `comp` (Container) -- compressed Container object in which 
-      %         each row of data is a cell array, and the number of rows 
-      %         corresponds to the number of unique label-sets in the
-      %         object.
-      
-      assert( ~obj.LABELS_ARE_SPARSE, ['Cannot compress a Container with' ...
-        , ' SparseLabels.'] );
-      if ( nargin < 2 ), rows = shape(obj, 1); end
-      if ( nargin < 3 )
-        comp = Container();
-        comp = preallocate( comp, cell(rows, 1), nfields(obj.labels) );
-      end
-      if ( isempty(obj) ), comp = cleanup( comp ); return; end
-      if ( obj.VERBOSE )
-        fprintf( '\n ! Container/compress: Remaining items: %d', shape(obj, 1) );
-      end
-      extr = subsref( obj, struct('type', '()', 'subs', {{1}}) );
-      unqs = uniques( extr.labels ); unqs = [ unqs{:} ];
-      ind = where( obj.labels, unqs );
-      all_matching = keep( obj, ind );
-      all_matching.data = { all_matching.data };
-      all_matching.labels = extr.labels;
-      all_matching.dtype = 'cell';
-      comp = populate( comp, all_matching );
-      obj = subsref( obj, struct('type', '()', 'subs', {{~ind}}) );
-      comp = compress( obj, rows, comp );
-    end
-    
-    function decomped = decompress(obj, rows)
-      
-      %   DECOMPRESS -- 'Flatten' cell array-stored data, preserving
-      %     the labels of each item. If the inner-arrays of the outer array
-      %     are matrices, they must have the same number of columns.
-      %
-      %     IN:
-      %       - `rows` |OPTIONAL| -- number of rows to use to preallocate 
-      %         the outputted object. By default, will use the current 
-      %         number of rows in the object. Generally, this isn't the 
-      %         most efficient solution -- if you know, for example, that 
-      %         each cell-array contains 100 cell-arrays, it's best to 
-      %         specify rows as a much larger value.
-      %     OUT:
-      %       - `decomped` (Container) -- flattened Container object.
-      %
-      %     EXAMPLE:
-      %     
-      %     //
-      %   
-      %     Let's say `container` is a Container object whose data are a
-      %     2-by-1 cell array (i.e., a cell-array with 2 rows, and 1
-      %     column). However, each of these arrays might hold matrices of
-      %     differing sizes -- perhaps cell(1) is a 100-by-100 matrix, for
-      %     example, and cell(2) is a 51-by-100 matrix. Calling decompress()
-      %     will first create a new `Container` object preallocated with
-      %     zeros. It'll then fill the first 100 rows of the new object with
-      %     the values originally stored in cell(1), and it will repeat the
-      %     associated labels 100 times. In this way, the original cell(1)
-      %     will have been 'flattened'. The process is repeated for cell(2)
-      %     -> cell(n). Note again that the number of columns must be
-      %     consistent across all inner arrays.
-      
-      if ( nargin < 2 ), rows = shape(obj, 1); end
-      if ( ~obj.IGNORE_CHECKS )
-        if ( isequal(obj.dtype, 'double') )
-          opts.msg = 'The object is already decompressed';
-        else opts.msg = 'Can only decompress objects with dtype ''cell''';
-        end
-        Assertions.assert__isa( obj.data, 'cell', opts );
-      end
-      
-      decomped = Container();
-      cols = size( obj.data{1}, 2 );
-      
-      switch class( obj.data{1} )
-        case 'double'
-          preallocate_with = zeros( rows, cols );
-        case 'cell'
-          preallocate_with = cell( rows, cols );
-        otherwise
-          error( ['Cannot decompress the object, because the contents are of type' ...
-            , ' ''%s''', class(obj.data{1})] );
-      end
-      
-      decomped = preallocate( decomped, preallocate_with, nfields(obj.labels) );
-      
-      for i = 1:shape(obj, 1)
-        if ( obj.VERBOSE )
-          fprintf( '\n ! Container/decompress: Remaining items: %d', ...
-            shape(obj, 1)-i );
-        end
-        extr = subsref( obj, struct( 'type', '()', 'subs', {{i}} ) );
-        data = extr.data{1}; %#ok<*PROPLC,*PROP>
-        labels = extr.labels;
-        appended = labels;
-        rows = size( data, 1 );
-        if ( rows > 1 )
-          for j = 1:rows-1
-            appended = append( appended, labels );
-          end
-        end
-        extr.dtype = class( data );
-        extr.data = data;
-        extr.labels = appended;
-        decomped = populate( decomped, extr );
-      end
-      decomped = cleanup( decomped );
-    end
     
     function new_obj = subsample(obj, fields, n, can_replace)
       
