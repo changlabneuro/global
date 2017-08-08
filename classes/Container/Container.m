@@ -1605,35 +1605,6 @@ classdef Container
           for_each_( objs{i}, within, func, varargin{:} );
         end
       end
-      
-%       if ( isa(varargin{1}, 'cell') || isa(varargin{1}, 'char') )
-%         narginchk( 3, Inf );
-%         %   first iteration.
-%         within = SparseLabels.ensure_cell( varargin{1} );
-%         func = varargin{2};
-%         out = Container();
-%         varargin(1:2) = [];
-%         Assertions.assert__isa( func, 'function_handle' );
-%       else
-%         out = varargin{1};
-%         within = varargin{2};
-%         func = varargin{3};
-%         varargin(1:3) = [];
-%       end   
-%       if ( isempty(within) )
-%         %   we're at the most specific level, so call the function.
-%         next = func( obj, varargin{:} );
-%         assert( isa(next, 'Container'), ['The returned value of a function' ...
-%           , ' called with for_each() must be a Container; was a ''%s''.'] ...
-%           , class(next) );
-%         out = append( out, next );
-%         return;
-%       end      
-%       objs = enumerate( obj, within(1) );
-%       within(1) = [];
-%       for i = 1:numel(objs)
-%         out = for_each( objs{i}, out, within, func, varargin{:} );
-%       end
     end
     
     function obj = row_op(obj, func, varargin)
