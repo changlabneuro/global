@@ -1320,7 +1320,8 @@ classdef Container
       %
       %     Used in obj(:);
       
-      n_repeats = shape( obj, 2 );
+      s = size( obj.data );
+      n_repeats = prod( s(2:end) );
       obj.data = obj.data(:);
       obj.labels = repeat( obj.labels, n_repeats );
     end
