@@ -215,7 +215,7 @@ classdef Container
       Assertions.assert__isa( N, 'double' );
       assert( isscalar(N), 'Specify a scalar numeric index' );
       ref_struct = struct( 'type', '()', 'subs', {{N}} );
-      obj = subsref( obj, ref_struct );      
+      obj = subsref( obj, ref_struct );
     end
     
     function obj = one(obj)
