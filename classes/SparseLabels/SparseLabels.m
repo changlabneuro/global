@@ -451,8 +451,7 @@ classdef SparseLabels
       
       %   CONTAINS_FIELDS -- Alias for `contains_categories()`.
       %
-      %     See `help SparseLabels/contains_categories()` for more
-      %     information.
+      %     See also SparseLabels/contains_categories
       
       tf = contains_categories( obj, fs );
     end
