@@ -1637,11 +1637,11 @@ classdef Container
       
       assert( isa(func, 'function_handle'), ['Expected a function_handle' ...
         , ' as input; was a ''%s'''], class(func) );
-      assert__dtype_is( obj, 'double' );
+      assert__dtype_one_of( obj, {'double', 'logical'} );
       data = func( obj.data, varargin{:} );
       assert( size(data, 1) == 1, ['Data in the inputted object are improperly' ...
         , ' dimensioned; executing function ''%s'' resulted in an object' ...
-        , ' whose data have more than one row'] );
+        , ' whose data have more than one row.'], func2str(func) );
       obj = collapse_non_uniform( obj );
       obj = keep_one( obj, 1 );
       obj.data = data;
@@ -1672,7 +1672,7 @@ classdef Container
       
       assert( isa(func, 'function_handle'), ['Expected a function_handle' ...
         , ' as input; was a ''%s'''], class(func) );
-      assert__dtype_is( obj, 'double' );
+      assert__dtype_one_of( obj, {'double', 'logical'} );
       original_rows = size( obj.data, 1 );
       data = func( obj.data, varargin{:} );
       assert( size(data, 1) == original_rows, ['When executing a function on' ...
@@ -2976,6 +2976,12 @@ classdef Container
     function assert__dtype_is(obj, kind)
       assert( strcmp(obj.dtype, kind), ['Expected the object''s dtype to be ''%s''' ...
         , ' but was ''%s''.'], kind, obj.dtype );
+    end
+    
+    function assert__dtype_one_of(obj, kinds)
+      assert( any(strcmp(kinds, obj.dtype)), ['Expected the dtype' ...
+        , ' to be one of these kinds: %s; but was %s.'] ...
+        , strjoin(kinds, ', '), obj.dtype );
     end
     
     function assert__container_plotter_present(obj)      
