@@ -2821,6 +2821,31 @@ classdef Container
       obj.(prop) = values;
     end
     
+    function obj = set_data_and_labels(obj, data, labels)
+      
+      %   SET_DATA_AND_LABELS -- Set data and labels in one call.
+      %
+      %     obj = set_data_and_labels( obj, data, labels ) overwrites both
+      %     the data and labels in one function call.
+      %
+      %     Data must have the same first-dimension size as labels. Labels
+      %     must be a Labels or SparseLabels object.
+      %
+      %     IN:
+      %       - `data` (/any/)
+      %       - `labels` (SparseLabels, Labels)
+      %     OUT:
+      %       - `obj` (Container)
+      
+      assert( any(strcmp({'Labels', 'SparseLabels'}, class(labels))) ...
+        , 'Labels can be SparseLabels or Labels; was ''%s''.', class(labels) );
+      assert( size(data, 1) == shape(labels, 1), ['Number of rows' ...
+        , ' of data and labels must match.'] );
+      obj.data = data;
+      obj.labels = labels;
+      obj.dtype = class( data );
+    end
+    
     %{
         PREALLOCATION
     %}
