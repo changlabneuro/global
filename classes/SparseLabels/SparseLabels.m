@@ -15,6 +15,64 @@ classdef SparseLabels
   
   methods
     function obj = SparseLabels(labs)
+      
+      %   SPARSELABELS -- Instantiate a SparseLabels object.
+      %
+      %     //  OVERVIEW
+      %
+      %     A SparseLabels object is used to identify observations of data.
+      %
+      %     A SparseLabels object has public properties 'labels', 
+      %     'categories', and 'indices'.
+      %
+      %     'labels' is an Mx1 cell array of strings whose values are
+      %     unique, and which form a set of identifiers that can be
+      %     searched for.
+      %
+      %     'categories' is an Mx1 cell array of strings whose values 
+      %     place each element (i) of 'labels' into a category.
+      %
+      %     'indices' is an NxM sparse logical array. Each column of
+      %     'indices' is an index corresponding to the i-th element of
+      %     'labels'. In other words, each column of 'indices' identifies
+      %     rows described by the corresponding element of 'labels'.
+      %
+      %     SparseLabels objects aren't meant to be constructed directly
+      %     (although they can be). A SparseLabels object is mainly used as
+      %     a utility for a Container object.
+      %
+      %     //  INSTATIATION
+      %
+      %     obj = SparseLabels( labs ); where `labs` is a 1x1 struct whose
+      %     fields are Mx1 cell arrays of strings, constructs a
+      %     SparseLabels object `obj`. The fieldnames of `labs` become
+      %     'categories' in `obj`. The unique strings in each field of
+      %     `labs` become 'labels' in `obj`, and the logical index of each
+      %     label in 'labels' with respect to the original field of `labs`
+      %     becomes a column of 'indices' in `obj`.
+      %
+      %     obj = SparseLabels( arr ); constructs an object from a cell
+      %     array `arr` of 1x1 struct with 'label', 'category', and 'index'
+      %     fields.
+      %
+      %     obj = SparseLabels( labs ); constructs an object from the
+      %     Labels object `labs`.
+      %
+      %     See also Container/Container, Labels/Labels
+      %
+      %     Ex. //
+      %
+      %     labs = struct( ...
+      %         'county', {{'May_24'; 'Jun_30'}} ...
+      %       , 'city', {{'NY'; 'LA'}} ...
+      %     );
+      %     obj = SparseLabels( labs );
+      %     find( where(obj, 'NY') )
+      %     find( where(obj, {'NY', 'May_24'}) )
+      %     find( where(obj, {'NY', 'Jun_30'}) )
+      %     contains( obj, 'NY' )
+      %     contains( obj, {'NY', 'CA'} )
+      
       if ( nargin < 1 ), return; end
       if ( isstruct(labs) )
         labs = SparseLabels.convert_struct_input_to_labels( labs );
