@@ -1106,6 +1106,8 @@ classdef Container
       %     same dtype as the existing object, and c) equivalent labels 
       %     ( see `help Labels/append` for more info ).
       %
+      %     See also Container/extend, SparseLabels/append
+      %
       %     IN:
       %       - `B` (Container) -- object to append.
       %     OUT:
@@ -1124,7 +1126,7 @@ classdef Container
       %   EXTEND -- append any number of Container objects to an existing
       %     object, sequentially.
       %
-      %     See `help Container/append` for restrictions on appending.
+      %     See also Container/append
       %
       %     IN:
       %       - `varargin` (cell array of Container objects) -- Objects to
@@ -3046,6 +3048,133 @@ classdef Container
       %   make sure the dimensions are compatible
       assert( size(data, 1) == shape(labels, 1), ...
         'Data must have the same number of rows as labels.' );
+    end
+    
+    function catted = concat(arr)
+
+      %   CONCAT -- Concatenate a cell array of Container objects.
+      %
+      %     catted = Container.concat( A ); where A = { obj1, obj2, ... }
+      %     returns a single object `catted` housing the contents of `obj`,
+      %     obj2`, ... .
+      %
+      %     catted = Container.concat( A ); where A = {} returns an empty
+      %     array {}.
+      %     
+      %     Container.concat( A ) is equivalent to calling extend( A{:} ), 
+      %     but is usually much faster: concat() builds new data matrices 
+      %     and labels objects by considering the entire contents of A, 
+      %     whereas extend() is simply a series of append() operations.
+      %
+      %     All elements of A must be Container objects of the same
+      %     subclass and dtype. Additionally, all labels objects must of
+      %     the same class and subclass. All elements of A must be mutually
+      %     compatible with vertical concatenation; see the append()
+      %     documentation for more info.
+      %
+      %     Note that the optimized routine is only called if data in the
+      %     object are of class 'double' or 'logical'.
+      %
+      %     See also Container/append, Container/extend
+      %
+      %     IN:
+      %       - `arr` (cell array of Container objects, {})
+      %     OUT:
+      %       - `catted` (Container, {})
+
+      Assertions.assert__isa( arr, 'cell' );
+      if ( isempty(arr) ), catted = {}; return; end
+      classes = cellfun( @class, arr, 'un', false );
+      assert( numel(unique(classes)) == 1 && isa(arr{1}, 'Container') ...
+        , 'Each array element must be a Container object of the same subclass.' );
+      lab_classes = cellfun( @(x) class(x.labels), arr, 'un', false );
+      assert( numel(unique(lab_classes)) == 1, ['The labels in each Container' ...
+        , ' object must be of the same class.'] );
+      %   we can only do the optimized routine for Containers whose labels
+      %   are SparseLabels
+      if ( isa(arr{1}.labels, 'Labels') )
+        catted = extend( arr{:} );
+        return;
+      end
+      if ( numel(arr) == 1 )
+        catted = arr{1};
+        return;
+      end
+      %   get rid of empties
+      empties = cellfun( @isempty, arr );
+      if ( all(empties) )
+        catted = arr{1};
+        return;
+      end
+      arr( empties ) = [];
+      if ( numel(arr) == 1 )
+        catted = arr{1};
+        return;
+      end
+      %   we can only do the optimized routine for these data types
+      prealc_dtypes = { 'double', 'logical' };
+      if ( ~any(strcmp(prealc_dtypes, class(arr{1}.data))) )
+        catted = extend( arr{:} );
+        return;
+      end
+      first = arr{1};
+      cats = first.labels.categories;
+      unqs = unique( cats );
+      dtype = class( first.data );
+      sz = size( first.data );
+      N = sz(1);
+      all_labs = first.labels.labels;
+      all_cats = cats;
+      total_n_true = sum(sum(first.labels.indices));
+      for i = 2:numel(arr)
+        [all_labs, ind] = sort( all_labs );
+        all_cats = all_cats( ind );
+        current = arr{i};
+        curr_size = size( current.data );
+        curr_cats = current.labels.categories;
+        assert( isequal(unqs, unique(curr_cats)), ['Categories' ...
+          , ' must match between labels objects.'] );
+        assert( strcmp(class(current.data), dtype), 'Dtypes must be consistent.' );
+        assert( all(sz(2:end) == curr_size(2:end)), ['Size of arrays beyond the' ...
+          , 'first dimension must match.'] );
+        [curr_labs, ind] = sort( current.labels.labels );
+        curr_cats = curr_cats( ind );
+        shared = intersect( curr_labs, all_labs );
+        new = setdiff( curr_labs, all_labs );
+        n_new = numel( new );
+        shared_cats_all = all_cats( cellfun(@(x) find(strcmp(all_labs, x)), shared ) );
+        shared_cats_curr = curr_cats( cellfun(@(x) find(strcmp(curr_labs, x)), shared) );
+        assert( isequal(shared_cats_all, shared_cats_curr), ['Some of the labels' ...
+          , ' shared between objects appear in different categories.'] );
+        if ( n_new > 0 )
+          all_labs(end+1:end+n_new) = new;
+          all_cats(end+1:end+n_new) = curr_cats( cellfun(@(x) find(strcmp(curr_labs, x)), new) );
+        end
+        N = N + curr_size(1);
+        total_n_true = total_n_true + sum(sum(current.labels.indices));
+      end
+      n_labs = numel( all_labs );
+      new_data = zeros( [N, sz(2:end)], 'like', first.data );
+      new_inds = false( N, n_labs );
+      stp = 1;
+      colons = repmat( {':'}, 1, ndims(new_data)-1 );
+      for i = 1:numel(arr)
+        dat = arr{i}.data;
+        labs = arr{i}.labels.labels;
+        curr_inds = arr{i}.labels.indices;
+        lab_inds = cellfun( @(x) find(strcmp(all_labs, x)), labs );
+        n = size( dat );
+        new_data( stp:stp+n-1, colons{:} ) = dat;
+        new_inds( stp:stp+n-1, lab_inds ) = curr_inds;
+        stp = stp + n;
+      end
+      labels_obj = first.labels;
+      labels_obj.labels = all_labs;
+      labels_obj.categories = all_cats;
+      labels_obj.indices = sparse( new_inds );
+      catted = first;
+      catted.labels = labels_obj;
+      catted.data = new_data;
     end
     
     function A = cellwise(func, A, B, varargin)
