@@ -1893,6 +1893,17 @@ classdef Container
       new_obj = keep( obj, ind );
     end
     
+    function obj = shuffle(obj)
+      
+      %   SHUFFLE -- Shuffle data in the object.
+      
+      dat = obj.data;
+      n = randperm( size(dat, 1) );
+      colons = repmat( {':'}, 1, ndims(dat)-1 );
+      dat = dat(n, colons{:});
+      obj.data = dat;
+    end
+    
     %{
         SPARSITY
     %}

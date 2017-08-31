@@ -334,6 +334,13 @@ classdef ContainerPlotter < handle
               h{i} = func( means, errors, plot_opts{:} );
             case 'ContainerPlotter.barwitherr'
               h{i} = func( errors, means, plot_opts{:} );
+              if ( strcmp(obj.params.set_colors, 'manual') )
+                bar_colors = obj.params.colors;
+                n_colors = min( numel(h{i}), numel(bar_colors) );
+                for cc = 1:n_colors
+                  h{i}(cc).FaceColor = obj.params.color_defs.(bar_colors{cc});
+                end
+              end
             otherwise
               error( 'Unrecognized plotting function ''%s''', func_type );
           end
