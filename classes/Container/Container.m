@@ -2236,8 +2236,19 @@ classdef Container
       for i = 2:n_dims
         size_str = sprintf( '%s-by-%d', size_str, size(obj.data, i) );
       end
+      desktop_exists = usejava( 'desktop' );
+      ccls = class( obj );
+      lcls = class( obj.labels );
+      if ( desktop_exists )
+        link_str = '<a href="matlab:helpPopup %s">%s</a>';
+        class_str = sprintf( link_str, ccls, ccls );
+        lclass_str = sprintf( link_str, lcls, lcls );
+      else
+        class_str = ccls;
+        lclass_str = lcls;
+      end
       fprintf('  %s %s %s with %s:\n', ...
-        size_str, obj.dtype, class(obj), class(obj.labels) );
+        size_str, obj.dtype, class_str, lclass_str );
       disp( obj.labels );
     end
     
