@@ -824,6 +824,40 @@ classdef SparseLabels
       obj = rm_uniform_categories( obj );
     end
     
+    function obj = rename_field(obj, varargin)
+      
+      %   RENAME_FIELD -- Alias for `rename_category`.
+      %
+      %     See also SparseLabels/rename_category
+      
+      obj = rename_category( obj, varargin{:} );
+    end
+    
+    function obj = rename_category(obj, cat, to)
+      
+      %   RENAME_CATEGORY -- Replace category name with new name.
+      %
+      %     obj = rename_category( 'cities', 'city' ) replaces occurrences
+      %     of 'cities' in obj.categories with 'city'.
+      %
+      %     An error is thrown if the old category name doesn't exist, or
+      %     if the new category name already exists (and is not the same as
+      %     the old category name).
+      %
+      %     IN:
+      %       - `cat` (char) -- Category to replace.
+      %       - `to` (char) -- New name.
+      
+      Assertions.assert__isa( cat, 'char' );
+      Assertions.assert__isa( to, 'char' );
+      if ( strcmp(cat, to) ), return; end
+      ind = strcmp( obj.categories, cat );
+      assert( any(ind), 'The category ''%s'' does not exist.', cat );
+      ind2 = strcmp( obj.categories, to );
+      assert( ~any(ind2), 'The category ''%s'' already exists.', to );
+      obj.categories( ind ) = { to };
+    end
+    
     %{
         INDEXING
     %}
@@ -1531,6 +1565,18 @@ classdef SparseLabels
       %   DISP -- print the categories and labels in the object, and 
       %     indicate the frequency of each label.
       
+      if ( obj.VERBOSE )
+        disp1( obj );
+      else
+        disp2( obj );
+      end
+    end
+    
+    function disp1(obj)
+      
+      %   DISP1 -- Display categories, labels, and label-frequencies as a
+      %     single column.
+      
       [unqs, cats] = uniques( obj );
       desktop_exists = usejava( 'desktop' );
       for i = 1:numel(cats)
@@ -1551,6 +1597,85 @@ classdef SparseLabels
         remaining = numel(current) - j;
         if ( remaining > 0 )
           fprintf( '\n     - ... and %d others', remaining );
+        end
+      end
+      fprintf( '\n\n' );
+    end
+    
+    function disp2(obj)
+      
+      %   DISP1 -- Display categories, labels, and label-frequencies in
+      %     multiple columns.
+      
+      all_labs = obj.labels;
+      cats = obj.categories;
+      inds = obj.indices;
+      unq_cats = unique( cats );
+      maxn = obj.MAX_DISPLAY_ITEMS;
+      maxchars = 15;
+      maxcols = 2;
+      spc = ' ';
+      nspaces = 1;
+      all_joined = cell( numel(unq_cats), 1 );
+      all_longest = cell( size(all_joined) );
+      desktop_exists = usejava( 'desktop' );
+      for i = 1:numel(unq_cats)
+        curr_cat = unq_cats{i};
+        labs = all_labs( strcmp(cats, curr_cat) );
+        N = min( numel(labs), maxn );
+        remaining = numel( labs ) - N;
+        did_truncate = remaining > 0;
+        labs = labs(1:N);
+        for j = 1:N
+          curr = labs{j};
+          ct = sum( inds(:, strcmp(all_labs, curr)) );
+          if ( numel(curr) > maxchars )
+            curr = sprintf( '%s..', curr(1:maxchars) );
+          end
+          labs{j} = sprintf( '  - %s (%d)', curr, full(ct) );
+        end
+        if ( did_truncate )
+          labs{end} = sprintf( '  - ... and %d others', remaining+1 );
+        end
+        rows = ceil( N/maxcols );
+        items = cell( rows, maxcols );
+        items( cellfun(@isempty, items) ) = {''};
+        items(1:N) = labs;
+        store_longest = zeros( 1, size(items, 2)-1 );
+        for j = 2:size(items, 2)
+          longest = max( cellfun(@numel, items(:, j-1)) );
+          store_longest(j-1) = longest;
+          for k = 1:size(items, 1)
+            item = items{k, j-1};
+            items{k, j-1} = [item, repmat(spc, 1, longest-numel(item))];
+          end
+        end
+        all_joined{i} = items;
+        all_longest{i} = store_longest;
+      end
+      longest = max( cell2mat(all_longest), [], 1 );
+      for i = 1:numel(longest)
+        for j = 1:numel(all_longest)
+          col = all_joined{j}(:, i);
+          ns = cellfun( @numel, col );
+          for k = 1:numel(col)
+            addtl = longest(i) - ns(k);
+            col{k} = [ col{k}, repmat(spc, 1, addtl) ];
+          end
+          all_joined{j}(:, i) = col;
+        end
+      end
+      if ( desktop_exists )
+        base_str = '\n  <strong>%s</strong>';
+      else
+        base_str = '\n  %s';
+      end
+      for i = 1:numel(unq_cats)
+        str = sprintf( base_str, unq_cats{i} );
+        fprintf( '%s', str );
+        for j = 1:size(all_joined{i}, 1)
+          joined = strjoin( all_joined{i}(j, :), repmat(spc, 1, nspaces) );
+          fprintf( '\n  %s', joined );
         end
       end
       fprintf( '\n\n' );

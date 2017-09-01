@@ -547,6 +547,19 @@ classdef Container
       obj.labels = replace( obj.labels, search_for, with );
     end
     
+    function obj = rename_field(obj, old, new)
+      
+      %   RENAME_FIELD -- Replace old field / category name with new name.
+      %
+      %     See also SparseLabels/rename_category
+      %
+      %     IN:
+      %       - `old` (char)
+      %       - `new` (char)
+      
+      obj.labels = rename_field( obj.labels, old, new );
+    end
+    
     function obj = rm_fields(obj, fields)
       
       %   RM_FIELDS -- Remove specified fields from the labels object.
@@ -2340,10 +2353,15 @@ classdef Container
       
       n_dims = ndims( obj.data );
       size_str = num2str( size(obj.data, 1) );
-      for i = 2:n_dims
-        size_str = sprintf( '%s-by-%d', size_str, size(obj.data, i) );
-      end
       desktop_exists = usejava( 'desktop' );
+      if ( desktop_exists )
+        sep = '×';
+      else
+        sep = '-by-';
+      end
+      for i = 2:n_dims
+        size_str = sprintf( '%s%s%d', size_str, sep, size(obj.data, i) );
+      end
       ccls = class( obj );
       lcls = class( obj.labels );
       if ( desktop_exists )
