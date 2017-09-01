@@ -263,8 +263,7 @@ classdef Container
     
     function [obj, ind] = only(obj, selectors)
       
-      %   ONLY -- retain elements in `obj.data` that match the index of the
-      %     `selectors`.
+      %   ONLY -- Retain elements matching a combination of labels.
       %
       %     See also Labels/only, Labels/where
       %
@@ -279,6 +278,31 @@ classdef Container
       
       ind = where( obj.labels, selectors );
       obj = keep( obj, ind );
+    end
+    
+    function [obj, ind] = except(obj, selectors)
+      
+      %   EXCEPT -- Retain elements except those matching a combination
+      %     of labels.
+      %
+      %     obj = except( obj, {'NY', 'NYC'} ) removes rows that match
+      %     the combination of 'NY' AND 'NYC'. If no rows match the
+      %     combination, the object is returned unchanged.
+      %
+      %     By contrast, remove( obj, {'NY', 'NYC'} ) removes rows that
+      %     match 'NY' OR 'NYC'.
+      %
+      %     See also Container/only
+      %
+      %     IN:
+      %       - `selectors` (cell array of strings, char)
+      %     OUT:
+      %       - `obj` (Container)
+      %       - `ind` (logical) -- Index of elements in the inputted object
+      %         that were removed.
+      
+      ind = where( obj.labels, selectors );
+      obj = keep( obj, ~ind );
     end
     
     function [obj, ind] = only_substr(obj, substrs)
@@ -485,6 +509,27 @@ classdef Container
       unqs = uniques( obj.labels, varargin{:} );
     end
     
+    function unqs = flat_uniques(obj, varargin)
+      
+      %   FLAT_UNIQUES -- Return a flat cell array of unique labels in the
+      %     given fields / categories.
+      %
+      %     unqs = flat_uniques( obj, 'cities' ) returns a 1xN cell array
+      %     of unique labels in 'cities'.
+      %
+      %     unqs = flat_uniques( obj ) returns a 1xN cell array of all N
+      %     unique labels in `obj.labels`.
+      %
+      %     See also Container/uniques
+      %
+      %     IN:
+      %       - `cats` (cell array of strings, char)
+      %     OUT:
+      %       - `unqs` (cell array of strings)
+      
+      unqs = flat_uniques( obj.labels, varargin{:} );
+    end
+    
     function obj = replace(obj, search_for, with)
       
       %   REPLACE -- Replace labels in `search_for` with those in `with`.
@@ -528,6 +573,12 @@ classdef Container
     function obj = add_field(obj, varargin)
       
       %   ADD_FIELD -- Add a new field of labels to the labels object.
+      %
+      %     obj = add_field( obj, 'city' ) adds the field / category 'city'
+      %     to the object, setting the contents of 'city' to 'all__city'.
+      %
+      %     obj = add_field( obj, 'city', 'NY' ) makes the full contents of
+      %     'city' to be 'NY' instead of the default, collapsed expression.
       %
       %     See also Labels/add_field
       %
@@ -1009,7 +1060,7 @@ classdef Container
     
     function tf = eq(obj, B)
       
-      %   EQ -- test the equality of two Container objects. 
+      %   EQ -- Test the equality of two Container objects. 
       %
       %     If the second input is not a Container object, false is 
       %     returned. Otherwise, objects are equal if they are of the same
@@ -1031,10 +1082,34 @@ classdef Container
     
     function tf = ne(obj, B)
       
-      %   NE -- opposite of eq(obj, B). See `help Container/eq` for more
-      %     information.
+      %   NE -- opposite of eq(obj, B).
+      %
+      %     See also Container/eq, Container/eq_ignoring
       
       tf = ~eq( obj, B );
+    end
+    
+    function tf = eq_ignoring(obj, B, fs)
+      
+      %   EQ_IGNORING -- Determine equality, ignoring some fields.
+      %
+      %     eq_ignoring( obj, B, 'cities' ) returns true if Container
+      %     objects `obj` and `B` are equivalent after removing the
+      %     field 'cities'.
+      %
+      %     See also Container/eq
+      %
+      %     IN:
+      %       - `obj` (Container)
+      %       - `B` (Container)
+      %       - `fs` (cell array of strings, char) -- Fields to ignore.
+      %     OUT:
+      %       - `tf` (logical)
+      
+      tf = false;
+      if ( ~isa(obj, 'Container') || ~isa(B, 'Container') ), return; end
+      if ( ~isequaln(obj.data, B.data) ), return; end
+      tf = eq_ignoring( obj.labels, B.labels, fs );
     end
     
     function tf = shapes_match(obj, B)
@@ -1098,15 +1173,18 @@ classdef Container
     
     function obj = append(obj, B)
       
-      %   APPEND -- append one Container to an existing Container. 
+      %   APPEND -- Append one Container to an existing Container.
       %
-      %     If the existing container is empty, the new Container will be 
-      %     returned unmodified. Otherwise, the incoming object must a) 
-      %     have the same number of columns as the existing object, b) the 
-      %     same dtype as the existing object, and c) equivalent labels 
-      %     ( see `help Labels/append` for more info ).
+      %     obj = append( A, B ) appends the contents of `B` to `A` and
+      %     returns a new object `obj`. If `A` is empty, `obj` is `B`.
+      %     Otherwise, the data and labels in A and B must be compatible
+      %     with vertical concatenation. Data in `A` and `B` must be arrays
+      %     of the same class and size, apart from the first dimension.
+      %     Labels in `A` and `B` must be label objects of the same class
+      %     and with the same fields / categories.
       %
-      %     See also Container/extend, SparseLabels/append
+      %     See also Container/extend, SparseLabels/append,
+      %     Container.concat
       %
       %     IN:
       %       - `B` (Container) -- object to append.
@@ -1903,6 +1981,35 @@ classdef Container
       n = randperm( size(dat, 1) );
       colons = repmat( {':'}, 1, ndims(dat)-1 );
       dat = dat(n, colons{:});
+      obj.data = dat;
+    end
+    
+    function obj = shuffle_each(obj, within)
+      
+      %   SHUFFLE_EACH -- Shuffle data for each combination of labels.
+      %
+      %     obj = shuffle_each( obj, 'cities' ) shuffles the data in `obj`
+      %     for each label in 'cities'. In this way, data will still be
+      %     specific to each label in 'cities'.
+      %
+      %     shuffle_each( obj, 'cities' ) is equivalent to
+      %     for_each( obj, 'cities', @shuffle )
+      %     but is usually much faster, since, in the former case, data are
+      %     shuffled 'in-place'.
+      %
+      %     IN:
+      %       - `within` (cell array of strings, char)
+      %     OUT:
+      %       - `obj` (Container) -- Object whose data are shuffled
+      %         'in-place'.
+      
+      inds = get_indices( obj, within );
+      dat = obj.data;
+      colons = repmat( {':'}, 1, ndims(dat)-1 );
+      for i = 1:numel(inds)
+        extr = dat( inds{i}, colons{:} );
+        dat( inds{i}, colons{:} )= extr( randperm(size(extr, 1)), colons{:} );
+      end
       obj.data = dat;
     end
     
@@ -3174,7 +3281,7 @@ classdef Container
         labs = arr{i}.labels.labels;
         curr_inds = arr{i}.labels.indices;
         lab_inds = cellfun( @(x) find(strcmp(all_labs, x)), labs );
-        n = size( dat );
+        n = size( dat, 1 );
         new_data( stp:stp+n-1, colons{:} ) = dat;
         new_inds( stp:stp+n-1, lab_inds ) = curr_inds;
         stp = stp + n;
@@ -3186,6 +3293,48 @@ classdef Container
       catted = first;
       catted.labels = labels_obj;
       catted.data = new_data;
+    end
+    
+    function obj = flatten(arr)
+
+      %   FLATTEN -- Recursively flatten a cell array of Container objects.
+      %
+      %     obj = Container.flatten( {{obj1, obj2}, obj3} ) returns a
+      %     single object `obj` housing the contents of obj1, obj2, and
+      %     obj3 (in that order). obj1, obj2, and obj3 must be mutually
+      %     compatible with vertical concatenation.
+      %
+      %     See also Container.concat, Container/append
+      %
+      %     IN:
+      %       - `arr` (cell array of cell arrays of Container)
+      %     OUT:
+      %       - `obj` (Container)
+
+      try
+        msg = 'Input cannot contain values of class ''%s''.';
+        assert( isa(arr, 'cell'), msg, class(arr) );
+      catch err
+        throwAsCaller( err );
+      end
+      obj = cell( 1, numel(arr) );
+      for i = 1:numel(arr)
+        current = arr{i};
+        if ( isa(current, 'Container') )
+          obj{i} = current;
+        else
+          obj{i} = Container.flatten( current );
+        end
+      end
+      try
+        obj = Container.concat( obj );
+      catch err
+        err = MException( 'Container:flatten' ...
+          , sprintf(['The following error occurred when' ...
+          , ' attempting to concatenate an array of objects:\n\n%s'] ...
+          , err.message) );
+        throwAsCaller( err );
+      end
     end
     
     function A = cellwise(func, A, B, varargin)

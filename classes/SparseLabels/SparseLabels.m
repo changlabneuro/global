@@ -1282,6 +1282,29 @@ classdef SparseLabels
       tf = eq( A, B );
     end
     
+    function tf = eq_ignoring(obj, B, cats)
+      
+      %   EQ_IGNORING -- Determine equality, ignoring some categories.
+      %
+      %     eq_ignoring( obj, B, 'cities' ) returns true if SparseLabels
+      %     objects `obj` and `B` are equivalent after removing the
+      %     category 'cities'.
+      %
+      %     IN:
+      %       - `obj` (SparseLabels)
+      %       - `B` (SparseLabels)
+      %       - `cats` (cell array of strings, char) -- Categories to
+      %         ignore.
+      %     OUT:
+      %       - `tf` (logical)
+      
+      tf = false;
+      if ( ~isa(obj, 'SparseLabels') || ~isa(B, 'SparseLabels') ), return; end
+      obj = rm_categories( obj, cats );
+      B = rm_categories( B, cats );
+      tf = eq( obj, B );
+    end
+    
     function tf = categories_match(obj, B)
       
       %   CATEGORIES_MATCH -- Determine whether the comparitor is a
@@ -1551,6 +1574,7 @@ classdef SparseLabels
       %     OUT:
       %       - `obj` (Labels) -- Converted Labels object.
       
+      if ( isempty(obj) ), obj = Labels(); return; end
       cats = unique( obj.categories );
       for i = 1:numel(cats)
         s.(cats{i}) = cell( shape(obj,1), 1 );

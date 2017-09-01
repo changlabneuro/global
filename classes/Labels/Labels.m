@@ -1107,6 +1107,28 @@ classdef Labels
       tf = eq( A, B );
     end
     
+    function tf = eq_ignoring(obj, B, fs)
+      
+      %   EQ_IGNORING -- Determine equality, ignoring some fields.
+      %
+      %     eq_ignoring( obj, B, 'cities' ) returns true if Labels
+      %     objects `obj` and `B` are equivalent after removing the
+      %     category 'cities'.
+      %
+      %     IN:
+      %       - `obj` (Labels)
+      %       - `B` (Labels)
+      %       - `fs` (cell array of strings, char) -- Fields to ignore.
+      %     OUT:
+      %       - `tf` (logical)
+      
+      tf = false;
+      if ( ~isa(obj, 'Labels') || ~isa(B, 'Labels') ), return; end
+      obj = rm_fields( obj, fs );
+      B = rm_fields( B, fs );
+      tf = eq( obj, B );      
+    end
+    
     %{
         PREALLOCATION
     %}
