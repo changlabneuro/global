@@ -214,6 +214,7 @@ classdef FigureEdit < handle
       %       - `ind` (double) |OPTIONAL| -- Index or indices of the
       %         legends to remove.
       
+      obj.assert__figure_defined();
       h_leg = findobj( obj.figure, 'Tag', 'legend' );
       assert( numel(h_leg) > 0, 'There are no legends to remove.' );
       if ( nargin == 1 )
@@ -225,6 +226,59 @@ classdef FigureEdit < handle
       set( subset, 'Visible', 'off' );
       history_item = { @(x) set(subset, 'Visible', 'on'), {} };
       obj.history{end+1} = history_item;
+    end
+    
+    function one_legend(obj)
+      
+      %   ONE_LEGEND -- Remove all but one legend.     
+      
+      obj.assert__figure_defined();
+      n_axes = numel( obj.get_axes() );
+      obj.remove_legend( 1:n_axes-1 );
+    end
+    
+    function legend_replace(obj, search, with, ind)
+      
+      %   LEGEND_REPLACE -- Edit legend text by replacement.
+      %
+      %     obj.legend_replace( 'ny', 'New York' ); replaces occurrences of
+      %     'ny' in legends in the current figure with 'New York'.
+      %
+      %     obj.legend_replace( ..., [1, 3] ) only performs the replacement
+      %     in the first and third legend in the figure.
+      %
+      %     An error is thrown if there are no legends in the current
+      %     figure.
+      %
+      %     IN:
+      %       - `search` (char)
+      %       - `with` (char)
+      %       - `ind` (double) |OPTIONAL| -- Index or indices of legends to
+      %       	edit.
+      
+      obj.assert__figure_defined();
+      assertions.assert__isa( search, 'char', 'the text to replace' );
+      assertions.assert__isa( with, 'char', 'the replacement text' );
+      h_leg = findobj( obj.figure, 'Tag', 'legend' );
+      assert( numel(h_leg) > 0, 'There are no legends to edit.' );
+      if ( nargin == 3 )
+        ind = 1:numel( h_leg );
+      else
+        obj.assert__index_in_bounds( ind, numel(h_leg) );
+      end
+      subset = h_leg( ind );
+      original = arrayfun( @(x) x.String, subset, 'un', false );
+      repfunc = @(y) strrep( y, search, with );
+      modified = cellfun( @(x) cellfun(repfunc, x, 'un', false) ...
+        , original, 'un', false );
+      setter( modified );
+      history_item = { @setter, {original} };
+      obj.history{end+1} = history_item;
+      function setter(val)
+        for i = 1:numel(subset)
+          subset(i).String = val{i};
+        end
+      end
     end
     
     function axs = get_axes(obj, inds)

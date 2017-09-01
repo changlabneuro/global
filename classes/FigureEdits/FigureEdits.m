@@ -266,6 +266,39 @@ classdef FigureEdits < handle
       end
     end
     
+    function one_legend(obj)
+      
+      %   ONE_LEGEND -- Remove all but one legend.
+      
+      try
+        cellfun( @(x) x.one_legend(), obj.active );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function legend_replace(obj, varargin)
+      
+      %   LEGEND_REPLACE -- Replace text in legends with alternate text.
+      %
+      %     obj.legend_replace( 'ny', 'New York' ); replaces occurrences of
+      %     'ny' in legends in the current figure(s) with 'New York'.
+      %
+      %     obj.legend_replace( ..., [1, 3] ) only performs the replacement
+      %     in the first and third legend in the figure(s).
+      %
+      %     See also FigureEdit/legend_replace
+      %
+      %     IN:
+      %       - `varargin` (cell array)
+      
+      try
+        cellfun( @(x) x.legend_replace(varargin{:}), obj.active );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
     function undo(obj)
       
       %   UNDO -- Undo the previous action.
