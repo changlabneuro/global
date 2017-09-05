@@ -1779,7 +1779,6 @@ classdef Container
       %
       %     Note that, unlike for_each(), `func` receives the *data* in the
       %     object as its first input, rather than the Container object.
-      %     This means that for_each
       %
       %     See also Container/for_each, Container/parfor_each
       %
@@ -1804,10 +1803,11 @@ classdef Container
       labs = obj.labels.labels;
       cats = obj.labels.categories;
       ucats = unique( cats );
+      clpsed_expression = get_collapsed_expression( obj.labels );
       original_n = numel( labs );
       indices = full( obj.labels.indices );
       new_inds = false( size(inds, 1), numel(labs)+numel(ucats) );
-      all_labs = [labs; cellfun(@(x) ['all__', x], ucats, 'un', false)];
+      all_labs = [labs; cellfun(@(x) [clpsed_expression, x], ucats, 'un', false)];
       all_cats = [ cats; ucats ];
       num_cats = cellfun( @(x) find(strcmp(ucats, x)), cats );
       active_cats = zeros( 1, numel(ucats) );

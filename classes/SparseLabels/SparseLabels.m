@@ -1821,6 +1821,34 @@ classdef SparseLabels
     end
     
     %{
+        GET/SET
+    %}
+    
+    function val = get_collapsed_expression(obj)
+      
+      %   GET_COLLAPSED_EXPRESSION -- Return the COLLAPSED_EXPRESSION prop.
+      %
+      %     OUT:
+      %       - `val` (char)
+      
+      val = obj.COLLAPSED_EXPRESSION;
+    end
+    
+    function obj = set_collapsed_expression(obj, val)
+      
+      %   SET_COLLAPSED_EXPRESSION -- Set the COLLAPSED_EXPRESSION prop.
+      %
+      %     IN:
+      %       - `val` (char)
+      %     OUT:
+      %       - `obj` (Container) -- Mutated object.
+      
+      assert( ischar(val) && ~isempty(val), ['Collapsed expression must' ...
+        , ' be a non-empty char; was a ''%s''.'], class(val) );
+      obj.COLLAPSED_EXPRESSION = val;
+    end
+    
+    %{
         OBJECT SPECIFIC ASSERTIONS
     %}
     
