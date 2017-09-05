@@ -1129,6 +1129,14 @@ classdef Labels
       tf = eq( obj, B );      
     end
     
+    function obj = sort_labels(obj)  
+      %   SORT_LABELS -- Dummy function to support Container syntax.
+    end
+    
+    function obj = sort_categories(obj)  
+      %   SORT_LABELS -- Dummy function to support Container syntax.
+    end
+    
     %{
         PREALLOCATION
     %}
@@ -1306,11 +1314,12 @@ classdef Labels
       str = sprintf( '%s\n\n', str );
     end
     
-    function disp(obj)
+    function disp(obj, show_size)
       
       %   DISP -- print the fields and labels in the object, and indicate
       %     the frequency of each label.
       
+      if ( nargin < 2 ), show_size = false; end
       unqs = uniques( obj );
       fields = obj.fields; %#ok<*PROP>
       for i = 1:numel(fields)

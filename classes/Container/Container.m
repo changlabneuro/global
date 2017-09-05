@@ -1102,29 +1102,6 @@ classdef Container
       tf = ~eq( obj, B );
     end
     
-    function tf = eq_ignoring(obj, B, fs)
-      
-      %   EQ_IGNORING -- Determine equality, ignoring some fields.
-      %
-      %     eq_ignoring( obj, B, 'cities' ) returns true if Container
-      %     objects `obj` and `B` are equivalent after removing the
-      %     field 'cities'.
-      %
-      %     See also Container/eq
-      %
-      %     IN:
-      %       - `obj` (Container)
-      %       - `B` (Container)
-      %       - `fs` (cell array of strings, char) -- Fields to ignore.
-      %     OUT:
-      %       - `tf` (logical)
-      
-      tf = false;
-      if ( ~isa(obj, 'Container') || ~isa(B, 'Container') ), return; end
-      if ( ~isequaln(obj.data, B.data) ), return; end
-      tf = eq_ignoring( obj.labels, B.labels, fs );
-    end
-    
     function tf = shapes_match(obj, B)
       
       %   SHAPES_MATCH -- True if two Container objects have matching
@@ -1178,6 +1155,83 @@ classdef Container
         obj = keep( obj, ~ind_a );
       end
       tf = true;
+    end
+    
+    function tf = eq_each(obj, B, within)
+      
+      %   EQ_EACH -- True if objects are equal for each label combination.
+      %
+      %     eq_each( A, B, 'days' ) returns true if A and B are Container
+      %     objects where, for each label in 'days', the data and labels
+      %     identified by that label are equivalent for A and B.
+      %
+      %     eq_each( A, B, {} ) is the same as A == B
+      %
+      %     Ex. //
+      %
+      %     A = Container( 10, 'days', 'march01' );
+      %     B = Container( 11, 'days', 'march02' );
+      %     C = append( A, B );
+      %     D = append( B, A );
+      %
+      %     C == D                    % false
+      %     eq_each( C, D, 'days' )   % true
+      %
+      %     See also Container/eq_contents, Container/eq
+      %     
+      %     IN:
+      %       - `B` (/any/) -- Values to test.
+      %       - `within` (cell array of strings, char)
+      %     OUT:
+      %       - `tf` (logical)
+      
+      narginchk(3, 3);
+      tf = false;
+      if ( eq(obj, B) ), tf = true; return; end
+      if ( ~isa(B, 'Container') ), return; end
+      if ( ~isequal(obj.dtype, B.dtype) ), return; end
+      if ( ~shapes_match(obj, B) ), return; end
+      if ( ~shapes_match(obj.labels, B.labels) ), return; end
+      if ( ~ischar(within) )
+        msg = 'Fields must be a cell array of strings or char; was a ''%s''.';
+        assert( iscellstr(within), msg, class(within) );
+      end
+      if ( ~all(contains_fields(obj.labels, within)) ), return; end
+      if ( ~all(contains_fields(B.labels, within)) ), return; end
+      obj.labels = sort_labels( obj.labels );
+      B.labels = sort_labels( B.labels );
+      [ind1, c1] = get_indices( obj, within );
+      [ind2, c2] = get_indices( B, within );
+      if ( ~isequal(c1, c2) ), return; end
+      for i = 1:numel(ind1)
+        A = keep( obj, ind1{i} );
+        B2 = keep( B, ind2{i} );
+        if ( ne(A, B2) ), return; end
+      end
+      tf = true;
+    end
+    
+    function tf = eq_ignoring(obj, B, fs)
+      
+      %   EQ_IGNORING -- Determine equality, ignoring some fields.
+      %
+      %     eq_ignoring( obj, B, 'cities' ) returns true if Container
+      %     objects `obj` and `B` are equivalent after removing the
+      %     field 'cities'.
+      %
+      %     See also Container/eq
+      %
+      %     IN:
+      %       - `obj` (Container)
+      %       - `B` (Container)
+      %       - `fs` (cell array of strings, char) -- Fields to ignore.
+      %     OUT:
+      %       - `tf` (logical)
+      
+      tf = false;
+      if ( ~isa(obj, 'Container') || ~isa(B, 'Container') ), return; end
+      if ( ~isequaln(obj.data, B.data) ), return; end
+      tf = eq_ignoring( obj.labels, B.labels, fs );
     end
     
     %{
