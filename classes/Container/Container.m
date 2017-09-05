@@ -1701,6 +1701,109 @@ classdef Container
       end
     end
     
+    function obj = for_each_1d(obj, within, func, varargin)
+      
+      %   FOR_EACH_1D -- Execute a function that collapses data across the
+      %     first dimension, for each label combination.
+      %
+      %     obj = for_each_1d( obj, {'states', 'cities'}, @mean )
+      %     calculates a mean across the first dimension for each present 
+      %     combination of 'states' and 'cities'.
+      %
+      %     obj = ... 
+      %       for_each_1d( obj, {'states', 'cities'}, func, in1, in2 ... )
+      %     applies function `func` with inputs `in1`, `in2`, ... `inN` to
+      %     each combination of 'states' and 'cities'.
+      %
+      %     Data in the object can be of any class and size, but the output
+      %     of `func` must be numeric and of size 1 in the first dimension 
+      %     (i.e., have one row).
+      %
+      %     Note that, unlike for_each(), `func` receives the *data* in the
+      %     object as its first input, rather than the Container object.
+      %
+      %     See also Container/for_each, Container/parfor_each
+      %
+      %     IN:
+      %       - `within` (cell array of strings, char)
+      %       - `func` (function_handle)
+      %       - `varargin` (cell array) |OPTIONAL|
+      %     OUT:
+      %       - `obj` (Container)
+      
+      within = SparseLabels.ensure_cell( within );
+      Assertions.assert__isa( func, 'function_handle' );
+      if ( ~isa(obj.labels, 'SparseLabels') )
+        obj = for_each( obj, within, func, varargin{:} );
+        return;
+      end
+      data = obj.data; %#ok<*PROPLC>
+      inds = get_indices( obj, within );
+      labs = obj.labels.labels;
+      cats = obj.labels.categories;
+      ucats = unique( cats );
+      original_n = numel( labs );
+      indices = full( obj.labels.indices );
+      new_inds = false( size(inds, 1), numel(labs)+numel(ucats) );
+      all_labs = [labs; cellfun(@(x) ['all__', x], ucats, 'un', false)];
+      all_cats = [ cats; ucats ];
+      num_cats = cellfun( @(x) find(strcmp(ucats, x)), cats );
+      active_cats = zeros( 1, numel(ucats) );
+      dat_size = [];
+      result_colons = {};
+      orig_colons = repmat( {':'}, ndims(data)-1 );
+      for i = 1:numel(inds)
+        %   call the function
+        result = func( data(inds{i}, orig_colons{:}), varargin{:} );
+        %   make sure the data are appropriately sized -- there can only be
+        %   one row, and the sizes in the other dimensions must be
+        %   consistent across iterations.
+        res_size = size( result );
+        res_rows = res_size(1);
+        assert( res_rows == 1, ['The output of a function' ...
+          , ' called within for_each_1d must be of size 1 in the first' ...
+          , ' dimension (i.e., have one row). Instead size was %d.'], res_rows );
+        if ( i == 1 )
+          %   make sure the output of `func` is one of the supported types;
+          %   if not, revert to regular for_each()
+          if ( ~isnumeric(result) )
+            error( ['\nThe output of ''%s'' produced non-numeric data' ...
+              , ' (of class ''%s'').'], func2str(func), class(result) );
+          end
+          dat_size = [ numel(inds), res_size(2:end) ];
+          dat = zeros( dat_size, 'like', result );
+          result_colons = repmat( {':'}, numel(dat_size)-1 );
+        else
+          assert( numel(res_size) == ndims(dat) && ...
+            all(res_size(2:end) == dat_size(2:end)), ['The output of' ...
+            , ' function ''%s'' produced inconsistently sized arrays.'] ...
+            , func2str(func) );
+        end
+        %   if we make it here, the data are ok, so assign to the data
+        %   matrix.
+        dat(i, result_colons{:}) = result;
+        subset_ind = any( indices(inds{i}, :), 1 );
+        active_cats(:) = 0;
+        for j = 1:numel(labs)
+          if ( ~subset_ind(j) ), continue; end
+          if ( active_cats(num_cats(j)) > 0 )
+            new_inds(i, j) = false;
+            new_inds(i, active_cats(num_cats(j))) = false;
+            new_inds(i, original_n+num_cats(j)) = true;
+            continue;
+          end
+          new_inds(i, j) = true;
+          active_cats(num_cats(j)) = j;
+        end
+      end
+      %   only assign columns of new_inds that have at least one true value
+      have_any = any( new_inds, 1 );
+      obj.labels.indices = new_inds(:, have_any);
+      obj.labels.labels = all_labs( have_any );
+      obj.labels.categories = all_cats( have_any );
+      obj.data = dat;
+    end
+    
     function obj = row_op(obj, func, varargin)
       
       %   ROW_OP -- Execute a function that collapses the object's data
