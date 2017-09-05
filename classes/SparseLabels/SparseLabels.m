@@ -1560,15 +1560,16 @@ classdef SparseLabels
       str = sprintf( '%s\n\n', str );
     end
     
-    function disp(obj)
+    function disp(obj, display_size)
       
       %   DISP -- print the categories and labels in the object, and 
       %     indicate the frequency of each label.
       
+      if ( nargin < 2 ), display_size = true; end
       if ( obj.VERBOSE )
         disp1( obj );
       else
-        disp2( obj );
+        disp2( obj, display_size );
       end
     end
     
@@ -1602,11 +1603,12 @@ classdef SparseLabels
       fprintf( '\n\n' );
     end
     
-    function disp2(obj)
+    function disp2(obj, display_size)
       
-      %   DISP1 -- Display categories, labels, and label-frequencies in
+      %   DISP2 -- Display categories, labels, and label-frequencies in
       %     multiple columns.
       
+      if ( nargin < 2 ), display_size = true; end
       all_labs = obj.labels;
       cats = obj.categories;
       inds = obj.indices;
@@ -1664,6 +1666,18 @@ classdef SparseLabels
           end
           all_joined{j}(:, i) = col;
         end
+      end
+      if ( display_size )
+        if ( desktop_exists )
+          sz_str = sprintf( '%d×%d', size(obj.indices, 1), size(obj.indices, 2) );
+          link_str = sprintf( '<a href="matlab:helpPopup %s">%s</a>' ...
+            , class(obj), class(obj) );
+        else
+          sz_str = sprintf( '%d-by-%d', size(obj.indices, 1) ...
+            , size(obj.indices, 2) );
+          link_str = class( obj );
+        end
+        fprintf( '\n  %s %s with items:\n', sz_str, link_str );
       end
       if ( desktop_exists )
         base_str = '\n  <strong>%s</strong>';
@@ -1865,6 +1879,61 @@ classdef SparseLabels
   end
   
   methods (Static = true)
+    
+    function obj = create(varargin)
+      
+      %   CREATE -- Create a SparseLabels object from field, label pairs.
+      %
+      %     sp = SparseLabels.create( 'cities', {'NY', 'Chicago'} )
+      %     constructs a SparseLabels object `sp` with the category
+      %     'cities', containing the labels 'NY' and 'Chicago'. 'NY'
+      %     is associated with the first row of `sp`, and 'Chicago' the
+      %     second.
+      %
+      %     sp = SparseLabels.create( ...
+      %         'cities', {'ny', 'la'} ...
+      %       , 'countries', 'usa' ...
+      %     )
+      %
+      %     Works as above, but also creates the category 'countries',
+      %     whose single label 'usa' identifies both rows of `sp`.   
+      %
+      %     See also Container/create, SparseLabels/SparseLabels
+      %
+      %     IN:
+      %       - `varargin` ('field', {'label1'})
+      %     OUT:
+      %       - `obj` (SparseLabels)
+      
+      narginchk( 2, Inf );
+      labs = varargin;
+      assert( mod(numel(labs)/2, 1) == 0 ...
+        , '(field, {labels}) pairs are incomplete.' );
+      fs = labs(1:2:end);
+      cellfun( @(x) Assertions.assert__isa(x, 'char'), fs );
+      labels = labs(2:2:end);
+      labels = cellfun( @(x) Labels.ensure_cell(x), labels, 'un', false );
+      cellfun( @(x) Assertions.assert__is_cellstr(x), labels );
+      szs = cellfun( @(x) numel(x), labels );
+      unq_sizes = unique( szs );
+      if ( numel(unq_sizes) > 1 )
+        is_one = unq_sizes == 1;
+        assert( numel(unq_sizes) == 2 && any(is_one), ['The number' ...
+          , ' of labels in each category must match across categories,' ...
+          , ' unless there is only one label in the category.'] );
+        sz = unq_sizes( ~is_one );
+      else
+        sz = unq_sizes;
+      end
+      for i = 1:numel(labels)
+        lab = labels{i};
+        if ( numel(lab) ~= sz )
+          labels{i} = repmat( lab, sz, 1 );
+        end
+      end
+      labels = cellfun( @(x) x(:), labels, 'un', false );
+      obj = SparseLabels( cell2struct(labels, fs, 2) );
+    end
     
     function obj = convert_struct_input_to_labels(s)
       

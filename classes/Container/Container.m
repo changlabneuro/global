@@ -1701,7 +1701,7 @@ classdef Container
       end
     end
     
-    function obj = for_each_1d(obj, within, func, varargin)
+    function [obj, inds, cmbs] = for_each_1d(obj, within, func, varargin)
       
       %   FOR_EACH_1D -- Execute a function that collapses data across the
       %     first dimension, for each label combination.
@@ -1715,12 +1715,17 @@ classdef Container
       %     applies function `func` with inputs `in1`, `in2`, ... `inN` to
       %     each combination of 'states' and 'cities'.
       %
+      %     [obj, I, C] = for_each_1d( obj, ... ) also returns the indices
+      %     `I` (with respect to the inputted object) and combinations `C`
+      %     associated with each row of the outputted object.
+      %
       %     Data in the object can be of any class and size, but the output
       %     of `func` must be numeric and of size 1 in the first dimension 
       %     (i.e., have one row).
       %
       %     Note that, unlike for_each(), `func` receives the *data* in the
       %     object as its first input, rather than the Container object.
+      %     This means that for_each
       %
       %     See also Container/for_each, Container/parfor_each
       %
@@ -1730,15 +1735,18 @@ classdef Container
       %       - `varargin` (cell array) |OPTIONAL|
       %     OUT:
       %       - `obj` (Container)
+      %       - `inds` (cell array of logical)
+      %       - `cmbs` (cell array of strings)
       
       within = SparseLabels.ensure_cell( within );
       Assertions.assert__isa( func, 'function_handle' );
+      was_full = false;
       if ( ~isa(obj.labels, 'SparseLabels') )
-        obj = for_each( obj, within, func, varargin{:} );
-        return;
+        was_full = true;
+        obj = sparse( obj );
       end
       data = obj.data; %#ok<*PROPLC>
-      inds = get_indices( obj, within );
+      [inds, cmbs] = get_indices( obj, within );
       labs = obj.labels.labels;
       cats = obj.labels.categories;
       ucats = unique( cats );
@@ -1802,6 +1810,9 @@ classdef Container
       obj.labels.labels = all_labs( have_any );
       obj.labels.categories = all_cats( have_any );
       obj.data = dat;
+      if ( was_full )
+        obj = full( obj );
+      end
     end
     
     function obj = row_op(obj, func, varargin)
@@ -2477,7 +2488,7 @@ classdef Container
       end
       fprintf('  %s %s %s with %s:\n', ...
         size_str, obj.dtype, class_str, lclass_str );
-      disp( obj.labels );
+      disp( obj.labels, false );
     end
     
     function obj = columnize(obj)
@@ -3480,6 +3491,11 @@ classdef Container
       end
     end
     
+    %{
+        1D functions -- Operate across first dimension.
+        Allows consistent interface with for_each_1d()
+    %}
+    
     function y = sem_1d(data)
       
       %   SEM_1D -- Standard error across the first dimension of data.
@@ -3492,6 +3508,64 @@ classdef Container
       
       N = size( data, 1 );
       y = std( data, [], 1 ) / sqrt( N );
+    end
+    
+    function data = mean_1d(data)
+      
+      %   MEAN_1D -- Mean across first dimension.
+      
+      data = mean( data, 1 );
+    end
+    
+    function data = nanmean_1d(data)
+      
+      %   NANMEAN_1D -- Mean across first dimension, after removing NaNs.
+      
+      data = nanmean( data, 1 );
+    end
+    
+    function data = nanmedian_1d(data)
+      
+      %   NANMEDIAN_1D -- Median across first dimension, after removing 
+      %     NaNs.
+      
+      data = nanmedian( data, 1 );
+    end
+    
+    function data = median_1d(data)
+      
+      %   MEDIAN_1D -- Median across first dimension.
+      
+      data = median( data, 1 );
+    end
+    
+    function data = std_1d(data)
+      
+      %   STD_1D -- Standard deviation across first dimension. 
+      
+      data = std( data, [], 1 );
+    end
+    
+    function data = nanstd_1d(data)
+      
+      %   NANSTD_1D -- Standard deviation across first dimension, after
+      %     removing NaNs.
+      
+      data = nansd( data, [], 1 );
+    end
+    
+    function data = min_1d(data)
+      
+      %   MIN_1D -- Minimum across the first dimension.
+      
+      data = min( data, [], 1 );
+    end
+    
+    function data = max_1d(data)
+      
+      %   MAX_1D -- Maximum across the first dimension.
+      
+      data = max( data, [], 1 );
     end
     
     function y = sem_nd(data, dim)
@@ -3508,6 +3582,10 @@ classdef Container
       N = size( data, dim );
       y = std( data, [], dim ) / sqrt( N );
     end
+    
+    %{
+        CREATION
+    %}
     
     function obj = prealc(varargin)
       
