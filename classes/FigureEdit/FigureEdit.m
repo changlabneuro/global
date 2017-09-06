@@ -281,6 +281,39 @@ classdef FigureEdit < handle
       end
     end
     
+    function title_replace(obj, search, with, varargin)
+      
+      %   TITLE_REPLACE -- Edit title text by replacement.
+      %
+      %     obj.title_replace( 'ny', 'New York' ); replaces occurrences of
+      %     'ny' in the title of the current figure with 'New York'.
+      %
+      %     obj.title_replace( ..., [1, 3] ) only performs the replacement
+      %     in the first and third title in the figure.
+      %
+      %     IN:
+      %       - `search` (char)
+      %       - `with` (char)
+      %       - `ind` (double) |OPTIONAL| -- Index or indices of legends to
+      %       	edit.
+      
+      obj.assert__figure_defined();
+      assertions.assert__isa( search, 'char', 'the text to replace' );
+      assertions.assert__isa( with, 'char', 'the replacement text' );
+      axs = obj.get_axes( varargin{:} );
+      original = arrayfun( @(x) x.Title.String, axs, 'un', false );
+      repfunc = @(y) strrep( y, search, with );
+      modified = cellfun( repfunc, original, 'un', false );
+      setter( modified );
+      history_item = { @setter, {original} };
+      obj.history{end+1} = history_item;
+      function setter(val)
+        for i = 1:numel(axs)
+          axs(i).Title.String = val{i};
+        end
+      end
+    end
+    
     function axs = get_axes(obj, inds)
       
       %   GET_AXES -- Get the axes associated with the given indices, or

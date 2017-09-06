@@ -299,6 +299,28 @@ classdef FigureEdits < handle
       end
     end
     
+    function title_replace(obj, varargin)
+      
+      %   TITLE_REPLACE -- Replace text in titles with alternate text.
+      %
+      %     obj.title_replace( 'ny', 'New York' ); replaces occurrences of
+      %     'ny' in titles of the current figure(s) with 'New York'.
+      %
+      %     obj.title_replace( ..., [1, 3] ) only performs the replacement
+      %     in the first and third title of the figure(s).
+      %
+      %     See also FigureEdit/legend_replace
+      %
+      %     IN:
+      %       - `varargin` (cell array)
+      
+      try
+        cellfun( @(x) x.title_replace(varargin{:}), obj.active );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
     function undo(obj)
       
       %   UNDO -- Undo the previous action.

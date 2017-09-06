@@ -2533,9 +2533,9 @@ classdef Container
       ccls = class( obj );
       lcls = class( obj.labels );
       if ( desktop_exists )
-        link_str = '<a href="matlab:helpPopup %s">%s</a>';
-        class_str = sprintf( link_str, ccls, ccls );
-        lclass_str = sprintf( link_str, lcls, lcls );
+        link_str = '<a href="matlab:helpPopup %s/%s">%s</a>';
+        class_str = sprintf( link_str, ccls, ccls, ccls );
+        lclass_str = sprintf( link_str, lcls, lcls, lcls );
       else
         class_str = ccls;
         lclass_str = lcls;
@@ -3776,6 +3776,148 @@ classdef Container
       does_match = cellfun( @(x) any(min(strfind(x, str)) == 1), comparitors );
       matches = comparitors( does_match );
       
+    end
+    
+    %{
+        SAVING
+    %}
+    
+    function h5write(obj, fname, allow_overwrite)
+      
+      %   H5WRITE -- Write the contents of the object to a .h5 file.
+      %
+      %     Container.h5write( cont, 'test.h5' ) writes the contents of
+      %     `obj` to the .h5 file 'test.h5'. 'test.h5' must not exist.
+      %
+      %     Container.h5write( cont, 'test.h5', true ) overwrites the
+      %     contents of 'test.h5', if it exists.
+      %
+      %     Data in the object must be numeric. Labels must be
+      %     SparseLabels. The given filename must be suffixed with '.h5'.
+      %
+      %     Data are stored in a dataset called 'dset1/data'
+      %     Indices are stored in               'dset1/indices'
+      %     Labels are stored in                'dset1/labels'
+      %     Categories are stored in            'dset1/categories'
+      %
+      %     IN:
+      %       - `obj` (Container)
+      %       - `fname` (char)
+      %       - `allow_overwrite` (logical) |OPTIONAL|
+      
+      if ( nargin < 3 ), allow_overwrite = false; end
+      try
+        Container.assert__h5_api_present();
+        Container.assert__can_save_h5( obj );
+        Container.assert__is_valid_h5_filename( fname );
+        io = h5_api();
+        f_exists = io.file_exists( fname );
+        if ( f_exists && ~allow_overwrite )
+          error( ['The file ''%s'' already exists. Set flag allow_overwrite' ...
+            , ' = true to overwrite it.'], fname );
+        elseif ( f_exists )
+          delete( fname );
+        end
+        io.create( fname );
+        io.write( obj, '/dset1' );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function h5append(obj, fname)
+      
+      %   H5APPEND -- Append data to an existing h5 file.
+      %
+      %     Container.h5append( cont, 'test.h5' ) adds the contents of
+      %     `cont` to an existing .h5 file 'test.h5'. An error is thrown if
+      %     the file does not already exist.
+      %
+      %     IN:
+      %       - `fname` (char) -- File to append to.
+      %       - `obj` (Container) -- Data to append to the file.
+      
+      try
+        Container.assert__h5_api_present();
+        io = h5_api( fname );
+        Container.assert__is_container_h5_file( io, fname );
+        Container.assert__can_save_h5( obj );
+        io.add( obj, '/dset1' );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function obj = h5read(fname, varargin)
+      
+      %   H5READ -- Load a Container object from a .h5 file.
+      %
+      %     obj = Container.h5read( 'test.h5' ) reads the full contents of
+      %     'test.h5'.
+      %
+      %     obj = Container.h5read( ..., 'only', 'march1' ) reads only data
+      %     associated with 'march1'.
+      %
+      %     The filename must be suffixed with '.h5' and have been created
+      %     via Container.h5_write.
+      %
+      %     See also Container.h5write, Container.h5append, h5read
+      %
+      %     IN:
+      %       - `fname` (char)
+      %     OUT:
+      %       - `obj` (Container)
+      
+      Container.assert__h5_api_present();
+      io = h5_api( fname );
+      try
+        Container.assert__is_container_h5_file( io, fname );
+        obj = io.read( '/dset1', varargin{:} );
+      catch err
+        throwAsCaller( err );
+      end
+    end
+    
+    function assert__can_save_h5(obj)
+      
+      %   ASSERT__CAN_SAVE_H5
+      
+      assert( isa(obj, 'Container'), 'Input must be a Container; was a %s.' ...
+        , class(obj) );
+      assert( isa(obj.labels, 'SparseLabels'), ['Can only save objects' ...
+        , ' whose labels are SparseLabels. Call sparse() to convert' ...
+        , ' the labels to SparseLabels.'] );
+      assert( isnumeric(obj.data), ['Data in the object must be numeric;' ...
+        , ' was of class ''%s''.'], class(obj.data) );
+    end
+    
+    function assert__is_valid_h5_filename(fname)
+      
+      %   ASSERT__IS_VALID_H5_FILENAME
+      
+      assert( ischar(fname), 'Filename must be a char; was a %s.', class(fname) );
+      assert( numel(fname) > 3 && strcmp(fname(end-2:end), '.h5') ...
+        , 'The file ''%s'' is not a .h5 file.', fname );
+    end
+    
+    function assert__is_container_h5_file(io, fname)
+      
+      %   ASSERT__IS_CONTAINER_H5_FILE
+      
+      Container.assert__is_valid_h5_filename( fname );
+      assert( io.is_container_group('/dset1'), ['The file ''%s''' ...
+        , ' was not created with Container.h5_write(). Use the h5_api()' ...
+        , ' class to read from this file.'], fname );
+    end
+    
+    function assert__h5_api_present()
+      
+      %   ASSERT__H5_API_PRESENT
+      
+      str = which( 'h5_api' );
+      assert( ~isempty(str), ['The required library ''h5_api.m''' ...
+        , ' could not be located. If you''re sure you''ve downloaded it,' ...
+        , ' make sure you''ve added it to the search path.'] );
     end
   end
   
