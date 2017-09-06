@@ -1869,6 +1869,75 @@ classdef Container
       end
     end
     
+    function [obj, inds, cmbs] = for_each_nd(obj, within, func, varargin)
+      
+      %   FOR_EACH_ND -- Execute a function that acts along a dimension of
+      %     data beyond the first dimension.
+      %
+      %     let func = @(x) x( randperm(size(x, 1) );
+      %
+      %     then obj = for_each_nd( obj, {'states', 'cites'}, func )
+      %
+      %     shuffles the data in the object, but pulls each shuffled
+      %     distribution from unique combinations of 'states' and 'cities'.
+      %
+      %     [obj, I, C] = for_each_1d( obj, ... ) also returns the indices
+      %     `I` (with respect to the inputted object) and combinations `C`
+      %     associated with each row of the outputted object.
+      %
+      %     Data in the object can be of any class and size, but the output
+      %     of `func` must be numeric and of the same size in the first
+      %     dimension as the inputted data.
+      %
+      %     Note that, unlike for_each(), `func` receives the *data* in the
+      %     object as its first input, rather than the Container object.
+      %
+      %     See also Container/for_each_1d, Container/parfor_each
+      %
+      %     IN:
+      %       - `within` (cell array of strings, char)
+      %       - `func` (function_handle)
+      %       - `varargin` (cell array) |OPTIONAL|
+      %     OUT:
+      %       - `obj` (Container)
+      %       - `inds` (cell array of logical)
+      %       - `cmbs` (cell array of strings)
+      
+      within = SparseLabels.ensure_cell( within );
+      Assertions.assert__isa( func, 'function_handle' );
+      data = obj.data; %#ok<*PROPLC>
+      [inds, cmbs] = get_indices( obj, within );
+      dat_colons = repmat( {':'}, ndims(data)-1 );
+      result_colons = {};
+      dat = [];
+      for i = 1:numel(inds)
+        ind = inds{i};
+        result = func( data(ind, dat_colons{:}), varargin{:} );
+        res_size = size( result );
+        assert( res_size(1) == sum(inds{i}), ['The output of ''%s''' ...
+          , ' produced an array with more or fewer rows than' ...
+          , ' the inputted array.'], func2str(func) );
+        if ( i == 1 )
+          %   make sure the output of `func` is one of the supported types;
+          %   if not, revert to regular for_each()
+          if ( ~isnumeric(result) )
+            error( ['\nThe output of ''%s'' produced non-numeric data' ...
+              , ' (of class ''%s'').'], func2str(func), class(result) );
+          end
+          dat_size = [ size(data, 1), res_size(2:end) ];
+          dat = zeros( dat_size, 'like', result );
+          result_colons = repmat( {':'}, numel(dat_size)-1 );
+        else
+          assert( numel(res_size) == ndims(dat) && ...
+            all(res_size(2:end) == dat_size(2:end)), ['The output of' ...
+            , ' function ''%s'' produced inconsistently sized arrays.'] ...
+            , func2str(func) );
+        end
+        dat( ind, result_colons{:} ) = result;
+      end
+      obj.data = dat;
+    end
+    
     function obj = row_op(obj, func, varargin)
       
       %   ROW_OP -- Execute a function that collapses the object's data
