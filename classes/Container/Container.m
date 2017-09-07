@@ -1804,10 +1804,11 @@ classdef Container
       cats = obj.labels.categories;
       ucats = unique( cats );
       clpsed_expression = get_collapsed_expression( obj.labels );
+      collapsed_cats = cellfun( @(x) [clpsed_expression, x], ucats, 'un', false );
       original_n = numel( labs );
       indices = full( obj.labels.indices );
       new_inds = false( size(inds, 1), numel(labs)+numel(ucats) );
-      all_labs = [labs; cellfun(@(x) [clpsed_expression, x], ucats, 'un', false)];
+      all_labs = [labs; collapsed_cats];
       all_cats = [ cats; ucats ];
       num_cats = cellfun( @(x) find(strcmp(ucats, x)), cats );
       active_cats = zeros( 1, numel(ucats) );
@@ -1860,9 +1861,33 @@ classdef Container
       end
       %   only assign columns of new_inds that have at least one true value
       have_any = any( new_inds, 1 );
+      all_labs = all_labs( have_any );
       obj.labels.indices = new_inds(:, have_any);
-      obj.labels.labels = all_labs( have_any );
+      obj.labels.labels = all_labs;
       obj.labels.categories = all_cats( have_any );
+      %
+      %   @FixMe
+      %   remove duplicate labels, if the collapsed expression was already
+      %   present
+      %
+      to_rm = false( size(all_labs) );
+      for i = 1:numel(collapsed_cats)
+        ind = strcmp( all_labs, collapsed_cats{i} );
+        n = sum( ind );
+        if ( n > 1 )
+          assert( n == 2, 'Too many collapsed categories!' );
+          num_inds = find( ind );
+          to_rm( num_inds(2) ) = true;
+          obj.labels.indices(:, num_inds(1)) = ...
+              any( obj.labels.indices(:, ind), 2 );
+        end
+      end
+      obj.labels.indices(:, to_rm) = [];
+      obj.labels.labels(to_rm) = [];
+      obj.labels.categories(to_rm) = [];
+      %
+      %   end fix me
+      %
       obj.data = dat;
       if ( was_full )
         obj = full( obj );
