@@ -1238,6 +1238,20 @@ classdef Labels
     end
     
     %{
+        GET/SET
+    %}
+    
+    function val = get_collapsed_expression(obj)
+      
+      %   GET_COLLAPSED_EXPRESSION -- Return the COLLAPSED_EXPRESSION prop.
+      %
+      %     OUT:
+      %       - `val` (char)
+      
+      val = obj.COLLAPSED_EXPRESSION;
+    end
+    
+    %{
         INTER-OBJECT FUNCTIONALITY
     %}
     

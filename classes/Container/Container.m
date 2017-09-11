@@ -575,6 +575,26 @@ classdef Container
       obj.labels = rm_fields( obj.labels, fields );
     end
     
+    function str = make_collapsed_expression(obj, f)
+      
+      %   MAKE_COLLAPSED_EXPRESSION -- Generate the collapsed expression
+      %     for a given field.
+      %
+      %     make_collapsed_expression( obj, 'days' ) returns 'all__days',
+      %     if the collapsed expression is 'all__'.
+      %
+      %     See also Container/get_collapsed_expression
+      %
+      %     IN:
+      %       - `f` (char) -- Field.
+      %     OUT:
+      %       - `str` (char) -- Collapsed expression.
+      
+      Assertions.assert__isa( f, 'char' );
+      assert__contains_fields( obj.labels, f );
+      str = [ get_collapsed_expression(obj), f ];
+    end
+    
     function obj = rm_uniform_fields(obj)
       
       %   RM_UNIFORM_FIELDS -- Remove fields for which there is
@@ -3255,6 +3275,16 @@ classdef Container
       obj.data = data;
       obj.labels = labels;
       obj.dtype = class( data );
+    end
+    
+    function str = get_collapsed_expression(obj)
+      
+      %   GET_COLLAPSED_EXPRESSION -- Return the collapsed expression.
+      %
+      %     OUT:
+      %       - `str` (char)
+      
+      str = get_collapsed_expression( obj.labels );
     end
     
     %{
