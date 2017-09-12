@@ -3729,7 +3729,7 @@ classdef Container
       %   NANSTD_1D -- Standard deviation across first dimension, after
       %     removing NaNs.
       
-      data = nansd( data, [], 1 );
+      data = nanstd( data, [], 1 );
     end
     
     function data = min_1d(data)
