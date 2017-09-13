@@ -1034,6 +1034,14 @@ classdef Container
               end
               proceed = false;
             end
+            %   obj( {'march-01-2017', 'NY'} ) calls the function only()
+            %   with {'march-01-2017', 'NY'} as an input, and returns the
+            %   object.
+            if ( isa(subs{1}, 'cell') && proceed )
+              assert( nsubs == 1, 'Too many subscripts.' );
+              out = only( obj, subs{1} );
+              proceed = false;
+            end
             %   otherwise, we've attempted to pass an illegal type to the
             %   index
             if ( proceed )
@@ -1780,7 +1788,7 @@ classdef Container
       %   FOR_EACH_1D -- Execute a function that collapses data across the
       %     first dimension, for each label combination.
       %
-      %     obj = for_each_1d( obj, {'states', 'cities'}, @mean )
+      %     obj = for_each_1d( obj, {'states', 'cities'}, @Container.mean_1d )
       %     calculates a mean across the first dimension for each present 
       %     combination of 'states' and 'cities'.
       %
@@ -1912,6 +1920,15 @@ classdef Container
       if ( was_full )
         obj = full( obj );
       end
+    end
+    
+    function [obj, inds, cmbs] = each1d(obj, varargin)
+      
+      %   EACH1D -- Alias for for_each_1d
+      %
+      %     See also Container/for_each_1d
+      
+      [obj, inds, cmbs] = for_each_1d( obj, varargin{:} );
     end
     
     function [obj, inds, cmbs] = for_each_nd(obj, within, func, varargin)
