@@ -1788,7 +1788,7 @@ classdef Container
       %   FOR_EACH_1D -- Execute a function that collapses data across the
       %     first dimension, for each label combination.
       %
-      %     obj = for_each_1d( obj, {'states', 'cities'}, @Container.mean_1d )
+      %     obj = for_each_1d( obj, {'states', 'cities'}, @rowops.mean )
       %     calculates a mean across the first dimension for each present 
       %     combination of 'states' and 'cities'.
       %

@@ -1441,10 +1441,20 @@ classdef SparseLabels
       new.indices = sparse( current_row_inds, current_col_inds, true, ...
         own_rows+other_rows, own_cols+n_other, own_n_true+other_n_true );
       if ( ~isempty(shared_labs) )
-        other_shared_inds = ...
-          B.indices( :, cellfun(@(x) find(strcmp(B.labels, x)), shared_labs) );
+        other_category_inds = cellfun( @(x) find(strcmp(B.labels, x)) ...
+          , shared_labs );
+        other_shared_inds = B.indices( :, other_category_inds );
         own_category_inds = ...
           cellfun( @(x) find(strcmp(obj.labels, x)), shared_labs );
+        %
+        %   new: shared labels must reside in the same category
+        %
+        assert( all(strcmp(obj.categories(own_category_inds) ...
+          , B.categories(other_category_inds))), ['Shared labels must' ...
+          , ' reside in the same category.'] );
+        %
+        %   end new
+        % 
         new.indices( own_rows+1:end, own_category_inds ) = other_shared_inds;
       end
       if ( ~isempty(other_labs) )
