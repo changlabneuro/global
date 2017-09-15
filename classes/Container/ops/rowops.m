@@ -12,7 +12,7 @@ classdef rowops
       %
       %     Functions herein accept an array or matrix as input and output 
       %     an array or matrix whose size is 1xNx... In other words, the 
-      %     output arrays/ matrix will have one row, but the same size in 
+      %     output array / matrix will have one row, but the same size in 
       %     the remaining dimensions as the inputted array / matrix.
       %
       %     Ex. //
@@ -31,14 +31,13 @@ classdef rowops
       
       %   DISP -- List available functions.
       
-      fprintf([' This class contains functions that collapse\n data' ...
-        , ' across the first dimension.\n\n These are the functions' ...
-        , ' currently available:\n']);
+      fprintf( ' Function library: \n' );
       deets = ?rowops;
       names = arrayfun( @(x) x.Name, deets.MethodList, 'un', false );
       is_static = arrayfun( @(x) x.Static, deets.MethodList );
       is_empty = strcmp( names, 'empty' );
-      names = names( is_static & ~is_empty );
+      is_assert = cellfun( @(x) ~isempty(strfind(x, 'assert')), names );
+      names = names( is_static & ~is_empty & ~is_assert );
       cellfun( @(x) fprintf('\n - rowops.%s', x), names );
       fprintf( '\n\n' );
     end
