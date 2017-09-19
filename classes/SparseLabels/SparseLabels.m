@@ -1831,6 +1831,81 @@ classdef SparseLabels
     end
     
     %{
+        CONVERSION
+    %}
+    
+    function [arr, arranged_labs, cats] = numeric_array(obj, kind)
+      
+      %   NUMERIC_ARRAY -- Convert the object to a numeric array.
+      %
+      %     This function is the generalized form of conversion functions
+      %     like double().
+      %
+      %     See also SparseLabels/double
+      %
+      %     IN:
+      %       - `kind` (char) -- Class of numeric data.
+      %     OUT:
+      %       - `arr` (/kind/) -- Numeric array.
+      %       - `arranged_labs` (cell array of strings)
+      %       - `cats` (cell array of strings)
+      
+      cats = unique( obj.categories );
+      arranged_labs = cell( numel(obj.labels), 1 );
+      arr = zeros( [size(obj.indices, 1), numel(cats)], kind );
+      offset = 0;
+      for i = 1:numel(cats)
+        cat = cats{i};
+        labs = obj.labels( strcmp(obj.categories, cat) );
+        for j = 1:numel(labs)
+          ind = strcmp( obj.labels, labs{j} );
+          arr( obj.indices(:, ind), i ) = j+offset;
+          arranged_labs{j+offset} = labs{j};
+        end
+        offset = offset + j;
+      end
+    end
+    
+    function [arr, labs, cats] = double(obj)
+      
+      %   DOUBLE -- Convert the object to a double array.
+      %
+      %     A = double( obj ); returns a double array A whose columns are
+      %     categories and rows the integer representations of the labels
+      %     in those categories.
+      %
+      %     [A, labs] = double( obj ); also returns the cell array of
+      %     labels whose ordering corresponds to their identity in A.
+      %
+      %     [A, labs, cats] = ... also returns the category names in the
+      %     the same order as the columns of A.
+      %
+      %     See also SparseLabels/categorical
+      %
+      %     OUT:
+      %       - `arr` (double) -- Numeric array.
+      %       - `labs` (cell array of strings)
+      %       - `cats` (cell array of strings)
+      
+      [arr, labs, cats] = numeric_array( obj, 'double' );
+    end
+    
+    function [arr, labs, cats] = categorical(obj)
+      
+      %   CATEGORICAL -- Convert the object to a categorical array.
+      %
+      %     See also SparseLabels/double
+      %
+      %     OUT:
+      %       - `arr` (/kind/) -- Numeric array.
+      %       - `labs` (cell array of strings)
+      %       - `cats` (cell array of strings)
+      
+      [arr, labs, cats] = double( obj );
+      arr = categorical( arr );
+    end
+    
+    %{
         GET/SET
     %}
     

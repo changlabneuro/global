@@ -1625,7 +1625,23 @@ classdef Container
       %     IN:
       %       - `varargin` (cell array)
       %
-      %     See also Container/for_each
+      %     See also Container/for_each, Container/parfor_each_1d
+      
+      out = parfor_wrapper( obj, @for_each, varargin{:} );
+    end
+    
+    function out = parfor_wrapper(obj, parfor_func, varargin)
+      
+      %   PARFOR_WRAPPER -- Internal function to create subsets of data
+      %     on which to call a `for_each` function in parallel.
+      %
+      %     This function is not intended to be called directly.
+      %
+      %     See also Container/parfor_each, Container/parfor_each_1d
+      %     
+      %     IN:
+      %       - `parfor_func` (function_handle)
+      %       - `varargin` (function_handle, within, etc.)
       
       narginchk( 3, Inf );
       within = Labels.ensure_cell( varargin{1} );
@@ -1678,9 +1694,9 @@ classdef Container
         end
         varargin(1:2) = [];
       else
-        msg = sprintf( ['Expected input #3 to be a ''function_handle''' ...
-          , ' instead was a ''%s'''], class(varargin{2}) );
         assert( nargin > 3, 'Incorrect number of inputs.' );
+        msg = sprintf( ['Expected input #3 to be a ''function_handle''' ...
+          , ' instead was a ''%s'''], class(varargin{3}) );
         assert( isa(varargin{3}, 'function_handle'), msg );
         parlabs = Labels.ensure_cell( varargin{2} );
         Assertions.assert__is_cellstr( parlabs );
@@ -1732,7 +1748,7 @@ classdef Container
           subset = obj;
           row = C_(i, :);
           subset = only( subset, row );
-          subset = for_each( subset, rest, func, varargin{:} );
+          subset = parfor_func( subset, rest, func, varargin{:} );
           subset_out = append( subset_out, subset );
         end
       end
@@ -1922,6 +1938,47 @@ classdef Container
       end
     end
     
+    function obj = parfor_each_1d(obj, varargin)
+      
+      %   PARFOR_EACH_1D -- Execute a function that collapses data across
+      %     the first dimension, for each label combination, in parallel.
+      %
+      %     obj = parfor_each_1d( obj, {'cities', 'states'}, @rowops.mean )
+      %     calculates a mean for each present combination of labels in
+      %     'cities' and 'states'. 
+      %
+      %     If a parpool exists, subsets of combinations are distributed to 
+      %     as many workers as are attached to the current pool, and the
+      %     function is called in parallel for each subset. If no pool
+      %     exists, a pool is not created, and the non-parallel for_each_1d
+      %     function is called instead.
+      %
+      %     Note that unlike for_each_1d, it is not currently possible to
+      %     retrieve the indices and combinations used to select subsets of
+      %     the inputted object `obj`.
+      %
+      %     obj = parfor_each_1d( obj, {'cities', 'states'}, 'cities',
+      %     @rowops.mean ) works as above, but creates subsets for each
+      %     label in 'cities', rather than automatically based on the
+      %     number of present combinations of 'cities' and 'states'. Use
+      %     this syntax if, for example, you know that the number of labels
+      %     in a given field is very close to the number of workers
+      %     available in your system.
+      %
+      %     Specifying 'cities' in this way does not change the output 
+      %     `obj`; it only changes the way subsets of data are distributed 
+      %     to the workers.
+      %
+      %     See also Container/for_each_1d
+      %
+      %     IN:
+      %       - `varargin` (/variable/)
+      %     OUT:
+      %       - `obj` (Container)
+      
+      obj = parfor_wrapper( obj, @for_each_1d, varargin{:} );
+    end
+    
     function [obj, inds, cmbs] = each1d(obj, varargin)
       
       %   EACH1D -- Alias for for_each_1d
@@ -1929,6 +1986,15 @@ classdef Container
       %     See also Container/for_each_1d
       
       [obj, inds, cmbs] = for_each_1d( obj, varargin{:} );
+    end
+    
+    function obj = pareach1d(obj, varargin)
+      
+      %   PAREACH1D -- Alias for parfor_each_1d
+      %
+      %     See also Container/parfor_each_1d
+      
+      obj = parfor_each_1d( obj, varargin{:} );
     end
     
     function [obj, inds, cmbs] = for_each_nd(obj, within, func, varargin)
@@ -3941,6 +4007,8 @@ classdef Container
       %     Labels are stored in                'dset1/labels'
       %     Categories are stored in            'dset1/categories'
       %
+      %     See also Container/h5read
+      %
       %     IN:
       %       - `obj` (Container)
       %       - `fname` (char)
@@ -3972,7 +4040,10 @@ classdef Container
       %
       %     Container.h5append( cont, 'test.h5' ) adds the contents of
       %     `cont` to an existing .h5 file 'test.h5'. An error is thrown if
-      %     the file does not already exist.
+      %     the file does not already exist. The incoming object must be
+      %     compatible with the already-saved object.
+      %
+      %     See also Container/append, Container/h5write
       %
       %     IN:
       %       - `fname` (char) -- File to append to.
