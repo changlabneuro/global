@@ -44,6 +44,20 @@ classdef rowops
   end
   
   methods (Static = true)
+    
+    function y = sum(data)
+      
+      %   SUM -- Sum across the first dimension of data.
+      %
+      %     IN:
+      %       - `data` (double)
+      %     OUT:
+      %       - `y` (double)
+      
+      rowops.assert__valid_type( data );
+      y = sum( data, 1 );
+    end
+    
     function y = sem(data)
       
       %   SEM -- Standard error across the first dimension of data.

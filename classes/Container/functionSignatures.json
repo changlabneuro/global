@@ -1,0 +1,44 @@
+{
+	"only": {
+		"inputs": [
+			{ "name":"object", "kind":"required", "type": "Container" },
+			{ "name":"labels", "kind":"required", "type": "choices=flat_uniques(object)" }
+		]
+	},
+	"except": {
+		"inputs": [
+			{ "name":"object", "kind":"required", "type": "Container" },
+			{ "name":"labels", "kind":"required", "type": "choices=flat_uniques(object)" }
+		]
+	},
+	"remove": {
+		"inputs": [
+			{ "name":"object", "kind":"required", "type": "Container" },
+			{ "name":"labels", "kind":"required", "type": "choices=flat_uniques(object)" }
+		]
+	},
+	"rm": {
+		"inputs": [
+			{ "name":"object", "kind":"required", "type": "Container" },
+			{ "name":"labels", "kind":"required", "type": "choices=flat_uniques(object)" }
+		]
+	},
+	"where": {
+		"inputs": [
+			{ "name":"object", "kind":"required", "type": "Container" },
+			{ "name":"labels", "kind":"required", "type": "choices=flat_uniques(object)" }
+		]
+	},
+	"each1d": {
+		"inputs": [
+			{ "name":"object", 		"kind":"required", "type": "Container" },
+			{ "name":"categories", 	"kind":"required", "type": "choices=categories(object)" }
+		]
+	},
+	"flat_uniques": {
+		"inputs": [
+			{ "name":"object", 		"kind":"required", "type": "Container" },
+			{ "name":"categories", 	"kind":"required", "type": "choices=categories(object)" }
+		]
+	}
+}

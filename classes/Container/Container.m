@@ -382,6 +382,32 @@ classdef Container
       tf = contains( obj.labels, labs );
     end
     
+    function tf = contains_all(obj, labs)
+      
+      %   CONTAINS_ALL -- Return whether all of given labels are present.
+      %
+      %     IN:
+      %       - `labs` (cell array of strings, char)
+      %     OUT:
+      %       - `tf` (logical)
+      
+      tf = contains( obj.labels, labs );
+      tf = all( tf(:) );
+    end
+    
+    function tf = contains_any(obj, labs)
+      
+      %   CONTAINS_ANY -- Return whether any of given labels are present.
+      %
+      %     IN:
+      %       - `labs` (cell array of strings, char)
+      %     OUT:
+      %       - `tf` (logical)
+      
+      tf = contains( obj.labels, labs );
+      tf = any( tf(:) );
+    end
+    
     function tf = contains_fields(obj, fs)
       
       %   CONTAINS_FIELDS -- Return whether the given fields exist.
@@ -528,6 +554,29 @@ classdef Container
       %       - `unqs` (cell array of strings)
       
       unqs = flat_uniques( obj.labels, varargin{:} );
+    end
+    
+    function unqs = uniques_where(obj, field, labs)
+      
+      %   UNIQUES_WHERE -- Return unique labels in a given field associated
+      %     with other selectors.
+      %
+      %     unqs = uniques_where( obj, 'cities', 'CT' ); returns the unique
+      %     labels in 'cities' associated with the label 'CT'. If 'CT' is
+      %     not present in the object, `unqs` is an empty cell array.
+      %
+      %     See also Container/where, Container/subsref
+      %
+      %     IN:
+      %       - `field` (char)
+      %       - `labs` (cell array of strings, char)
+      %     OUT:
+      %       - `unqs` (cell array of strings)
+      
+      assert( ischar(field), 'Field must be a char; was a %s.', class(field) );
+      full_field = full_fields( obj.labels, field );
+      ind = where( obj, labs );
+      unqs = unique( full_field(ind) );
     end
     
     function obj = replace(obj, search_for, with)
@@ -1712,7 +1761,7 @@ classdef Container
       %   call non-parellelized function if no parpool exists.
       if ( isempty(p) )
         warning( 'No parallel pool exists. Using non-parallelized function.' );
-        out = for_each( obj, within, func, varargin{:} );
+        out = parfor_func( obj, within, func, varargin{:} );
         return;
       end
       C = pcombs( obj, first );
@@ -2545,7 +2594,7 @@ classdef Container
       fields = varargin{1};
       obj.data = ones( shape(obj, 1), 1 );
       obj.dtype = class( obj.data );
-      obj = for_each( obj, fields, @sum );
+      obj = for_each_1d( obj, fields, @Container.sum_1d );
     end
     
     function new_obj = counts_of(obj, fields, labs)
@@ -2709,6 +2758,15 @@ classdef Container
         pair{i+1} = labs.(field);
         stp = stp + 1;
       end
+    end
+    
+    function pair = get_field_label_pairs(obj)
+      
+      %   GET_FIELD_LABEL_PAIRS -- Alias for `field_label_pairs()`.
+      %
+      %     See also Container/field_label_pairs
+      
+      pair = field_label_pairs( obj );      
     end
     
     function disp(obj)
@@ -3516,6 +3574,8 @@ classdef Container
 %       assert( eq(obj.labels, B.labels), ...
 %         ['In order to perform operations, the label objects between two Container' ...
 %         , ' objects must match exactly'] );
+      assert( isfield(obj.SUPPORTED_DTYPES, op_kind), ['%s is not a' ...
+        , ' supported binary operation.'], op_kind );
       supports = obj.SUPPORTED_DTYPES.( op_kind );
       assert( any(strcmp(supports, obj.dtype)), ...
         'The ''%s'' operation is not supported with objects of type ''%s''.', ...
@@ -3769,6 +3829,13 @@ classdef Container
       
       N = size( data, 1 );
       y = std( data, [], 1 ) / sqrt( N );
+    end
+    
+    function data = sum_1d(data)
+      
+      %   SUM_1D -- Sum across first dimension.
+      
+      data = sum( data, 1 );
     end
     
     function data = mean_1d(data)
