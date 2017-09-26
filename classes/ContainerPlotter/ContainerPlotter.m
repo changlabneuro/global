@@ -924,6 +924,112 @@ classdef ContainerPlotter < handle
       end
     end
     
+    function h = hist(obj, cont, n_bins, groups_are, panels_are, varargin)
+      
+      %   HIST -- Construct a histogram.
+      %
+      %     hist( cont, 100 ) constructs a histogram of the one-dimensional
+      %     data in `cont`, using 100 bins.
+      %
+      %     hist( cont, 100, 'cities' ) groups data in `cont` by 'cities'.
+      %
+      %     hist( ..., 'states' ) creates separate subplots for each label
+      %     in 'states'
+      %
+      %     h = hist( ... ) returns an array of axis handles to each
+      %     subplot.
+      %
+      %     IN:
+      %       - `cont` (Container)
+      %       - `n_bins` (double)
+      %       - `groups_are` (cell array of strings, char, {}) |OPTIONAL|
+      %       - `panels_are` (cell array of strings, char, {}) |OPTIONAL|
+      %     OUT:
+      %       - `h` (array of graphics handles)
+      
+      obj.params = obj.parse_params_struct( obj.params, varargin{:} );
+      obj.assert__is_container( cont );
+      obj.assert__n_dimensional_data( cont, 2 );
+      obj.assert__data_are_of_size( cont, [], 1 );
+      assert( ~isempty(cont), 'The Container is empty.' );
+      if ( nargin < 5 ), panels_are = {}; end
+      if ( nargin < 4 ), groups_are = {}; end
+      if ( isempty(panels_are) )
+        inds = { true(shape(cont, 1), 1) };
+      else
+        [inds, panel_combs] = get_indices( cont, panels_are );
+        if ( ~isempty(obj.params.order_panels_by) )
+          panel_ind = ...
+            obj.preferred_order_index( panel_combs, obj.params.order_panels_by );
+          inds = inds( panel_ind, : );
+        end
+      end
+      obj.assign_shape( numel(inds) );
+      if ( ~isempty(groups_are) )
+        [~, label_combs] = get_indices( cont, groups_are );
+        if ( ~isempty(obj.params.order_by) )
+          main_order_ind = ...
+            obj.preferred_order_index( label_combs, obj.params.order_by );
+          label_combs = label_combs( main_order_ind, : );
+        end
+        add_legend = obj.params.add_legend;
+      else
+        to_collapse = setdiff( field_names(cont), panels_are );
+        cont = collapse( cont, to_collapse );
+        label_combs = unique( get_fields(cont.labels, to_collapse{1}) );
+        add_legend = false;
+      end
+      h = gobjects( 1, numel(inds) );
+      for i = 1:numel(inds)
+        one_panel = keep( cont, inds{i} );
+        if ( ~isempty(panels_are) )
+          title_labels = ...
+            strjoin( flat_uniques(one_panel.labels, panels_are), ' | ' );
+          title_labels = strrep( title_labels, '_', ' ' );
+        else title_labels = obj.params.title;
+        end
+        h(i) = subplot( obj.params.shape(1), obj.params.shape(2), i );
+        colormap( obj.params.color_map );
+        hold off;
+        legend_items = {};
+        hist_plts = gobjects( 1, size(label_combs, 1) );
+        for k = 1:size(label_combs, 1)
+          per_lab = only( one_panel, label_combs(k, :) );
+          if ( isempty(per_lab) ), continue; end
+          if ( add_legend )
+            legend_items = [ legend_items; strjoin(label_combs(k, :), ' | ') ];
+          end
+          hold on;
+          hist_plts(k) = histogram( h(i), per_lab.data, n_bins );
+          if ( isequal(obj.params.set_colors, 'manual') )
+            if ( k <= numel(obj.params.colors) )
+              current_color = obj.params.color_defs.( obj.params.colors{k} );
+              set( hist_plts(k), 'FaceColor', current_color );
+            end
+          end
+        end
+        current_axis = gca;
+        title( title_labels );
+        if ( add_legend )
+          legend_items = strrep( legend_items, '_', ' ' );
+          legend( h(i), legend_items );
+        end
+        obj.apply_if_not_empty( current_axis );
+      end
+      if ( isempty(obj.params.y_lim) )
+        c_ylims = cell2mat( arrayfun(@(x) get(x, 'ylim'), h, 'un', false) );
+        min_y = min( c_ylims(:, 1), [], 1 );
+        max_y = max( c_ylims(:, 2), [], 1 );
+        arrayfun( @(x) set(x, 'ylim', [min_y, max_y]), h );
+      end
+      if ( isempty(obj.params.x_lim) )
+        c_xlims = cell2mat( arrayfun(@(x) get(x, 'xlim'), h, 'un', false) );
+        min_x = min( c_xlims(:, 1), [], 1 );
+        max_x = max( c_xlims(:, 2), [], 1 );
+        arrayfun( @(x) set(x, 'xlim', [min_x, max_x]), h );
+      end
+    end
+    
     function plot_and_save(obj, cont, within, func, varargin)
       
       %   PLOT_AND_SAVE -- Iteratively call a ContainerPlotter plotting 

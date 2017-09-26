@@ -216,7 +216,7 @@ classdef FigureEdit < handle
       
       obj.assert__figure_defined();
       h_leg = findobj( obj.figure, 'Tag', 'legend' );
-      assert( numel(h_leg) > 0, 'There are no legends to remove.' );
+      if ( numel(h_leg) == 0 ), return; end
       if ( nargin == 1 )
         ind = 1:numel( h_leg );
       else

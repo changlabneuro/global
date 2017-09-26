@@ -3034,6 +3034,39 @@ classdef Container
       [h, pl] = plot_( obj, @plot_by, varargin{:} );
     end
     
+    function [h, pl] = hist(obj, varargin)
+      
+      %   HIST -- Plot data as a histogram.
+      %
+      %     hist( obj, 100 ) constructs a histogram of the one-dimensional
+      %     data in `obj`, using 100 bins.
+      %
+      %     hist( obj, 100, 'cities' ) groups data in `obj` by 'cities'.
+      %
+      %     hist( ..., 'states' ) creates separate subplots for each label
+      %     in 'states'.
+      %
+      %     hist( pl, ... ) uses the ContainerPlotter object `pl`
+      %     to construct the histogram, instead of a new (default)
+      %     ContainerPlotter object. 
+      %
+      %     h = hist( ... ) returns an array of axis handles to each
+      %     subplot.
+      %
+      %     [h, pl] = hist( ... ) also returns the ContainerPlotter object
+      %     used to construct `h`.
+      %
+      %     IN:
+      %       - `cont` (Container)
+      %       - `n_bins` (double)
+      %       - `groups_are` (cell array of strings, char, {}) |OPTIONAL|
+      %       - `panels_are` (cell array of strings, char, {}) |OPTIONAL|
+      %     OUT:
+      %       - `h` (array of graphics handles)
+      
+      [h, pl] = plot_( obj, @hist, varargin{:} );
+    end
+    
     %{
         CONVERSION
     %}
@@ -3416,6 +3449,20 @@ classdef Container
       obj.data = data;
       obj.labels = labels;
       obj.dtype = class( data );
+    end
+    
+    function dat = get_data(obj)
+      
+      %   GET_DATA -- Return the data in the object.
+      
+      dat = obj.data;
+    end
+    
+    function labs = get_labels(obj)
+      
+      %   GET_LABELS -- Return the labels in the object.
+      
+      labs = obj.labels;
     end
     
     function str = get_collapsed_expression(obj)
