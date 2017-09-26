@@ -1017,13 +1017,13 @@ classdef ContainerPlotter < handle
         obj.apply_if_not_empty( current_axis );
       end
       if ( isempty(obj.params.y_lim) )
-        c_ylims = cell2mat( arrayfun(@(x) get(x, 'ylim'), h, 'un', false) );
+        c_ylims = cell2mat( arrayfun(@(x) get(x, 'ylim'), h(:), 'un', false) );
         min_y = min( c_ylims(:, 1), [], 1 );
         max_y = max( c_ylims(:, 2), [], 1 );
         arrayfun( @(x) set(x, 'ylim', [min_y, max_y]), h );
       end
       if ( isempty(obj.params.x_lim) )
-        c_xlims = cell2mat( arrayfun(@(x) get(x, 'xlim'), h, 'un', false) );
+        c_xlims = cell2mat( arrayfun(@(x) get(x, 'xlim'), h(:), 'un', false) );
         min_x = min( c_xlims(:, 1), [], 1 );
         max_x = max( c_xlims(:, 2), [], 1 );
         arrayfun( @(x) set(x, 'xlim', [min_x, max_x]), h );

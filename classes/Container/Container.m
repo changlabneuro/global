@@ -583,7 +583,7 @@ classdef Container
       
       %   REPLACE -- Replace labels in `search_for` with those in `with`.
       %
-      %     See also Labels/replace
+      %     See also SparseLabels/replace
       %
       %     IN:
       %       - `search_for` (cell array of strings, char) -- Labels to
@@ -3449,6 +3449,15 @@ classdef Container
       obj.data = data;
       obj.labels = labels;
       obj.dtype = class( data );
+    end
+    
+    function obj = set_data(obj, data)
+      
+      %   SET_DATA -- Assign data to the object.
+      %
+      %     See also Container/set_property      
+      
+      obj = set_property( obj, 'data', data );
     end
     
     function dat = get_data(obj)
