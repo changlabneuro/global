@@ -952,6 +952,7 @@ classdef ContainerPlotter < handle
       obj.assert__n_dimensional_data( cont, 2 );
       obj.assert__data_are_of_size( cont, [], 1 );
       assert( ~isempty(cont), 'The Container is empty.' );
+      ContainerPlotter.assert__isa( n_bins, 'double', 'the bin size' );
       if ( nargin < 5 ), panels_are = {}; end
       if ( nargin < 4 ), groups_are = {}; end
       if ( isempty(panels_are) )
@@ -1472,6 +1473,26 @@ classdef ContainerPlotter < handle
       %       - `y` (double) -- Vector of the same size as `x`.
       
       y = std( x, [], 1 );
+    end
+    
+    function y = nansem(x, dim)
+      
+      %   SEM -- Standard error of the mean, after removing nans.
+      %
+      %     IN:
+      %       - `x` (double) -- Data.
+      %       - `dim` (double) |OPTIONAL| -- Dimension on which to operate.
+      %         Defaults to 1.
+      %     OUT:
+      %       - `y` (double) -- Std error.
+    
+      if ( nargin < 2 )
+          n = size( x, 1 );
+          y = nanstd( x ) / sqrt( n );
+      else
+          n = size( x, dim );
+          y = nanstd( x, [], dim ) ./ sqrt( n );
+      end
     end
     
     function y = sem(x, dim)

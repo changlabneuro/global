@@ -140,7 +140,8 @@ classdef SparseLabels
       %     OUT:
       %       - `s` (double) -- Dimensions
       
-      if ( isempty(obj) ), s = [0 0]; else s = size( obj.indices ); end;
+%       if ( isempty(obj) ), s = [0 0]; else s = size( obj.indices ); end;
+      s = size( obj.indices );
       if ( nargin < 2 ), return; end;
       s = s( dim );
     end
