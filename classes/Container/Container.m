@@ -261,6 +261,28 @@ classdef Container
       [obj, ind] = remove( obj, selectors );
     end
     
+    function [subset, popped] = pop(obj, selectors)
+      
+      %   POP -- Remove and return a Container subset.
+      %
+      %     [A, B] = pop( obj, 'NY' ) returns a Container object associated
+      %     with the label 'NY' in `A`, and a Container object housing the
+      %     remaining elements of `obj` in `B`. 
+      %
+      %     In this way:
+      %     eq_contents(append(A, B), obj) -> true.
+      %
+      %     IN:
+      %       - `selectors` (cell array of strings, char)
+      %     OUT:
+      %       - `subset` (Container)
+      %       - `popped` (Container)
+      
+      ind = where( obj, selectors );
+      subset = keep( obj, ind );
+      popped = keep( obj, ~ind );
+    end
+    
     function [obj, ind] = only(obj, selectors)
       
       %   ONLY -- Retain elements matching a combination of labels.
@@ -499,6 +521,21 @@ classdef Container
       %       - `c` (cell array of strings)
       
       [~, c] = get_indices( obj, fields );
+    end
+    
+    function N = ncombs(obj, fields)
+      
+      %   NCOMBS -- Return the number of present unique combinations of
+      %     labels.
+      %
+      %     See also Container/pcombs
+      %
+      %     IN:
+      %       - `fields` (cell array of strings, char)
+      %     OUT:
+      %       - `N` (double)
+      
+      N = size( pcombs(obj, fields), 1 );
     end
     
     function [indices, comb] = get_indices(obj, fields)
