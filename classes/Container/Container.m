@@ -633,6 +633,21 @@ classdef Container
       obj.labels = replace( obj.labels, search_for, with );
     end
     
+    function obj = set_field(obj, varargin)
+      
+      %   SET_FIELD -- Set the contents of a given field of labels.
+      %
+      %     obj = set_field( obj, 'days', 'today' ); sets all labels in the
+      %     field 'days' to 'today'.
+      %
+      %     See also SparseLabels/set_field
+      %
+      %     IN:
+      %       - `varargin`
+      
+      obj.labels = set_field( obj.labels, varargin{:} );
+    end
+    
     function obj = rename_field(obj, old, new)
       
       %   RENAME_FIELD -- Replace old field / category name with new name.
@@ -1373,6 +1388,7 @@ classdef Container
       %       - `obj` (Container) -- object with `B` appended.
       
       Assertions.assert__isa( B, 'Container' );
+      if ( isempty(B) ), return; end
       if ( isempty(obj) ), obj = B; return; end
       assert__columns_match( obj, B );
       assert__dtypes_match( obj, B );

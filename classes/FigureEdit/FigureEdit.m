@@ -234,6 +234,7 @@ classdef FigureEdit < handle
       
       obj.assert__figure_defined();
       n_axes = numel( obj.get_axes() );
+      if ( n_axes == 1 ), return; end
       obj.remove_legend( 1:n_axes-1 );
     end
     
@@ -621,7 +622,7 @@ classdef FigureEdit < handle
       %       - `N` (double) |SCALAR| -- Number of elements in the
       %         to-be-indexed array.
       
-      assert( max(inds) <= N && min(inds) > 0, ['Expected' ...
+      assert( max(inds(:)) <= N && min(inds(:)) > 0, ['Expected' ...
         , ' the supplied index to contain elements greater than 0' ...
         , ' and at most %d.'], N );
     end

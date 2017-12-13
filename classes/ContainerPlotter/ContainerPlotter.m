@@ -15,6 +15,7 @@ classdef ContainerPlotter < handle
       , 'x_tick_label', [] ...
       , 'y_tick_label', [] ...
       , 'add_legend', true ...
+      , 'one_legend', false ...
       , 'title', [] ...
       , 'shape', [] ...
       , 'bins', [] ...
@@ -347,6 +348,15 @@ classdef ContainerPlotter < handle
         else
           h{i} = func( means, plot_opts{:} );
         end
+        %   store objects in UserData of bars / lines
+        if ( strcmp(h{i}(1).Type, 'bar') )
+          
+          for idx = 1:numel(h{i})
+            obj_index = h{i}(idx).XData;
+            h{i}(idx).UserData = store_objs(obj_index, idx);
+          end
+          
+        end
         %   store newest maxs + mins
         summed = means + errors;
         subbed = means - errors;
@@ -390,7 +400,10 @@ classdef ContainerPlotter < handle
         if ( add_legend )
           legend_items = cellfun( @(x) strrep(x, '_', ' '), legend_items ...
             , 'un', false );
-          legend( legend_items );
+          should_add = ~obj.params.one_legend || i == numel(inds);
+          if ( should_add )
+            legend( legend_items );
+          end
         end
         obj.apply_if_not_empty( current_axis );
       end  
