@@ -2765,10 +2765,14 @@ classdef Container
         s = builtin( 'struct', varargin{:} );
         return;
       else
-        narginchk( 1, 1 );
+        narginchk( 1, 2 );
         obj = varargin{1};
+        should_convert = true;
+        if ( numel(varargin) == 2 )
+          should_convert = varargin{2};
+        end
       end
-      if ( obj.LABELS_ARE_SPARSE )
+      if ( should_convert && obj.LABELS_ARE_SPARSE )
         obj = full( obj );
       end
       s = struct();
@@ -3728,6 +3732,29 @@ classdef Container
       %   make sure the dimensions are compatible
       assert( size(data, 1) == shape(labels, 1), ...
         'Data must have the same number of rows as labels.' );
+    end
+    
+    function A = try_match(a, b)
+      
+      %   TRY_MATCH -- Match the contents of A to B.
+      
+      Assertions.assert__isa( a, 'Container' );
+      Assertions.assert__isa( b, 'Container' );
+      
+      shared_categories = intersect( categories(a), categories(b) );
+      
+      if ( isempty(shared_categories) )
+        A = only( a, {} );
+        return;
+      end
+      
+      A = a;
+      
+      for i = 1:numel(shared_categories)
+        unqs = flat_uniques( b, shared_categories{i} );
+        A = only( A, unqs );
+        if ( isempty(A) ), return; end
+      end
     end
     
     function catted = concat(arr)

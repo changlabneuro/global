@@ -1906,6 +1906,19 @@ classdef SparseLabels
       arr = categorical( arr );
     end
     
+    function s = label_struct(obj)
+      
+      %   LABEL_STRUCT -- Convert the object to a struct.
+      %
+      %     OUT:
+      %       - `s` (struct)
+      
+      s = struct();
+      s.indices = obj.indices;
+      s.categories = obj.categories;
+      s.labels = obj.labels;
+    end
+    
     %{
         GET/SET
     %}
@@ -2047,6 +2060,37 @@ classdef SparseLabels
       end
       labels = cellfun( @(x) x(:), labels, 'un', false );
       obj = SparseLabels( cell2struct(labels, fs, 2) );
+    end
+    
+    function obj = from_label_struct(s)
+      
+      %   FROM_LABEL_STRUCT -- Instantiate a SparseLabels object from a
+      %     struct with labels, categories, and indices fields.
+      %
+      %     IN:
+      %       - `s` (struct)
+      %     OUT:
+      %       - `obj` (SparseLabels)
+      
+      assert( isa(s, 'struct'), 'Input must be struct; was "%s".', class(s) );
+      required_fields = { 'labels', 'indices', 'categories' };
+      for i = 1:numel(required_fields)
+        if ( ~isfield(s, required_fields{i}) )
+          error( 'Invalid struct input: missing field "%s".', required_fields{i} );
+        end
+      end
+      assert( iscellstr(s.labels), '"labels" field must be a cell array of strings.' );
+      assert( iscellstr(s.categories), '"categories" field must be a cell array of strings.' );
+      assert( isa(s.indices, 'logical'), '"indices" field must be a logical array.' );
+      assert( numel(s.labels) == numel(s.categories), ['Number of "categories"' ...
+        , ' must match number of "labels".'] );
+      assert( size(s.indices, 2) == numel(s.categories), ['Number of "categories"' ...
+        , ' must match the number of columns in "indices".'] );
+      %   we're ok!
+      obj = SparseLabels();
+      obj.labels = s.labels(:);
+      obj.categories = s.categories(:);
+      obj.indices = sparse( s.indices );
     end
     
     function obj = convert_struct_input_to_labels(s)
