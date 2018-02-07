@@ -3730,8 +3730,12 @@ classdef Container
         end
       end
       %   make sure the dimensions are compatible
-      assert( size(data, 1) == shape(labels, 1), ...
-        'Data must have the same number of rows as labels.' );
+      if ( shape(labels, 1) == 1 )
+        labels = repeat( labels, size(data, 1) );
+      else
+        assert( size(data, 1) == shape(labels, 1), ['Labels must have' ...
+          , ' the same number of rows as data, or else have a single row.'] );
+      end
     end
     
     function A = try_match(a, b)
