@@ -3517,6 +3517,15 @@ classdef Container
       obj = set_property( obj, 'data', data );
     end
     
+    function obj = set_labels(obj, labels)
+      
+      %   SET_LABELS -- Assign labels to the object.
+      %
+      %     See also Container/set_property    
+      
+      obj = set_property( obj, 'labels', labels );
+    end
+    
     function dat = get_data(obj)
       
       %   GET_DATA -- Return the data in the object.
