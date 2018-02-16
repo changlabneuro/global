@@ -931,6 +931,20 @@ classdef SparseLabels
       obj.indices(:, empties) = [];
     end
     
+    function obj = one(obj)
+      
+      %   ONE -- Obtain a single row.
+      %
+      %     newobj = one( obj ); returns a 1xN SparseLabels whose 
+      %     labels are like those of `obj`, except that the non-uniform 
+      %     fields of `obj` are collapsed.
+      %
+      %     See also SparseLabels/keep
+      
+      obj = collapse_non_uniform( obj );
+      obj = numeric_index( obj, 1 );
+    end
+    
     function obj = numeric_index(obj, ind)
       
       %   NUMERIC_INDEX -- Apply a numeric index to the object.
