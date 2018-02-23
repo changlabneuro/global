@@ -10,6 +10,8 @@ classdef ContainerPlotter < handle
       , 'x_label', [] ...
       , 'y_label', [] ...
       , 'x_tick_rotation', 60 ...
+      , 'add_smoothing', false ...
+      , 'smooth_function', @ContainerPlotter.no_op ...
       , 'error_function', @ContainerPlotter.sem_1d ...
       , 'summary_function', @mean ...
       , 'x_tick_label', [] ...
@@ -391,7 +393,7 @@ classdef ContainerPlotter < handle
             end
           end
           hold off;
-        end
+        end        
         set( gca, 'xtick', 1:numel(labs) );
         ticklabs = cellfun( @(x) strrep(x, '_', ' '), labs, 'un', false );
         set( gca, 'xticklabel', ticklabs );
@@ -417,6 +419,17 @@ classdef ContainerPlotter < handle
         maxs = max( cellfun(@(x) x(2), lims) );
         linkaxes( subp, 'y' );
         ylim( subp(1), [mins, maxs] );
+      end
+      %   add vertical lines
+      if ( ~isempty(obj.params.vertical_lines_at) )
+        for j = 1:numel(subp)
+          ylims = get( subp(j), 'ylim' );
+          set( subp(j), 'nextplot', 'add' );
+          for k = 1:numel(obj.params.vertical_lines_at)
+            line_at = obj.params.vertical_lines_at(k);
+            plot( subp(j), [line_at; line_at], ylims(:) );
+          end
+        end
       end
       %   data cursor handling
       function txt = event_response(response_obj, event_obj)
@@ -654,10 +667,19 @@ classdef ContainerPlotter < handle
             legend_items = [ legend_items; strjoin(label_combs(k, :), ' | ') ];
           end
           means = obj.params.summary_function( per_lab.data, 1 );
+          if ( obj.params.add_smoothing )
+            means = obj.params.smooth_function( means );
+          end
           if ( shape(per_lab, 1) == 1 )
             errors = 0;
-          else errors = obj.params.error_function( per_lab.data );
+          else
+            errors = obj.params.error_function( per_lab.data );
           end
+          
+          if ( obj.params.add_smoothing )
+            errors = obj.params.smooth_function( errors );
+          end
+          
           main_line_width = obj.params.main_line_width;
           switch ( obj.params.plot_function_type )
             case 'plot'
@@ -1526,6 +1548,12 @@ classdef ContainerPlotter < handle
           n = size( x, dim );
           y = std( x, [], dim ) ./ sqrt( n );
       end
+    end
+    
+    function x = no_op(x)
+      
+      %   NO_OP -- No operation.
+      
     end
     
     function adj_p = fdr_bh(pvals)
