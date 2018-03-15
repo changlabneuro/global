@@ -1933,6 +1933,19 @@ classdef SparseLabels
       s.labels = obj.labels;
     end
     
+    function [m, f] = label_mat(obj)
+      
+      %   LABEL_MAT -- Convert the object to cellstr matrix.
+      %
+      %     OUT:
+      %       - `m` (cellstr)
+      %       - `f` (cellstr) -- Field names.
+      
+      labs = full( obj );
+      m = labs.labels;
+      f = labs.fields;
+    end
+    
     %{
         GET/SET
     %}
