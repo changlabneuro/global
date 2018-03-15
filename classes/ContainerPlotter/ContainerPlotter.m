@@ -669,6 +669,7 @@ classdef ContainerPlotter < handle
           means = obj.params.summary_function( per_lab.data, 1 );
           if ( obj.params.add_smoothing )
             means = obj.params.smooth_function( means );
+            means = means(:)';
           end
           if ( shape(per_lab, 1) == 1 )
             errors = 0;
@@ -678,6 +679,7 @@ classdef ContainerPlotter < handle
           
           if ( obj.params.add_smoothing )
             errors = obj.params.smooth_function( errors );
+            errors = errors(:)';
           end
           
           main_line_width = obj.params.main_line_width;
