@@ -1165,6 +1165,49 @@ classdef SparseLabels
       c(remove,:) = [];
     end
     
+    function [I, C] = fget_indices(obj, cats)
+      
+      cats = SparseLabels.ensure_cell( cats );
+      arr = zeros( [size(obj.indices, 1), numel(cats)], 'uint32' );
+      offset = 0;
+      
+      map = multimap();
+      
+      for i = 1:numel(cats)
+        cat = cats{i};
+        cat_ind = strcmp( obj.categories, cat );
+        
+        if ( ~any(cat_ind) )
+          error( 'The category "%s" does not exist.', cat );
+        end
+        
+        labs = obj.labels( cat_ind );
+        for j = 1:numel(labs)
+          ind = strcmp( obj.labels, labs{j} );
+          lab_id = uint32( j + offset );
+          arr( obj.indices(:, ind), i ) = lab_id;
+          set( map, labs{j}, lab_id );
+        end
+        offset = offset + j;
+      end
+      
+      [num_c, ~, ib] = unique( arr, 'rows' );
+      I = accumarray( ib, uint64((1:numel(ib))'), [], @(rows) {sort(rows)} );
+      
+      N = shape( obj, 1 );
+      
+      I = fast_assign_true( I, N );
+      
+      if ( nargout == 1 )
+        destroy( map );
+        return;
+      end
+      
+      C = get( map, num_c );
+      
+      destroy( map );
+    end
+    
     function [I, C] = rget_indices(obj, cats)
       
       %   RGET_INDICES -- Get indices of label combinations, recursively.
