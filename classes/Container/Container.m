@@ -4091,13 +4091,12 @@ classdef Container
     
     function obj = create_from(obj)
       
-      %   CREATE_FROM -- create a Container from another class of object.
-      %     Currently, only `DataObject`s are supported.
+      %   CREATE_FROM -- Create Container from compatible source
       %
       %     IN:
-      %       - `obj` (DataObject) -- object to convert
+      %       - `obj` (labeled, DataObject)
       %     OUT:
-      %       - `obj` (Container) -- converted object
+      %       - `obj` (Container)
       
       if ( isa(obj, 'DataObject') )
         obj = Container( obj.data, obj.labels ); 
