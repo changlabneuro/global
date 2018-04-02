@@ -4100,7 +4100,12 @@ classdef Container
       %       - `obj` (Container) -- converted object
       
       if ( isa(obj, 'DataObject') )
-        obj = Container( obj.data, obj.labels ); return;
+        obj = Container( obj.data, obj.labels ); 
+        return;
+      end
+      if ( isa(obj, 'labeled') )
+        obj = Container( obj.data, SparseLabels.from_fcat(getlabels(obj)) );
+        return;
       end
       error( 'Cannot create a Container from type ''%s''', class(obj) );
     end

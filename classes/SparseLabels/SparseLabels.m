@@ -2132,6 +2132,42 @@ classdef SparseLabels
       obj = SparseLabels( cell2struct(labels, fs, 2) );
     end
     
+    function s = from_fcat(f)
+      
+      %   FROM_FCAT -- Convert to SparseLabels from fcat.
+      %
+      %     IN:
+      %       - `f` (fcat)
+      %     OUT:
+      %       - `s` (SparseLabels)
+      
+      assert( isa(f, 'fcat'), 'Input must be an fcat; was "%s".', class(f) );
+      
+      f = prune( copy(f) );
+      c = getcats( f );
+      l = getlabs( f );
+      
+      inds = false( size(f, 1), numel(l) );
+      cats = cell( numel(l), 1 );
+      labs = l(:);
+      
+      for i = 1:numel(c)
+        c_labs = incat( f, c{i} );
+        
+        for j = 1:numel(c_labs)
+          lab = c_labs{j};
+          lab_ind = strcmp( labs, lab );
+          inds(find(f, lab), lab_ind) = true;
+          cats{lab_ind} = c{i};
+        end
+      end
+      
+      s = SparseLabels();
+      s.indices = sparse( inds );
+      s.labels = labs;
+      s.categories = cats;
+    end
+    
     function obj = from_label_struct(s)
       
       %   FROM_LABEL_STRUCT -- Instantiate a SparseLabels object from a
