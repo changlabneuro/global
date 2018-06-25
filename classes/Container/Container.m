@@ -2845,7 +2845,7 @@ classdef Container
       ccls = class( obj );
       lcls = class( obj.labels );
       if ( desktop_exists )
-        link_str = '<a href="matlab:helpPopup %s/%s">%s</a>';
+        link_str = '<a href="matlab:helpPopup %s/%s" style="font-weight:bold">%s</a>';
         class_str = sprintf( link_str, ccls, ccls, ccls );
         lclass_str = sprintf( link_str, lcls, lcls, lcls );
       else
